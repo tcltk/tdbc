@@ -1,0 +1,18 @@
+2008-05-01  Kevin B. Kenny  <kennykb@acm.org>
+	
+	* tdbcodbc/Makefile.in:
+	* tdbcodbc/TODO:
+	* tdbcodbc/aclocal.m4:
+	* tdbcodbc/configure:
+	* tdbcodbc/configure.in:
+	* tdbcodbc/generic/tdbcodbc.c:
+	* tdbcodbc/library/tdbcodbc.tcl:
+	* tdbcodbc/tclconfig/ChangeLog:
+	* tdbcodbc/tclconfig/README.txt:
+	* tdbcodbc/tclconfig/install-sh:
+	* tdbcodbc/tclconfig/tcl.m4:
+	* tdbcodbc/tests/all.tcl:
+	* tdbcodbc/tests/tdbcodbc.test:
+	* tdbcodbc/tests/test.mdb:
+	Initial commit of a 'tdbcodbc' package that provides a reference
+	implementation of a TDBC driver layered atop ODBC.
