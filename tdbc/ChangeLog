@@ -1,0 +1,26 @@
+2008-04-30  Kevin B. Kenny  <kennykb@acm.org>
+
+	* aclocal.m4:
+	* configure:
+	* configure.in:
+	* license.terms:
+	* Makefile.in:
+	* tdbcConfig.sh.in:
+	* generic/tdbc.c:
+	* generic/tdbc.decls:
+	* generic/tdbc.h:
+	* generic/tdbcDecls.h:
+	* generic/tdbcInt.h:
+	* generic/tdbcStubInit.c:
+	* generic/tdbcStubLib.c:
+	* generic/tdbcTokenize.c:
+	* library/tdbc.tcl:
+	* tclconfig/ChangeLog:
+	* tclconfig/install-sh:
+	* tclconfig/README.txt:
+	* tclconfig/tcl.m4:
+	* tests/all.tcl:
+	* tests/tokenize.test:
+	* tools/genStubs.tcl:
+	Initial commit of the "tdbc" package - the generic base class support
+	for Tcl Data Base Connectivity (TDBC) - TIP #308.
