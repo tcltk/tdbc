@@ -114,8 +114,9 @@ oo::class create ::tdbc::connection {
     method prepare {sqlCode} {
 	my variable statementClass
 	my variable statementSeq
-	return [$statementClass create Stmt::[incr statementSeq] \
+	set result [$statementClass create Stmt::[incr statementSeq] \
 		    [self] $sqlCode]
+	return $result
     }
 
     # Derived classes are expected to implement the 'prepareCall' method,
