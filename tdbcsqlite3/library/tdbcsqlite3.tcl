@@ -43,7 +43,16 @@ namespace eval tdbc::sqlite3 {
     # The 'tables' method introspects on the tables in the database.
 
     method tables {{pattern %}} {
-	return -code error {not yet implemented}
+	set retval {}
+	my foreach row {
+	    SELECT * from sqlite_master
+	    WHERE type IN ('table', 'view')
+	    AND name LIKE :pattern
+	} {
+	    dict set row name [string tolower [dict get $row name]]
+	    dict set retval [dict get $row name] $row
+	}
+	return $retval
     }
 
     # The 'columns' method introspects on columns of a table.

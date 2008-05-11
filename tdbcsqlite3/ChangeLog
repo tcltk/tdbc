@@ -1,8 +1,8 @@
-2008-05-15  Kevin B. Kenny  <kennykb@acm.org>
+2008-05-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* ChangeLog: Added a change log.
-	* library/tdbcsqlite3.tcl: Added the 'columns method for schema
-	introspection.
+	* library/tdbcsqlite3.tcl: Added the 'columns' and 'tables'
+	methods for schema introspection.
 	* tests/tdbcsqlite3.test: Removed some superfluous debugging print.
 	Renumbered tdbcsqlite3-9.9. Corrected the tests for column
 	types to match SQLite's view of the world.
