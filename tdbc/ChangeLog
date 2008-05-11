@@ -1,3 +1,10 @@
+2008-05-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* library/tdbc.tcl: Simplified processing of several callbacks
+	by eliminating a useless [namespace code my] in favor of [self].
+	Added tracing to attempt to track down a bug in oo's method
+	resolution.
+	
 2008-04-30  Kevin B. Kenny  <kennykb@acm.org>
 
 	* aclocal.m4:

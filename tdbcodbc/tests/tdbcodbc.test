@@ -977,7 +977,7 @@ test tdbcodbc-9.8 {stmt foreach -as lists} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbc-9.9 {db foreach -as lists} {*}{
+test tdbcodbc-9.9 {db foreach -as lists} {*}{
     -body {
 	set result {}
 	db foreach -as lists row {

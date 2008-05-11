@@ -620,8 +620,6 @@ test tdbcsqlite3-8.1 {nextrow - as dicts} {*}{
 	set names {}
 	while {[$rs nextrow -- row]} {
 	    if {$idnum != [dict get $row idnum]} {
-		binary scan [dict get $row idnum] c* v; puts $v
-		binary scan [dict get $row name] c* v; puts $v
 		error [list bad idnum [dict get $row idnum] should be $idnum]
 	    }
 	    lappend names [dict get $row name]
@@ -898,7 +896,7 @@ test tdbcsqlite3-9.8 {stmt foreach -as lists} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbc-9.9 {db foreach -as lists} {*}{
+test tdbcsqlite3-9.9 {db foreach -as lists} {*}{
     -body {
 	set result {}
 	db foreach -as lists row {
@@ -2438,7 +2436,7 @@ test tdbcsqlite3-17.4 {database columns - match pattern} {*}{
 	}
 	set result
     }
-    -result {idnum integer 10 0 1 info integer 10 0 1}
+    -result {idnum integer 0 0 1 info integer 0 0 1}
 }
 
 test tdbcsqlite3-18.1 {$statement params - excess arg} {*}{
@@ -2501,7 +2499,7 @@ test tdbcsqlite3-18.3 {$statement params - excess arg} {*}{
     -cleanup {
 	rename $s {}
     }
-    -result {in numeric 10 0 in varchar 40}
+    -result {in Tcl_Obj 0 0 in Tcl_Obj 0}
 }
 
 #-------------------------------------------------------------------------------

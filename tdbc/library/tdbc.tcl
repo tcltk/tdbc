@@ -16,6 +16,13 @@ package require TclOO
 namespace eval ::tdbc {
     namespace export connection statement resultset
 }
+
+# TEMP - Allow for tracing
+
+proc tdbc::puts args {
+    uplevel 1 [list ::puts [uplevel 1 subst $args]]
+}
+proc tdbc::puts args {}
 
 #------------------------------------------------------------------------------
 #
@@ -164,13 +171,6 @@ oo::class create ::tdbc::connection {
 	return -options $options $result
     }
 
-    # Change from the TIP:
-    #
-    # $db allrows ?-as lists|dicts? ?-columnsvariable varName? ?--?
-    #	sql ?dictionary?
-    # $db foreach ?-as lists|dicts? ?-columnsVariable varName? ?--?
-    #   varName sql ?dictionary? script
-
     # The 'allrows' method prepares a statement, then executes it with
     # a given set of substituents, returning a list of all the rows
     # that the statement returns. Optionally, it stores the names of
@@ -181,13 +181,20 @@ oo::class create ::tdbc::connection {
 
     method allrows args {
 
+	tdbc::puts {Entering ::tdbc::connection::allrows}
+	tdbc::puts {Class == [self class]}
+	tdbc::puts {Call == [info level 0]}
+	if {[info level] > 1} {
+	    tdbc::puts {Caller is [info level -1]}
+	}
+
 	# Grab keyword-value parameters
 
 	set args [::tdbc::ParseConvenienceArgs $args[set args {}] opts]
 
 	# Check postitional parameters 
 
-	set cmd [list {*}[namespace code my] prepare]
+	set cmd [list [self] prepare]
 	if {[llength $args] == 1} {
 	    set sqlcode [lindex $args 0]
 	} elseif {[llength $args] == 2} {
@@ -205,7 +212,7 @@ oo::class create ::tdbc::connection {
 
 	# Delegate to the statement to accumulate the results
 
-	set cmd [list {*}[namespace code $stmt] allrows {*}$opts --]
+	set cmd [list $stmt allrows {*}$opts --]
 	if {[info exists dict]} {
 	    lappend cmd $dict
 	}
@@ -239,7 +246,7 @@ oo::class create ::tdbc::connection {
 
 	# Check postitional parameters 
 
-	set cmd [list {*}[namespace code my] prepare]
+	set cmd [list [self] prepare]
 	if {[llength $args] == 3} {
 	    lassign $args varname sqlcode script
 	} elseif {[llength $args] == 4} {
@@ -257,7 +264,7 @@ oo::class create ::tdbc::connection {
 
 	# Delegate to the statement to iterate over the results
 
-	set cmd [list {*}[namespace code $stmt] foreach {*}$opts -- $varname]
+	set cmd [list $stmt foreach {*}$opts -- $varname]
 	if {[info exists dict]} {
 	    lappend cmd $dict
 	}
@@ -317,10 +324,11 @@ oo::class create tdbc::statement {
     method execute args {
 	my variable resultSetClass
 	my variable resultSetSeq
+	set name [namespace current]::ResultSet::[incr resultSetSeq]
+	tdbc::puts {tdbc::statement::execute:
+	    Making an instance of $resultSetClass called $name}
 	return [uplevel 1 \
-		    [list $resultSetClass create \
-			 [namespace current]::ResultSet::[incr resultSetSeq] \
-			 [self] {*}$args]]
+		    [list $resultSetClass create $name [self] {*}$args]]
     }
 
     # The 'resultsets' method returns a list of result sets produced by
@@ -342,13 +350,20 @@ oo::class create tdbc::statement {
 
     method allrows args {
 
+	tdbc::puts {Entering ::tdbc::statement::allrows}
+	tdbc::puts {Class == [self class]}
+	tdbc::puts {Call == [info level 0]}
+	if {[info level] > 1} {
+	    tdbc::puts {Caller is [info level -1]}
+	}
+
 	# Grab keyword-value parameters
 
 	set args [::tdbc::ParseConvenienceArgs $args[set args {}] opts]
 
 	# Check postitional parameters 
 
-	set cmd [list {*}[namespace code my] execute]
+	set cmd [list [self] execute]
 	if {[llength $args] == 0} {
 	    # do nothing
 	} elseif {[llength $args] == 1} {
@@ -403,7 +418,7 @@ oo::class create tdbc::statement {
 	
 	# Check positional parameters
 
-	set cmd [list {*}[namespace code my] execute]
+	set cmd [list [self] execute]
 	if {[llength $args] == 2} {
 	    lassign $args varname script
 	} elseif {[llength $args] == 3} {
@@ -470,6 +485,13 @@ oo::class create tdbc::resultset {
     # result set returns.
 
     method allrows args {
+
+	tdbc::puts {Entering ::tdbc::resultset::allrows}
+	tdbc::puts {Class == [self class]}
+	tdbc::puts {Call == [info level 0]}
+	if {[info level] > 1} {
+	    tdbc::puts {Caller is [info level -1]}
+	}
 
 	# Parse args
 

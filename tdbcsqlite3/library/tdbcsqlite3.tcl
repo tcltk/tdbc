@@ -49,7 +49,45 @@ namespace eval tdbc::sqlite3 {
     # The 'columns' method introspects on columns of a table.
 
     method columns {table {pattern %}} {
-	return -code error {not yet implemented}
+	regsub -all ' $table '' table
+	set retval {}
+	set pattern [string map [list \
+				     * {[*]} \
+				     ? {[?]} \
+				     \[ \\\[ \
+				     \] \\\[ \
+				     _ ? \
+				     % *] [string tolower $pattern]]
+	my foreach origrow "PRAGMA table_info('$table')" {
+	    set row {}
+	    dict for {key value} $origrow {
+		dict set row [string tolower $key] $value
+	    }
+	    dict set row name [string tolower [dict get $row name]]
+	    if {![string match $pattern [dict get $row name]]} {
+		continue
+	    }
+	    switch -regexp -matchvar info [dict get $row type] {
+		{^(.+)\(\s*([[:digit:]]+)\s*,\s*([[:digit:]]+)\s*\)\s*$} {
+		    dict set row type [string tolower [lindex $info 1]]
+		    dict set row precision [lindex $info 2]
+		    dict set row scale [lindex $info 3]
+		}
+		{^(.+)\(\s*([[:digit:]]+)\s*\)\s*$} {
+		    dict set row type [string tolower [lindex $info 1]]
+		    dict set row precision [lindex $info 2]
+		    dict set row scale 0
+		}
+		default {
+		    dict set row type [string tolower [dict get $row type]]
+		    dict set row precision 0
+		    dict set row scale 0
+		}
+	    }
+	    dict set row nullable [expr {![dict get $row notnull]}]
+	    dict set retval [dict get $row name] $row
+	}
+	return $retval
     }
 
     # The 'preparecall' method prepares a call to a stored procedure.

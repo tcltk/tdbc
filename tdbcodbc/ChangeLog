@@ -1,3 +1,7 @@
+2008-05-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tests/tdbcodbc.test (tdbcodbc-9.9): Corrected invalid test numbering.
+	
 2008-05-01  Kevin B. Kenny  <kennykb@acm.org>
 	
 	* tdbcodbc/Makefile.in:
