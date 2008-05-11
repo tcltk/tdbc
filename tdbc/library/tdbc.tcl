@@ -22,7 +22,7 @@ namespace eval ::tdbc {
 proc tdbc::puts args {
     uplevel 1 [list ::puts [uplevel 1 subst $args]]
 }
-proc tdbc::puts args {}
+#proc tdbc::puts args {}
 
 #------------------------------------------------------------------------------
 #
@@ -183,6 +183,7 @@ oo::class create ::tdbc::connection {
 
 	tdbc::puts {Entering ::tdbc::connection::allrows}
 	tdbc::puts {Class == [self class]}
+	tdbc::puts {Instance == [self]}
 	tdbc::puts {Call == [info level 0]}
 	if {[info level] > 1} {
 	    tdbc::puts {Caller is [info level -1]}
@@ -239,6 +240,14 @@ oo::class create ::tdbc::connection {
     #         varName sql ?dictionary? script
 
     method foreach args {
+
+	tdbc::puts {Entering ::tdbc::connection::foreach}
+	tdbc::puts {Class == [self class]}
+	tdbc::puts {Instance == [self]}
+	tdbc::puts {Call == [info level 0]}
+	if {[info level] > 1} {
+	    tdbc::puts {Caller is [info level -1]}
+	}
 
 	# Grab keyword-value parameters
 
@@ -352,6 +361,7 @@ oo::class create tdbc::statement {
 
 	tdbc::puts {Entering ::tdbc::statement::allrows}
 	tdbc::puts {Class == [self class]}
+	tdbc::puts {Instance == [self]}
 	tdbc::puts {Call == [info level 0]}
 	if {[info level] > 1} {
 	    tdbc::puts {Caller is [info level -1]}
@@ -411,6 +421,13 @@ oo::class create tdbc::statement {
     #		variableName ?dictionary? script
 
     method foreach args {
+
+	tdbc::puts {Entering ::tdbc::statement::foreach}
+	tdbc::puts {Class == [self class]}
+	tdbc::puts {Call == [info level 0]}
+	if {[info level] > 1} {
+	    tdbc::puts {Caller is [info level -1]}
+	}
 
 	# Grab keyword-value parameters
 
@@ -526,6 +543,13 @@ oo::class create tdbc::resultset {
     # make 'uplevel' as fast as evaluating a 'proc'.
 
     method foreach args {
+
+	tdbc::puts {Entering ::tdbc::resultset::foreach}
+	tdbc::puts {Class == [self class]}
+	tdbc::puts {Call == [info level 0]}
+	if {[info level] > 1} {
+	    tdbc::puts {Caller is [info level -1]}
+	}
 
 	# Grab keyword-value parameters
 

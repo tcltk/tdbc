@@ -327,8 +327,19 @@ namespace eval tdbc::sqlite3 {
     # Return the next row of the result set
 
     method nextrow args {
+
 	my variable Cursor
 	my variable results
+
+	tdbc::puts {Entering ::tdbc::sqlite3::resultset::nextrow}
+	tdbc::puts {Class == [self class]}
+	tdbc::puts {Instance == [self]}
+	tdbc::puts {Call == [info level 0]}
+	if {[info level] > 1} {
+	    tdbc::puts {Caller is [info level -1]}
+	}
+	tdbc::puts {Variables: [info object vars [self]]}
+
 	set as dicts
 	set i 0
 
