@@ -22,7 +22,7 @@ namespace eval ::tdbc {
 proc tdbc::puts args {
     uplevel 1 [list ::puts [uplevel 1 subst $args]]
 }
-#proc tdbc::puts args {}
+proc tdbc::puts args {}
 
 #------------------------------------------------------------------------------
 #

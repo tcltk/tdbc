@@ -1,3 +1,7 @@
+2008-05-13  Kevin B. Kenny  <kennykb@acm.org>
+
+	* library/tdbc.tcl: Silenced tracing.
+	
 2008-05-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* library/tdbc.tcl: Simplified processing of several callbacks

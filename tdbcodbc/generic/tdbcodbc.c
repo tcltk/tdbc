@@ -2000,8 +2000,6 @@ TablesStatementInitMethod(
      */
 
     sdata->nativeSqlW = GetWCharStringFromObj(objv[3], &(sdata->nativeSqlLen));
-    sdata->nativeMatchPatternW =
-	GetWCharStringFromObj(objv[4], &(sdata->nativeMatchPatLen));
     sdata->flags |= STATEMENT_FLAG_TABLES;
 
     /* Attach the current statement data as metadata to the current object */
@@ -2910,7 +2908,8 @@ ResultSetNextrowMethod(
 	    }
 	    if (colLen >= 0) {
 		Tcl_DStringInit(&colDS);
-		Tcl_ExternalToUtfDString(NULL, colW, colLen, &colDS);
+		Tcl_ExternalToUtfDString(NULL, (char*) colW, (int)colLen,
+					 &colDS);
 		colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
 					  Tcl_DStringLength(&colDS));
 		Tcl_DStringFree(&colDS);

@@ -23,7 +23,7 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
 set testdir [makeDirectory tdbctest]
 set testFileName test.db
 set testDBName [file join $testdir $testFileName]
-tcltest::testConstraint sqlite 1
+catch {file delete -force $testDBName}
 
 #-------------------------------------------------------------------------------
 
@@ -52,6 +52,7 @@ test tdbcsqlite3-1.3 {create a connection, failure} {*}{
 	} result]
 	list $status $result
     }
+    -cleanup {catch {rename db {}}}
     -match glob
     -result {1 {unable to open database file}}
 }

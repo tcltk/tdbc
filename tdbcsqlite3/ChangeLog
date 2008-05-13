@@ -1,3 +1,8 @@
+2008-05-13  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tests/tdbcsqlite3.test: Added cleanup for the test for
+	failing to open a database, in case we actually open it successfully.
+	
 2008-05-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* ChangeLog: Added a change log.
