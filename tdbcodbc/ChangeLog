@@ -5,7 +5,13 @@
 	* generic/tdbcodbc.c (TablesStmtInitMethod,ResultSetNextrowMethod): 
 		Removed a cut-and-paste error in TablesStmtInitMethod that
 		caused a pointer smash, and added a cast to silence a gcc
-		warning.
+		warning. Changed the 'init2' method on the 'statement'
+		class back to 'init' now that TclOO seems to be getting
+		method resolution correct.
+	* library/tdbcodbc.tcl (tdbc::sqlite::statement constructor):
+		Changed the 'init2' method on 'statement' back to 
+		'init' now that TclOO seems to be getting method resolution
+		correct.
 	* tests/tdbcodbc.test: Corrected misnumbering of tests, and added
 		code to remove the test database on startup to avoid running
 		with old data if a previous test run aborted.

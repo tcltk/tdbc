@@ -457,7 +457,7 @@ const static Tcl_MethodType* ConnectionMethods[] = {
 const static Tcl_MethodType StatementInitMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init2",			/* name */
+    "init",			/* name */
     StatementInitMethod,	/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
@@ -2000,6 +2000,7 @@ TablesStatementInitMethod(
      */
 
     sdata->nativeSqlW = GetWCharStringFromObj(objv[3], &(sdata->nativeSqlLen));
+    sdata->nativeMatchPatternW = NULL;
     sdata->flags |= STATEMENT_FLAG_TABLES;
 
     /* Attach the current statement data as metadata to the current object */

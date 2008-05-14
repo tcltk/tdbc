@@ -192,7 +192,7 @@ package require Tdbc 0.1
 	next
 	my variable resultSetClass 
 	set resultSetClass ::tdbc::odbc::resultset
-	my init2 $connection $sqlcode
+	my init $connection $sqlcode
 	my variable typemap
 	set typemap [$connection typemap]
     }
