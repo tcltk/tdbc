@@ -950,7 +950,7 @@ test tdbcsqlite3-9.11 {stmt foreach -as lists --} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbc-9.12 {db foreach -as lists --} {*}{
+test tdbcsqlite3-9.12 {db foreach -as lists --} {*}{
     -body {
 	set result {}
 	db foreach -as lists row {
@@ -1007,7 +1007,7 @@ test tdbcsqlite3-9.14 {stmt foreach -as lists -columnsvar c --} {*}{
     -result {idnum 4 name barney idnum 5 name betty idnum 6 name bam-bam}
 }
 
-test tdbc-9.15 {db foreach -as lists -columnsvar c --} {*}{
+test tdbcsqlite3-9.15 {db foreach -as lists -columnsvar c --} {*}{
     -body {
 	set result {}
 	db foreach -as lists -columnsvar c -- row {
@@ -1595,7 +1595,7 @@ test tdbcsqlite3-10.2 {allrows - no args} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbc-10.3 {allrows - no args} {*}{
+test tdbcsqlite3-10.3 {allrows - no args} {*}{
     -body {
 	db allrows {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1636,7 +1636,7 @@ test tdbcsqlite3-10.5 {allrows --} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbc-10.6 {allrows --} {*}{
+test tdbcsqlite3-10.6 {allrows --} {*}{
     -body {
 	db allrows -- {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1677,7 +1677,7 @@ test tdbcsqlite3-10.8 {allrows -as lists} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbc-10.9 {allrows -as lists} {*}{
+test tdbcsqlite3-10.9 {allrows -as lists} {*}{
     -body {
 	db allrows -as lists {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
