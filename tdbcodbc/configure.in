@@ -44,11 +44,11 @@ TEA_LOAD_TCLCONFIG
 TEA_PATH_TKCONFIG
 TEA_LOAD_TKCONFIG
 
-TEAX_PATH_TCLOOCONFIG
-TEAX_LOAD_TCLOOCONFIG
+TEA_PATH_CONFIG(tcloo)
+TEA_LOAD_CONFIG(tcloo)
 
-TEAX_PATH_TDBCCONFIG
-TEAX_LOAD_TDBCCONFIG
+TEA_PATH_CONFIG(tdbc)
+TEA_LOAD_CONFIG(tdbc)
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.

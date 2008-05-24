@@ -44,8 +44,8 @@ TEA_LOAD_TCLCONFIG
 #TEA_PATH_TKCONFIG
 #TEA_LOAD_TKCONFIG
 
-TEAX_PATH_TCLOOCONFIG
-TEAX_LOAD_TCLOOCONFIG
+TEA_PATH_CONFIG(tcloo)
+TEA_LOAD_CONFIG(tcloo)
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.

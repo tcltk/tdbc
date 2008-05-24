@@ -686,20 +686,22 @@ TK_STUB_LIB_FLAG
 TK_STUB_LIB_SPEC
 TK_LIBS
 TK_XINCLUDES
-TCLOO_VERSION
-TCLOO_BIN_DIR
-TCLOO_LIB_SPEC
-TCLOO_STUB_LIB_SPEC
-TCLOO_INCLUDE_SPEC
-TCLOO_PRIVATE_INCLUDE_SPEC
-TCLOO_CFLAGS
-TDBC_VERSION
-TDBC_BIN_DIR
-TDBC_LIB_SPEC
-TDBC_STUB_LIB_SPEC
-TDBC_INCLUDE_SPEC
-TDBC_PRIVATE_INCLUDE_SPEC
-TDBC_CFLAGS
+tcloo_VERSION
+tcloo_BIN_DIR
+tcloo_SRC_DIR
+tcloo_LIB_FILE
+tcloo_LIB_SPEC
+tcloo_STUB_LIB_FILE
+tcloo_STUB_LIB_SPEC
+tcloo_STUB_LIB_PATH
+tdbc_VERSION
+tdbc_BIN_DIR
+tdbc_SRC_DIR
+tdbc_LIB_FILE
+tdbc_LIB_SPEC
+tdbc_STUB_LIB_FILE
+tdbc_STUB_LIB_SPEC
+tdbc_STUB_LIB_PATH
 CC
 CFLAGS
 LDFLAGS
@@ -1343,10 +1345,8 @@ Optional Packages:
   --with-tcl              directory containing tcl configuration
                           (tclConfig.sh)
   --with-tk               directory containing tk configuration (tkConfig.sh)
-  --with-tcloo            directory containing TclOO configuration
-                          (tclooConfig.sh)
-  --with-tdbc             directory containing Tdbc configuration
-                          (tdbcConfig.sh)
+  --with-tcloo              directory containing tcloo configuration (tclooConfig.sh)
+  --with-tdbc              directory containing tdbc configuration (tdbcConfig.sh)
   --with-tclinclude       directory containing the public Tcl header files
   --with-celib=DIR        use Windows/CE support library from DIR
 
@@ -2386,7 +2386,7 @@ _ACEOF
 
 
     #
-    # Ok, lets find the tclOO configuration
+    # Ok, lets find the tcloo configuration
     # First, look for one uninstalled.
     # the alternative search directory is invoked by --with-tcloo
     #
@@ -2400,14 +2400,14 @@ if test "${with_tcloo+set}" = set; then
   withval=$with_tcloo; with_tclooconfig=${withval}
 fi
 
-	{ echo "$as_me:$LINENO: checking for TclOO configuration" >&5
-echo $ECHO_N "checking for TclOO configuration... $ECHO_C" >&6; }
+	{ echo "$as_me:$LINENO: checking for tcloo configuration" >&5
+echo $ECHO_N "checking for tcloo configuration... $ECHO_C" >&6; }
 	if test "${ac_cv_c_tclooconfig+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
 
 
-	    # First check to see if --with-tclooconfig was specified.
+	    # First check to see if --with-tcloo was specified.
 	    if test x"${with_tclooconfig}" != x ; then
 		case ${with_tclooconfig} in
 		    */tclooConfig.sh )
@@ -2415,7 +2415,7 @@ else
 			    { echo "$as_me:$LINENO: WARNING: --with-tcloo argument should refer to directory containing tclooConfig.sh, not to tclooConfig.sh itself" >&5
 echo "$as_me: WARNING: --with-tcloo argument should refer to directory containing tclooConfig.sh, not to tclooConfig.sh itself" >&2;}
 			    with_tclooconfig=`echo ${with_tclooconfig} | sed 's!/tclooConfig\.sh$!!'`
-			fi ;;
+			fi;;
 		esac
 		if test -f "${with_tclooconfig}/tclooConfig.sh" ; then
 		    ac_cv_c_tclooconfig=`(cd ${with_tclooconfig}; pwd)`
@@ -2426,23 +2426,36 @@ echo "$as_me: error: ${with_tclooconfig} directory doesn't contain tclooConfig.s
 		fi
 	    fi
 
-	    # then check for a private TclOO library
+	    # then check for a private tcloo installation
 	    if test x"${ac_cv_c_tclooconfig}" = x ; then
 		for i in \
-			../oo \
-			`ls -dr ../TclOO[0-1].[0-9].[0-9]* 2>/dev/null` \
-			`ls -dr ../TclOO[0-1].[0-9] 2>/dev/null` \
-			`ls -dr ../TclOO[0-1].[0-9]* 2>/dev/null` \
-			../../oo \
-			`ls -dr ../../TclOO[0-1].[0-9].[0-9]* 2>/dev/null` \
-			`ls -dr ../../TclOO[0-1].[0-9] 2>/dev/null` \
-			`ls -dr ../../TclOO[0-1].[0-9]* 2>/dev/null` \
-			../../../oo \
-			`ls -dr ../../../TclOO[0-1].[0-9].[0-9]* 2>/dev/null` \
-			`ls -dr ../../../TclOO[0-1].[0-9] 2>/dev/null` \
-			`ls -dr ../../../TclOO[0-1].[0-9]* 2>/dev/null` ; do
+			../tcloo \
+			`ls -dr ../tcloo*[0-9].[0-9]*.[0-9]* 2>/dev/null` \
+			`ls -dr ../tcloo*[0-9].[0-9][0-9] 2>/dev/null` \
+			`ls -dr ../tcloo*[0-9].[0-9] 2>/dev/null` \
+			`ls -dr ../tcloo*[0-9].[0-9]* 2>/dev/null` \
+			../../tcloo \
+			`ls -dr ../../tcloo*[0-9].[0-9]*.[0-9]* 2>/dev/null` \
+			`ls -dr ../../tcloo*[0-9].[0-9][0-9] 2>/dev/null` \
+			`ls -dr ../../tcloo*[0-9].[0-9] 2>/dev/null` \
+			`ls -dr ../../tcloo*[0-9].[0-9]* 2>/dev/null` \
+			../../../tcloo \
+			`ls -dr ../../../tcloo*[0-9].[0-9]*.[0-9]* 2>/dev/null` \
+			`ls -dr ../../../tcloo*[0-9].[0-9][0-9] 2>/dev/null` \
+			`ls -dr ../../../tcloo*[0-9].[0-9] 2>/dev/null` \
+			`ls -dr ../../../tcloo*[0-9].[0-9]* 2>/dev/null` \
+			${srcdir}/../tcloo \
+			`ls -dr ${srcdir}/../tcloo*[0-9].[0-9]*.[0-9]* 2>/dev/null` \
+			`ls -dr ${srcdir}/../tcloo*[0-9].[0-9][0-9] 2>/dev/null` \
+			`ls -dr ${srcdir}/../tcloo*[0-9].[0-9] 2>/dev/null` \
+			`ls -dr ${srcdir}/../tcloo*[0-9].[0-9]* 2>/dev/null` \
+			; do
 		    if test -f "$i/tclooConfig.sh" ; then
 			ac_cv_c_tclooconfig=`(cd $i; pwd)`
+			break
+		    fi
+		    if test -f "$i/unix/tclooConfig.sh" ; then
+			ac_cv_c_tclooconfig=`(cd $i/unix; pwd)`
 			break
 		    fi
 		done
@@ -2450,13 +2463,7 @@ echo "$as_me: error: ${with_tclooconfig} directory doesn't contain tclooConfig.s
 
 	    # check in a few common install locations
 	    if test x"${ac_cv_c_tclooconfig}" = x ; then
-		for i in `ls -d ${libdir}/TclOO[0-1].* 2>/dev/null` \
-			`ls -d ${exec_prefix}/lib/TclOO[0-1].* 2>/dev/null` \
-			`ls -d ${prefix}/lib/TclOO[0-1].* 2>/dev/null` \
-			`ls -d /usr/local/lib/TclOO[0-1].* 2>/dev/null` \
-			`ls -d /usr/contrib/lib/TclOO[0-1].* 2>/dev/null` \
-			`ls -d /usr/lib/TclOO[0-1].* 2>/dev/null` \
-                        `ls -d ${libdir} 2>/dev/null` \
+		for i in `ls -d ${libdir} 2>/dev/null` \
 			`ls -d ${exec_prefix}/lib 2>/dev/null` \
 			`ls -d ${prefix}/lib 2>/dev/null` \
 			`ls -d /usr/local/lib 2>/dev/null` \
@@ -2470,71 +2477,51 @@ echo "$as_me: error: ${with_tclooconfig} directory doesn't contain tclooConfig.s
 		done
 	    fi
 
-	    # TEA specific: on Windows, check in common installation locations
-	    if test "${TEA_PLATFORM}" = "windows" \
-		-a x"${ac_cv_c_tclooconfig}" = x ; then
-		for i in `ls -d C:/Tcl/lib/TclOO[0-1].* 2>/dev/null` \
-			`ls -d C:/Progra~1/Tcl/lib/TclOO[0-1].* 2>/dev/null` \
-                        `ls -d C:/Tcl/lib 2>/dev/null` \
-			`ls -d C:/Progra~1/Tcl/lib 2>/dev/null` \
-			; do
-		    if test -f "$i/tclooConfig.sh" ; then
-			ac_cv_c_tclooconfig=`(cd $i; pwd)`
-			break
-		    fi
-		done
-	    fi
-
-	    # check in a few other private locations
-	    if test x"${ac_cv_c_tclooconfig}" = x ; then
-		for i in \
-			${srcdir}/../tcloo \
-			`ls -dr ${srcdir}/../TclOO[0-1].[0-9].[0-9]* 2>/dev/null` \
-			`ls -dr ${srcdir}/../TclOO[0-1].[0-9] 2>/dev/null` \
-			`ls -dr ${srcdir}/../TclOO[0-1].[0-9]* 2>/dev/null` ; do
-		    if test -f "$i/tclooConfig.sh" ; then
-			ac_cv_c_tclooconfig=`(cd $i; pwd)`
-			break
-		    fi
-		done
-	    fi
-
 fi
 
 
 	if test x"${ac_cv_c_tclooconfig}" = x ; then
-	    TCLOO_BIN_DIR="# no TclOO configs found"
-	    { echo "$as_me:$LINENO: WARNING: Can't find TclOO configuration definitions" >&5
-echo "$as_me: WARNING: Can't find TclOO configuration definitions" >&2;}
+	    tcloo_BIN_DIR="# no tcloo configs found"
+	    { echo "$as_me:$LINENO: WARNING: Cannot find tcloo configuration definitions" >&5
+echo "$as_me: WARNING: Cannot find tcloo configuration definitions" >&2;}
 	    exit 0
 	else
 	    no_tcloo=
-	    TCLOO_BIN_DIR=${ac_cv_c_tclooconfig}
-	    { echo "$as_me:$LINENO: result: found ${TCLOO_BIN_DIR}/tclooConfig.sh" >&5
-echo "${ECHO_T}found ${TCLOO_BIN_DIR}/tclooConfig.sh" >&6; }
+	    tcloo_BIN_DIR=${ac_cv_c_tclooconfig}
+	    { echo "$as_me:$LINENO: result: found $tcloo_BIN_DIR/tclooConfig.sh" >&5
+echo "${ECHO_T}found $tcloo_BIN_DIR/tclooConfig.sh" >&6; }
 	fi
     fi
 
 
-    { echo "$as_me:$LINENO: checking for existence of ${TCLOO_BIN_DIR}/tclooConfig.sh" >&5
-echo $ECHO_N "checking for existence of ${TCLOO_BIN_DIR}/tclooConfig.sh... $ECHO_C" >&6; }
+    { echo "$as_me:$LINENO: checking for existence of ${tcloo_BIN_DIR}/tclooConfig.sh" >&5
+echo $ECHO_N "checking for existence of ${tcloo_BIN_DIR}/tclooConfig.sh... $ECHO_C" >&6; }
 
-    if test -f "${TCLOO_BIN_DIR}/tclooConfig.sh" ; then
+    if test -f "${tcloo_BIN_DIR}/tclooConfig.sh" ; then
         { echo "$as_me:$LINENO: result: loading" >&5
 echo "${ECHO_T}loading" >&6; }
-	. "${TCLOO_BIN_DIR}/tclooConfig.sh"
+	. "${tcloo_BIN_DIR}/tclooConfig.sh"
     else
-        { echo "$as_me:$LINENO: result: could not find ${TCLOO_BIN_DIR}/tclooConfig.sh" >&5
-echo "${ECHO_T}could not find ${TCLOO_BIN_DIR}/tclooConfig.sh" >&6; }
+        { echo "$as_me:$LINENO: result: file not found" >&5
+echo "${ECHO_T}file not found" >&6; }
     fi
 
-    # eval is required to do the TCLOO_DBGX substitution
-    eval "TCLOO_STUB_LIB_FILE=\"${TCLOO_STUB_LIB_FILE}\""
+    #
+    # If the tcloo_BIN_DIR is the build directory (not the install directory),
+    # then set the common variable name to the value of the build variables.
+    # For example, the variable tcloo_LIB_SPEC will be set to the value
+    # of tcloo_BUILD_LIB_SPEC. An extension should make use of tcloo_LIB_SPEC
+    # instead of tcloo_BUILD_LIB_SPEC since it will work with both an
+    # installed and uninstalled version of Tcl.
+    #
 
-    # eval is required to do the TCLOO_DBGX substitution
-    eval "TCLOO_LIB_SPEC=\"${TCLOO_LIB_SPEC}\""
-    eval "TCLOO_STUB_LIB_FLAG=\"${TCLOO_STUB_LIB_FLAG}\""
-    eval "TCLOO_STUB_LIB_SPEC=\"${TCLOO_STUB_LIB_SPEC}\""
+    if test -f "${tcloo_BIN_DIR}/Makefile" ; then
+	{ echo "$as_me:$LINENO: WARNING: Found Makefile - using build library specs for tcloo" >&5
+echo "$as_me: WARNING: Found Makefile - using build library specs for tcloo" >&2;}
+        tcloo_LIB_SPEC=${tcloo_BUILD_LIB_SPEC}
+        tcloo_STUB_LIB_SPEC=${tcloo_BUILD_STUB_LIB_SPEC}
+        tcloo_STUB_LIB_PATH=${tcloo_BUILD_STUB_LIB_PATH}
+    fi
 
 
 
@@ -2543,7 +2530,8 @@ echo "${ECHO_T}could not find ${TCLOO_BIN_DIR}/tclooConfig.sh" >&6; }
 
 
 
-    # TEA specific:
+
+
 
 
 
@@ -2563,14 +2551,14 @@ if test "${with_tdbc+set}" = set; then
   withval=$with_tdbc; with_tdbcconfig=${withval}
 fi
 
-	{ echo "$as_me:$LINENO: checking for Tdbc configuration" >&5
-echo $ECHO_N "checking for Tdbc configuration... $ECHO_C" >&6; }
+	{ echo "$as_me:$LINENO: checking for tdbc configuration" >&5
+echo $ECHO_N "checking for tdbc configuration... $ECHO_C" >&6; }
 	if test "${ac_cv_c_tdbcconfig+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
 
 
-	    # First check to see if --with-tdbcconfig was specified.
+	    # First check to see if --with-tdbc was specified.
 	    if test x"${with_tdbcconfig}" != x ; then
 		case ${with_tdbcconfig} in
 		    */tdbcConfig.sh )
@@ -2578,7 +2566,7 @@ else
 			    { echo "$as_me:$LINENO: WARNING: --with-tdbc argument should refer to directory containing tdbcConfig.sh, not to tdbcConfig.sh itself" >&5
 echo "$as_me: WARNING: --with-tdbc argument should refer to directory containing tdbcConfig.sh, not to tdbcConfig.sh itself" >&2;}
 			    with_tdbcconfig=`echo ${with_tdbcconfig} | sed 's!/tdbcConfig\.sh$!!'`
-			fi ;;
+			fi;;
 		esac
 		if test -f "${with_tdbcconfig}/tdbcConfig.sh" ; then
 		    ac_cv_c_tdbcconfig=`(cd ${with_tdbcconfig}; pwd)`
@@ -2589,23 +2577,36 @@ echo "$as_me: error: ${with_tdbcconfig} directory doesn't contain tdbcConfig.sh"
 		fi
 	    fi
 
-	    # then check for a private Tdbc library
+	    # then check for a private tdbc installation
 	    if test x"${ac_cv_c_tdbcconfig}" = x ; then
 		for i in \
-			../oo \
-			`ls -dr ../Tdbc[0-1].[0-9].[0-9]* 2>/dev/null` \
-			`ls -dr ../Tdbc[0-1].[0-9] 2>/dev/null` \
-			`ls -dr ../Tdbc[0-1].[0-9]* 2>/dev/null` \
-			../../oo \
-			`ls -dr ../../Tdbc[0-1].[0-9].[0-9]* 2>/dev/null` \
-			`ls -dr ../../Tdbc[0-1].[0-9] 2>/dev/null` \
-			`ls -dr ../../Tdbc[0-1].[0-9]* 2>/dev/null` \
-			../../../oo \
-			`ls -dr ../../../Tdbc[0-1].[0-9].[0-9]* 2>/dev/null` \
-			`ls -dr ../../../Tdbc[0-1].[0-9] 2>/dev/null` \
-			`ls -dr ../../../Tdbc[0-1].[0-9]* 2>/dev/null` ; do
+			../tdbc \
+			`ls -dr ../tdbc*[0-9].[0-9]*.[0-9]* 2>/dev/null` \
+			`ls -dr ../tdbc*[0-9].[0-9][0-9] 2>/dev/null` \
+			`ls -dr ../tdbc*[0-9].[0-9] 2>/dev/null` \
+			`ls -dr ../tdbc*[0-9].[0-9]* 2>/dev/null` \
+			../../tdbc \
+			`ls -dr ../../tdbc*[0-9].[0-9]*.[0-9]* 2>/dev/null` \
+			`ls -dr ../../tdbc*[0-9].[0-9][0-9] 2>/dev/null` \
+			`ls -dr ../../tdbc*[0-9].[0-9] 2>/dev/null` \
+			`ls -dr ../../tdbc*[0-9].[0-9]* 2>/dev/null` \
+			../../../tdbc \
+			`ls -dr ../../../tdbc*[0-9].[0-9]*.[0-9]* 2>/dev/null` \
+			`ls -dr ../../../tdbc*[0-9].[0-9][0-9] 2>/dev/null` \
+			`ls -dr ../../../tdbc*[0-9].[0-9] 2>/dev/null` \
+			`ls -dr ../../../tdbc*[0-9].[0-9]* 2>/dev/null` \
+			${srcdir}/../tdbc \
+			`ls -dr ${srcdir}/../tdbc*[0-9].[0-9]*.[0-9]* 2>/dev/null` \
+			`ls -dr ${srcdir}/../tdbc*[0-9].[0-9][0-9] 2>/dev/null` \
+			`ls -dr ${srcdir}/../tdbc*[0-9].[0-9] 2>/dev/null` \
+			`ls -dr ${srcdir}/../tdbc*[0-9].[0-9]* 2>/dev/null` \
+			; do
 		    if test -f "$i/tdbcConfig.sh" ; then
 			ac_cv_c_tdbcconfig=`(cd $i; pwd)`
+			break
+		    fi
+		    if test -f "$i/unix/tdbcConfig.sh" ; then
+			ac_cv_c_tdbcconfig=`(cd $i/unix; pwd)`
 			break
 		    fi
 		done
@@ -2613,13 +2614,7 @@ echo "$as_me: error: ${with_tdbcconfig} directory doesn't contain tdbcConfig.sh"
 
 	    # check in a few common install locations
 	    if test x"${ac_cv_c_tdbcconfig}" = x ; then
-		for i in `ls -d ${libdir}/Tdbc[0-1].* 2>/dev/null` \
-			`ls -d ${exec_prefix}/lib/Tdbc[0-1].* 2>/dev/null` \
-			`ls -d ${prefix}/lib/Tdbc[0-1].* 2>/dev/null` \
-			`ls -d /usr/local/lib/Tdbc[0-1].* 2>/dev/null` \
-			`ls -d /usr/contrib/lib/Tdbc[0-1].* 2>/dev/null` \
-			`ls -d /usr/lib/Tdbc[0-1].* 2>/dev/null` \
-                        `ls -d ${libdir} 2>/dev/null` \
+		for i in `ls -d ${libdir} 2>/dev/null` \
 			`ls -d ${exec_prefix}/lib 2>/dev/null` \
 			`ls -d ${prefix}/lib 2>/dev/null` \
 			`ls -d /usr/local/lib 2>/dev/null` \
@@ -2633,71 +2628,51 @@ echo "$as_me: error: ${with_tdbcconfig} directory doesn't contain tdbcConfig.sh"
 		done
 	    fi
 
-	    # TEA specific: on Windows, check in common installation locations
-	    if test "${TEA_PLATFORM}" = "windows" \
-		-a x"${ac_cv_c_tdbcconfig}" = x ; then
-		for i in `ls -d C:/Tcl/lib/Tdbc[0-1].* 2>/dev/null` \
-			`ls -d C:/Progra~1/Tcl/lib/Tdbc[0-1].* 2>/dev/null` \
-                        `ls -d C:/Tcl/lib 2>/dev/null` \
-			`ls -d C:/Progra~1/Tcl/lib 2>/dev/null` \
-			; do
-		    if test -f "$i/tdbcConfig.sh" ; then
-			ac_cv_c_tdbcconfig=`(cd $i; pwd)`
-			break
-		    fi
-		done
-	    fi
-
-	    # check in a few other private locations
-	    if test x"${ac_cv_c_tdbcconfig}" = x ; then
-		for i in \
-			${srcdir}/../tdbc \
-			`ls -dr ${srcdir}/../Tdbc[0-1].[0-9].[0-9]* 2>/dev/null` \
-			`ls -dr ${srcdir}/../Tdbc[0-1].[0-9] 2>/dev/null` \
-			`ls -dr ${srcdir}/../Tdbc[0-1].[0-9]* 2>/dev/null` ; do
-		    if test -f "$i/tdbcConfig.sh" ; then
-			ac_cv_c_tdbcconfig=`(cd $i; pwd)`
-			break
-		    fi
-		done
-	    fi
-
 fi
 
 
 	if test x"${ac_cv_c_tdbcconfig}" = x ; then
-	    TDBC_BIN_DIR="# no Tdbc configs found"
-	    { echo "$as_me:$LINENO: WARNING: Can't find Tdbc configuration definitions" >&5
-echo "$as_me: WARNING: Can't find Tdbc configuration definitions" >&2;}
+	    tdbc_BIN_DIR="# no tdbc configs found"
+	    { echo "$as_me:$LINENO: WARNING: Cannot find tdbc configuration definitions" >&5
+echo "$as_me: WARNING: Cannot find tdbc configuration definitions" >&2;}
 	    exit 0
 	else
 	    no_tdbc=
-	    TDBC_BIN_DIR=${ac_cv_c_tdbcconfig}
-	    { echo "$as_me:$LINENO: result: found ${TDBC_BIN_DIR}/tdbcConfig.sh" >&5
-echo "${ECHO_T}found ${TDBC_BIN_DIR}/tdbcConfig.sh" >&6; }
+	    tdbc_BIN_DIR=${ac_cv_c_tdbcconfig}
+	    { echo "$as_me:$LINENO: result: found $tdbc_BIN_DIR/tdbcConfig.sh" >&5
+echo "${ECHO_T}found $tdbc_BIN_DIR/tdbcConfig.sh" >&6; }
 	fi
     fi
 
 
-    { echo "$as_me:$LINENO: checking for existence of ${TDBC_BIN_DIR}/tdbcConfig.sh" >&5
-echo $ECHO_N "checking for existence of ${TDBC_BIN_DIR}/tdbcConfig.sh... $ECHO_C" >&6; }
+    { echo "$as_me:$LINENO: checking for existence of ${tdbc_BIN_DIR}/tdbcConfig.sh" >&5
+echo $ECHO_N "checking for existence of ${tdbc_BIN_DIR}/tdbcConfig.sh... $ECHO_C" >&6; }
 
-    if test -f "${TDBC_BIN_DIR}/tdbcConfig.sh" ; then
+    if test -f "${tdbc_BIN_DIR}/tdbcConfig.sh" ; then
         { echo "$as_me:$LINENO: result: loading" >&5
 echo "${ECHO_T}loading" >&6; }
-	. "${TDBC_BIN_DIR}/tdbcConfig.sh"
+	. "${tdbc_BIN_DIR}/tdbcConfig.sh"
     else
-        { echo "$as_me:$LINENO: result: could not find ${TDBC_BIN_DIR}/tdbcConfig.sh" >&5
-echo "${ECHO_T}could not find ${TDBC_BIN_DIR}/tdbcConfig.sh" >&6; }
+        { echo "$as_me:$LINENO: result: file not found" >&5
+echo "${ECHO_T}file not found" >&6; }
     fi
 
-    # eval is required to do the TDBC_DBGX substitution
-    eval "TDBC_STUB_LIB_FILE=\"${TDBC_STUB_LIB_FILE}\""
+    #
+    # If the tdbc_BIN_DIR is the build directory (not the install directory),
+    # then set the common variable name to the value of the build variables.
+    # For example, the variable tdbc_LIB_SPEC will be set to the value
+    # of tdbc_BUILD_LIB_SPEC. An extension should make use of tdbc_LIB_SPEC
+    # instead of tdbc_BUILD_LIB_SPEC since it will work with both an
+    # installed and uninstalled version of Tcl.
+    #
 
-    # eval is required to do the TDBC_DBGX substitution
-    eval "TDBC_LIB_SPEC=\"${TDBC_LIB_SPEC}\""
-    eval "TDBC_STUB_LIB_FLAG=\"${TDBC_STUB_LIB_FLAG}\""
-    eval "TDBC_STUB_LIB_SPEC=\"${TDBC_STUB_LIB_SPEC}\""
+    if test -f "${tdbc_BIN_DIR}/Makefile" ; then
+	{ echo "$as_me:$LINENO: WARNING: Found Makefile - using build library specs for tdbc" >&5
+echo "$as_me: WARNING: Found Makefile - using build library specs for tdbc" >&2;}
+        tdbc_LIB_SPEC=${tdbc_BUILD_LIB_SPEC}
+        tdbc_STUB_LIB_SPEC=${tdbc_BUILD_STUB_LIB_SPEC}
+        tdbc_STUB_LIB_PATH=${tdbc_BUILD_STUB_LIB_PATH}
+    fi
 
 
 
@@ -2706,7 +2681,8 @@ echo "${ECHO_T}could not find ${TDBC_BIN_DIR}/tdbcConfig.sh" >&6; }
 
 
 
-    # TEA specific:
+
+
 
 
 
@@ -13085,20 +13061,22 @@ TK_STUB_LIB_FLAG!$TK_STUB_LIB_FLAG$ac_delim
 TK_STUB_LIB_SPEC!$TK_STUB_LIB_SPEC$ac_delim
 TK_LIBS!$TK_LIBS$ac_delim
 TK_XINCLUDES!$TK_XINCLUDES$ac_delim
-TCLOO_VERSION!$TCLOO_VERSION$ac_delim
-TCLOO_BIN_DIR!$TCLOO_BIN_DIR$ac_delim
-TCLOO_LIB_SPEC!$TCLOO_LIB_SPEC$ac_delim
-TCLOO_STUB_LIB_SPEC!$TCLOO_STUB_LIB_SPEC$ac_delim
-TCLOO_INCLUDE_SPEC!$TCLOO_INCLUDE_SPEC$ac_delim
-TCLOO_PRIVATE_INCLUDE_SPEC!$TCLOO_PRIVATE_INCLUDE_SPEC$ac_delim
-TCLOO_CFLAGS!$TCLOO_CFLAGS$ac_delim
-TDBC_VERSION!$TDBC_VERSION$ac_delim
-TDBC_BIN_DIR!$TDBC_BIN_DIR$ac_delim
-TDBC_LIB_SPEC!$TDBC_LIB_SPEC$ac_delim
-TDBC_STUB_LIB_SPEC!$TDBC_STUB_LIB_SPEC$ac_delim
-TDBC_INCLUDE_SPEC!$TDBC_INCLUDE_SPEC$ac_delim
-TDBC_PRIVATE_INCLUDE_SPEC!$TDBC_PRIVATE_INCLUDE_SPEC$ac_delim
-TDBC_CFLAGS!$TDBC_CFLAGS$ac_delim
+tcloo_VERSION!$tcloo_VERSION$ac_delim
+tcloo_BIN_DIR!$tcloo_BIN_DIR$ac_delim
+tcloo_SRC_DIR!$tcloo_SRC_DIR$ac_delim
+tcloo_LIB_FILE!$tcloo_LIB_FILE$ac_delim
+tcloo_LIB_SPEC!$tcloo_LIB_SPEC$ac_delim
+tcloo_STUB_LIB_FILE!$tcloo_STUB_LIB_FILE$ac_delim
+tcloo_STUB_LIB_SPEC!$tcloo_STUB_LIB_SPEC$ac_delim
+tcloo_STUB_LIB_PATH!$tcloo_STUB_LIB_PATH$ac_delim
+tdbc_VERSION!$tdbc_VERSION$ac_delim
+tdbc_BIN_DIR!$tdbc_BIN_DIR$ac_delim
+tdbc_SRC_DIR!$tdbc_SRC_DIR$ac_delim
+tdbc_LIB_FILE!$tdbc_LIB_FILE$ac_delim
+tdbc_LIB_SPEC!$tdbc_LIB_SPEC$ac_delim
+tdbc_STUB_LIB_FILE!$tdbc_STUB_LIB_FILE$ac_delim
+tdbc_STUB_LIB_SPEC!$tdbc_STUB_LIB_SPEC$ac_delim
+tdbc_STUB_LIB_PATH!$tdbc_STUB_LIB_PATH$ac_delim
 CC!$CC$ac_delim
 CFLAGS!$CFLAGS$ac_delim
 LDFLAGS!$LDFLAGS$ac_delim
@@ -13107,8 +13085,6 @@ ac_ct_CC!$ac_ct_CC$ac_delim
 OBJEXT!$OBJEXT$ac_delim
 CPP!$CPP$ac_delim
 INSTALL_PROGRAM!$INSTALL_PROGRAM$ac_delim
-INSTALL_SCRIPT!$INSTALL_SCRIPT$ac_delim
-INSTALL_DATA!$INSTALL_DATA$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -13150,6 +13126,8 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+INSTALL_SCRIPT!$INSTALL_SCRIPT$ac_delim
+INSTALL_DATA!$INSTALL_DATA$ac_delim
 SET_MAKE!$SET_MAKE$ac_delim
 RANLIB!$RANLIB$ac_delim
 GREP!$GREP$ac_delim
@@ -13189,7 +13167,7 @@ CONFIGURE_OUTPUTS!$CONFIGURE_OUTPUTS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 37; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 39; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
