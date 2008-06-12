@@ -57,6 +57,12 @@ proc tdbc::ParseConvenienceArgs {argv optsVar} {
 	if {[string index $key 0] eq {-}} {
 	    switch -regexp -- $key {
 		-as? {
+		    if {$value ne {dicts} && $value ne {lists}} {
+			return -code error \
+			    -errorcode [list TDBC badvartype $value] \
+			    "bad variable type \"$value\":\
+                             must be lists or dicts"
+		    }
 		    dict set opts -as $value
 		}
 		-c(?:o(?:l(?:u(?:m(?:n(?:s(?:v(?:a(?:r(?:i(?:a(?:b(?:le?)?)?)?)?)?)?)?)?)?)?)?)?) {
@@ -161,6 +167,7 @@ oo::class create ::tdbc::connection {
 		my commit
 	    }
 	    2 - 3 - 4 {
+		set options [dict merge {-level 1} $options[set options {}]]
 		dict incr options -level
 		my commit
 	    }
@@ -528,8 +535,13 @@ oo::class create tdbc::resultset {
 
 	# Assemble the results
 
+	if {[dict get $opts -as] eq {lists}} {
+	    set delegate nextlist
+	} else {
+	    set delegate nextdict
+	}
 	set results [list]
-	while {[my nextrow -as [dict get $opts -as] row]} {
+	while {[my $delegate row]} {
 	    lappend results $row
 	}
 	return $results
@@ -573,7 +585,13 @@ oo::class create tdbc::resultset {
 	# Run the loop over the rows of the query
 
 	upvar 1 [lindex $args 0] row
-	while {[my nextrow -as [dict get $opts -as] row]} {
+	if {[dict get $opts -as] eq {lists}} {
+	    set delegate nextlist
+	} else {
+	    set delegate nextdict
+	}
+	while {[my $delegate row]} {
+	    tdbc::puts {foreach: processing $row}
 	    set status [catch {
 		uplevel 1 [lindex $args 1]
 	    } result options]
@@ -597,6 +615,54 @@ oo::class create tdbc::resultset {
 	return
     }
 
+    
+    # The 'nextrow' method retrieves a row in the form of either
+    # a list or a dictionary.
+
+    method nextrow {args} {
+
+	set opts [dict create -as dicts]
+	set i 0
+    
+	# Munch keyword options off the front of the command arguments
+	
+	foreach {key value} $args {
+	    if {[string index $key 0] eq {-}} {
+		switch -regexp -- $key {
+		    -as? {
+			dict set opts -as $value
+		    }
+		    -- {
+			incr i
+			break
+		    }
+		    default {
+			return -code error -errorcode {TDBC badOption} \
+			    "bad option \"$key\":\
+                             must be -as or -columnsvariable"
+		    }
+		}
+	    } else {
+		break
+	    }
+	    incr i 2
+	}
+
+	set args [lrange $args $i end]
+	if {[llength $args] != 1} {
+	    return -code error -errorcode {TDBC wrongNumArgs} \
+		"wrong # args: should be [lrange [info level 0] 0 1]\
+                 ?-option value?... ?--? varName"
+	}
+	upvar 1 [lindex $args 0] row
+	if {[dict get $opts -as] eq {lists}} {
+	    set delegate nextlist
+	} else {
+	    set delegate nextdict
+	}
+	return [my $delegate row]
+    }
+
     # The 'close' method is syntactic sugar for destroying the result set.
 
     method close {} {
@@ -611,11 +677,13 @@ oo::class create tdbc::resultset {
     #        from variables in the caller's scope).
     # columns
     #     -- Returns a list of the names of the columns in the result.
-    # nextrow ?-as dicts|lists? ?--? variableName
-    #     -- Stores the next row of the result set in the given variable in
-    #        the caller's scope, either as a dictionary whose keys are 
-    #        column names and whose values are column values, or else
-    #        as a list of cells.
+    # nextdict variableName
+    #     -- Stores the next row of the result set in the given variable
+    #        in caller's scope, in the form of a dictionary that maps
+    #	     column names to values.
+    # nextlist variableName
+    #     -- Stores the next row of the result set in the given variable
+    #        in caller's scope, in the form of a list of cells.
     # rowcount
     #     -- Returns a count of rows affected by the statement, or -1
     #        if the count of rows has not been determined.

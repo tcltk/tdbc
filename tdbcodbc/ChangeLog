@@ -1,3 +1,9 @@
+2008-06-11  Kevin B. Kenny  <kennykb@acm.org>
+	
+	* generic/tdbcodbc.c: Split [$resultset nextrow] into two primitive
+	methods: [$resultset nextlist] and [$resultset nextdict]. Refactored
+	a little bit of the code that handles result sets.
+
 2008-05-24  Kevin B Kenny  <kennykb@acm.org>
 
 	* configure.in: Changed configuration to use TEA_PATH_CONFIG to

@@ -371,6 +371,8 @@ static int ResultSetColumnsMethod(ClientData clientData, Tcl_Interp* interp,
 static int ResultSetNextrowMethod(ClientData clientData, Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
+static int GetCell(ResultSetData* rdata, Tcl_Interp* interp, 
+		   int columnIndex, Tcl_Obj** retval);
 static int ResultSetRowcountMethod(ClientData clientData, Tcl_Interp* interp,
 				   Tcl_ObjectContext context,
 				   int objc, Tcl_Obj *const objv[]);
@@ -591,7 +593,6 @@ const static Tcl_MethodType ResultSetRowcountMethodType = {
 const static Tcl_MethodType* ResultSetMethods[] = {
     &ResultSetInitMethodType,
     &ResultSetColumnsMethodType,
-    &ResultSetNextrowMethodType,
     &ResultSetRowcountMethodType,
     NULL
 };
@@ -2646,6 +2647,10 @@ ResultSetNextrowMethod(
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
 
+    int lists = (int) clientData;
+				/* Flag == 1 if lists are to be returned,
+				 * 0 if dicts are to be returned */
+
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current result set object */
     ResultSetData* rdata = (ResultSetData*)
@@ -2659,85 +2664,22 @@ ResultSetNextrowMethod(
 				/* Per interpreter data */
     Tcl_Obj** literals = pidata->literals;
 				/* Literal pool */
-    Tcl_Obj* varName = NULL;	/* Name of the variable that is to receive
-				 * the results */
+
     int nColumns;		/* Number of columns in the result set */
     Tcl_Obj* colName;		/* Name of the current column */
     Tcl_Obj* resultRow;		/* Row of the result set under construction */
     
-    SQLCHAR colBuf[256];	/* Buffer to hold the string value of a 
-				 * column */
-    SQLCHAR* colW = colBuf;	/* Pointer to the current allocated buffer
-				 * (which may have grown) */
-    SQLLEN colAllocLen = 256 * sizeof(SQLCHAR);
-				/* Current allocated size of the buffer,
-				 * in bytes */
-    SQLINTEGER colLong;		/* Integer value of the column */
-    SQLBIGINT colWide;		/* Wide-integer value of the column */
-    SQLDOUBLE colDouble;	/* Double value of the column */
-    SQLLEN colLen;		/* Actual size of the return value */
-    Tcl_DString colDS;		/* Column expressed as a Tcl_DString */
-    Tcl_Obj* colObj;		/* Column expressed as a Tcl_Obj */
+    Tcl_Obj* colObj;		/* Column obtained from the row */
     SQLRETURN rc;		/* Return code from ODBC operations */
-    int retry;			/* Flag that the last ODBC operation should
-				 * be retried */
     int status = TCL_ERROR;	/* Status return from this command */
 
-    /* Flags accepted by this command */
-
-    const char* flags[] = {
-	"-as",
-	"--",
-	NULL
-    };
-    enum flagIdx {
-	NEXTROW_AS,
-	NEXTROW_ENDOPTS
-    };
-
-    /* Values accepted by the '-as' option */
-
-    const char* asOpts[] = {
-	"lists",
-	"dicts",
-	NULL
-    };
-    enum asIdx {
-	AS_LISTS,
-	AS_DICTS
-    };
-
-    int flagIndex;		/* Index of a flag */
-    int asIndex = AS_DICTS;	/* Current value for '-as' */
-    int endOfOpts = 0;		/* Flag = 1 iff end of options reached */
     int i;
 
-    /* Parse args */
-
-    for (i = 2; !endOfOpts && i < objc-1; ++i) {
-	if (Tcl_GetIndexFromObj(interp, objv[i], flags, "option", 0,
-				&flagIndex) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	switch (flagIndex) {
-	case NEXTROW_AS:
-	    ++i;
-	    if (Tcl_GetIndexFromObj(interp, objv[i], asOpts, "variable type",
-				    TCL_EXACT, &asIndex) != TCL_OK) {
-		return TCL_ERROR;
-	    }
-	    break;
-	case NEXTROW_ENDOPTS:
-	    endOfOpts = 1;
-	    break;
-	}
-    }
-    if (i != objc-1) {
-	Tcl_WrongNumArgs(interp, 2, objv, "?-as variableType? ?--? varName");
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "varName");
 	return TCL_ERROR;
     }
-    varName = objv[i];
-	
+
     /* 
      * Extract the column information for the result set, unless we
      * already know it.
@@ -2771,173 +2713,26 @@ ResultSetNextrowMethod(
     resultRow = Tcl_NewObj();
     Tcl_IncrRefCount(resultRow);
     for (i = 0; i < nColumns; ++i) {
-	colObj = NULL;
-	switch(sdata->results[i].dataType) {
-	    /* TODO: Need to return binary data as byte arrays. */
-
-	case SQL_NUMERIC:
-	case SQL_DECIMAL:
-
-	    /* 
-	     * A generic 'numeric' type may fit in an int, wide,
-	     * or double, and gets converted specially if it does.
-	     */
-
-	    if (sdata->results[i].scale == 0) {
-		if (sdata->results[i].precision < 10) {
-		    goto convertLong;
-		} else if (sdata->results[i].precision < 19) {
-		    goto convertWide;
-		} else {
-		    /*
-		     * It is tempting to convert wider integers as bignums,
-		     * but Tcl does not yet export its copy of libtommath
-		     * into the public API.
-		     */
-		    goto convertString;
-		}
-	    } else if (sdata->results[i].precision <= 15) {
-		goto convertDouble;
-	    } else {
-		goto convertString;
-	    }
-
-	case SQL_BIGINT:
-	convertWide:
-	    /* A wide integer */
-	    rc = SQLGetData(rdata->hStmt, i+1, SQL_C_SBIGINT,
-			    (SQLPOINTER) &colWide, sizeof(colWide), &colLen);
-	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
-		char info[80];
-		sprintf(info, "(retrieving result set column #%d)\n", i+1);
-		TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
-		ckfree(info);
-		goto cleanup;
-	    }
-	    if (colLen != SQL_NULL_DATA && colLen != SQL_NO_TOTAL) {
-		colObj = Tcl_NewWideIntObj((Tcl_WideInt)colWide);
-	    }
-	    break;
-
-	case SQL_BIT:
-	case SQL_INTEGER:
-	case SQL_SMALLINT:
-	case SQL_TINYINT:
-	convertLong:
-	    /* An integer no larger than 'long' */
-	    rc = SQLGetData(rdata->hStmt, i+1, SQL_C_SLONG,
-			    (SQLPOINTER) &colLong, sizeof(colLong), &colLen);
-	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
-		char info[80];
-		sprintf(info, "(retrieving result set column #%d)\n", i+1);
-		TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
-		ckfree(info);
-		goto cleanup;
-	    }
-	    if (colLen != SQL_NULL_DATA && colLen != SQL_NO_TOTAL) {
-		colObj = Tcl_NewLongObj(colLong);
-	    }
-	    break;
-		
-	case SQL_FLOAT:
-	    /*
-	     * A 'float' is converted to a 'double' if it fits;
-	     * to a string, otherwise.
-	     */
-	    if (sdata->results[i].precision <= 53) {
-		goto convertDouble;
-	    } else {
-		goto convertString;
-	    }
-
-	case SQL_REAL:
-	case SQL_DOUBLE:
-	convertDouble:
-	    /*
-	     * A single- or double-precision floating point number.
-	     * Reals are widened to doubles.
-	     */
-	    rc = SQLGetData(rdata->hStmt, i+1, SQL_C_DOUBLE,
-			    (SQLPOINTER) &colDouble, sizeof(colDouble),
-			    &colLen);
-	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
-		char info[80];
-		sprintf(info, "(retrieving result set column #%d)\n", i+1);
-		TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
-		ckfree(info);
-		goto cleanup;
-	    }
-	    if (colLen != SQL_NULL_DATA && colLen != SQL_NO_TOTAL) {
-		colObj = Tcl_NewDoubleObj(colDouble);
-	    }
-	    break;
-	    
-
-	default:
-	convertString:
-	    /* Anything else is converted as a string */
-	    retry = 0;
-	    do {
-	        /* 
-		 * It's possible that SQLGetData won't update colLen if
-		 * SQL_ERROR is returned. Store a background of zero so
-		 * that it's always initialized.
-		 */
-	        colLen = 0;
-		/*
-		 * It's tempting to use SQL_C_WCHAR here to avoid
-		 * encoding issues, but not all drivers can handle it!
-		 */
-		rc = SQLGetData(rdata->hStmt, i+1, SQL_C_CHAR,
-				(SQLPOINTER) colW, colAllocLen,
-				&colLen);
-		if (colLen >= colAllocLen) {
-		    colAllocLen = 2 * colLen + 1;
-		    if (colW != colBuf) {
-			ckfree((char*) colW);
-		    }
-		    colW = (SQLCHAR*)
-			ckalloc(colAllocLen * sizeof(SQLCHAR));
-		    retry = 1;
-		}
-	    } while (retry);
-	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
-		char info[80];		
-		sprintf(info, "(retrieving result set column #%d)\n", i+1);
-		TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
-		goto cleanup;
-	    }
-	    if (colLen >= 0) {
-		Tcl_DStringInit(&colDS);
-		Tcl_ExternalToUtfDString(NULL, (char*) colW, (int)colLen,
-					 &colDS);
-		colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
-					  Tcl_DStringLength(&colDS));
-		Tcl_DStringFree(&colDS);
-	    }
+	if (GetCell(rdata, interp, i, &colObj) != TCL_OK) {
+	    goto cleanup;
 	}
 
-	/* Add the column to the row of the result set */
-
-	switch(asIndex) {
-	case AS_DICTS:
-	    if (colObj != NULL) {
-		Tcl_ListObjIndex(NULL, sdata->resultColNames, i, &colName);
-		Tcl_DictObjPut(NULL, resultRow, colName, colObj);
-	    }
-	    break;
-	case AS_LISTS:
+	if (lists) {
 	    if (colObj == NULL) {
 		colObj = Tcl_NewObj();
 	    }
 	    Tcl_ListObjAppendElement(NULL, resultRow, colObj);
-	    break;
+	} else {
+	    if (colObj != NULL) {
+		Tcl_ListObjIndex(NULL, sdata->resultColNames, i, &colName);
+		Tcl_DictObjPut(NULL, resultRow, colName, colObj);
+	    }
 	}
     }
 
     /* Save the row in the given variable */
 
-    if (Tcl_SetVar2Ex(interp, Tcl_GetString(varName), NULL,
+    if (Tcl_SetVar2Ex(interp, Tcl_GetString(objv[2]), NULL,
 		      resultRow, TCL_LEAVE_ERR_MSG) == NULL) {
 	goto cleanup;
     }
@@ -2946,11 +2741,211 @@ ResultSetNextrowMethod(
     status = TCL_OK;
 
  cleanup:
-    if (colW != colBuf) {
-	ckfree((char*) colW);
-    }
     Tcl_DecrRefCount(resultRow);
     return status;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GetCell --
+ *
+ *	Service procedure to retrieve a single column in a row of a result
+ *	set.
+ *
+ * Results:
+ *	Returns a standard Tcl result.
+ *
+ * Side effects:
+ *	If the result is TCL_OK, the column value is stored in *colObjPtr,
+ *	with a zero refcount. (If the column value is NULL, NULL is stored.)
+ *	If the result is TCL_ERROR, *colObjPtr is left alone, but an error
+ *	message is stored in the interpreter result.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+GetCell(
+    ResultSetData* rdata,	/* Instance data for the result set */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    int i,			/* Column position */
+    Tcl_Obj** colObjPtr		/* Returned: Tcl_Obj containing the content 
+				 * or NULL */
+) {
+
+    StatementData* sdata = rdata->sdata;
+    SQLCHAR colBuf[256];	/* Buffer to hold the string value of a 
+				 * column */
+    SQLCHAR* colW = colBuf;	/* Pointer to the current allocated buffer
+				 * (which may have grown) */
+    SQLLEN colAllocLen = 256 * sizeof(SQLCHAR);
+				/* Current allocated size of the buffer,
+				 * in bytes */
+    SQLINTEGER colLong;		/* Integer value of the column */
+    SQLBIGINT colWide;		/* Wide-integer value of the column */
+    SQLDOUBLE colDouble;	/* Double value of the column */
+    SQLLEN colLen;		/* Actual size of the return value */
+    Tcl_DString colDS;		/* Column expressed as a Tcl_DString */
+    Tcl_Obj* colObj;		/* Column expressed as a Tcl_Obj */
+    SQLRETURN rc;		/* ODBC result code */
+    int retry;			/* Flag that the last ODBC operation should
+				 * be retried */
+
+    colObj = NULL;
+    *colObjPtr = NULL;
+    switch(sdata->results[i].dataType) {
+	/* TODO: Need to return binary data as byte arrays. */
+	
+    case SQL_NUMERIC:
+    case SQL_DECIMAL:
+	
+	/* 
+	 * A generic 'numeric' type may fit in an int, wide,
+	 * or double, and gets converted specially if it does.
+	 */
+	
+	if (sdata->results[i].scale == 0) {
+	    if (sdata->results[i].precision < 10) {
+		goto convertLong;
+	    } else if (sdata->results[i].precision < 19) {
+		goto convertWide;
+	    } else {
+		/*
+		 * It is tempting to convert wider integers as bignums,
+		 * but Tcl does not yet export its copy of libtommath
+		 * into the public API.
+		 */
+		goto convertString;
+	    }
+	} else if (sdata->results[i].precision <= 15) {
+	    goto convertDouble;
+	} else {
+	    goto convertString;
+	}
+	
+    case SQL_BIGINT:
+    convertWide:
+	/* A wide integer */
+	rc = SQLGetData(rdata->hStmt, i+1, SQL_C_SBIGINT,
+			(SQLPOINTER) &colWide, sizeof(colWide), &colLen);
+	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	    char info[80];
+	    sprintf(info, "(retrieving result set column #%d)\n", i+1);
+	    TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
+	    ckfree(info);
+	    return TCL_ERROR;
+	}
+	if (colLen != SQL_NULL_DATA && colLen != SQL_NO_TOTAL) {
+	    colObj = Tcl_NewWideIntObj((Tcl_WideInt)colWide);
+	}
+	break;
+	
+    case SQL_BIT:
+    case SQL_INTEGER:
+    case SQL_SMALLINT:
+    case SQL_TINYINT:
+    convertLong:
+	/* An integer no larger than 'long' */
+	rc = SQLGetData(rdata->hStmt, i+1, SQL_C_SLONG,
+			(SQLPOINTER) &colLong, sizeof(colLong), &colLen);
+	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	    char info[80];
+	    sprintf(info, "(retrieving result set column #%d)\n", i+1);
+	    TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
+	    ckfree(info);
+	    return TCL_ERROR;
+	}
+	if (colLen != SQL_NULL_DATA && colLen != SQL_NO_TOTAL) {
+	    colObj = Tcl_NewLongObj(colLong);
+	}
+	break;
+	
+    case SQL_FLOAT:
+	/*
+	 * A 'float' is converted to a 'double' if it fits;
+	 * to a string, otherwise.
+	 */
+	if (sdata->results[i].precision <= 53) {
+	    goto convertDouble;
+	} else {
+	    goto convertString;
+	}
+	
+    case SQL_REAL:
+    case SQL_DOUBLE:
+    convertDouble:
+	/*
+	 * A single- or double-precision floating point number.
+	 * Reals are widened to doubles.
+	 */
+	rc = SQLGetData(rdata->hStmt, i+1, SQL_C_DOUBLE,
+			(SQLPOINTER) &colDouble, sizeof(colDouble),
+			&colLen);
+	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	    char info[80];
+	    sprintf(info, "(retrieving result set column #%d)\n", i+1);
+	    TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
+	    ckfree(info);
+	    return TCL_ERROR;
+	}
+	if (colLen != SQL_NULL_DATA && colLen != SQL_NO_TOTAL) {
+	    colObj = Tcl_NewDoubleObj(colDouble);
+	}
+	break;
+	
+	
+    default:
+    convertString:
+	/* Anything else is converted as a string */
+	retry = 0;
+	do {
+	    /* 
+	     * It's possible that SQLGetData won't update colLen if
+	     * SQL_ERROR is returned. Store a background of zero so
+	     * that it's always initialized.
+	     */
+	    colLen = 0;
+	    /*
+	     * It's tempting to use SQL_C_WCHAR here to avoid
+	     * encoding issues, but not all drivers can handle it!
+	     */
+	    rc = SQLGetData(rdata->hStmt, i+1, SQL_C_CHAR,
+			    (SQLPOINTER) colW, colAllocLen,
+			    &colLen);
+	    if (colLen >= colAllocLen) {
+		colAllocLen = 2 * colLen + 1;
+		if (colW != colBuf) {
+		    ckfree((char*) colW);
+		}
+		colW = (SQLCHAR*)
+		    ckalloc(colAllocLen * sizeof(SQLCHAR));
+		retry = 1;
+	    }
+	} while (retry);
+	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	    char info[80];		
+	    sprintf(info, "(retrieving result set column #%d)\n", i+1);
+	    TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
+	    if (colW != colBuf) {
+		ckfree((char*) colW);
+	    }
+	    return TCL_ERROR;
+	}
+	if (colLen >= 0) {
+	    Tcl_DStringInit(&colDS);
+	    Tcl_ExternalToUtfDString(NULL, (char*) colW, (int)colLen,
+				     &colDS);
+	    colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
+				      Tcl_DStringLength(&colDS));
+	    Tcl_DStringFree(&colDS);
+	    if (colW != colBuf) {
+		ckfree((char*) colW);
+	    }
+	}
+    }
+    *colObjPtr = colObj;
+    return TCL_OK;
 }
 
 /*
@@ -3300,6 +3295,16 @@ Tdbcodbc_Init(
 			   (ClientData) NULL);
 	Tcl_DecrRefCount(nameObj);
     }
+    nameObj = Tcl_NewStringObj("nextlist", -1);
+    Tcl_IncrRefCount(nameObj);
+    Tcl_NewMethod(interp, curClass, nameObj, 1, &ResultSetNextrowMethodType,
+		  (ClientData) 1);
+    Tcl_DecrRefCount(nameObj);
+    nameObj = Tcl_NewStringObj("nextdict", -1);
+    Tcl_IncrRefCount(nameObj);
+    Tcl_NewMethod(interp, curClass, nameObj, 1, &ResultSetNextrowMethodType,
+		  (ClientData) 0);
+    Tcl_DecrRefCount(nameObj);
 
     DismissHEnv();
     return TCL_OK;

@@ -1,4 +1,11 @@
-2008-05-24  Kevin B Kenny  <kennykb@acm.org>
+2008-06-11  Kevin B. Kenny  <kennykb@acm.org>
+
+	* library/tdbc.tcl: Split [$resultset nextrow] into two primitive
+	methods: [$resultset nextlist] and [$resultset nextdict]. Added
+	a [$resultset nextrow] method that delegates to one or the other
+	of these.
+	
+2008-05-24  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Changed configuration to use TEA_PATH_CONFIG to
 	* aclocal.m4:   locate tcloo.  Removed the local code that did it

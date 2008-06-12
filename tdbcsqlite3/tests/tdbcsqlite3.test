@@ -423,6 +423,11 @@ test tdbcsqlite3-4.10 {failed execution} {*}{
     -result {1 {PRIMARY KEY must be unique}}
 }
 
+if 0 {
+
+# following tests check error syntax for 'paramtype' - and tdbcsqlite3
+# ignores paramtype, so they're kind of meaningless
+
 test tdbcsqlite3-5.1 {paramtype - too few args} {*}{
     -setup {
 	set stmt [::db prepare {
@@ -524,7 +529,7 @@ test tdbcsqlite3-5.6 {paramtype - unknown parameter} {*}{
     -match glob
     -result {unknown parameter "rubbish":*}
 }
-
+}
 test tdbcsqlite3-6.1 {rowcount - wrong args} {*}{
     -setup {
 	set stmt [::db prepare {

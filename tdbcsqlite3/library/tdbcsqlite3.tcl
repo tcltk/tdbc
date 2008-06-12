@@ -324,63 +324,17 @@ namespace eval tdbc::sqlite3 {
 	return $columns
     }
 
-    # Return the next row of the result set
+    # Return the next row of the result set as a list
 
-    method nextrow args {
+    method nextlist var {
 
 	my variable Cursor
 	my variable results
 
-	tdbc::puts {Entering ::tdbc::sqlite3::resultset::nextrow}
-	tdbc::puts {Class == [self class]}
-	tdbc::puts {Instance == [self]}
-	tdbc::puts {Call == [info level 0]}
-	if {[info level] > 1} {
-	    tdbc::puts {Caller is [info level -1]}
-	}
-	tdbc::puts {Variables: [info object vars [self]]}
+	upvar 1 $var row
 
-	set as dicts
-	set i 0
-
-	foreach {key value} $args {
-	    if {[string index $key 0] eq {-}} {
-		switch -regexp -- $key {
-		    -as? {
-			set as $value
-		    }
-		    -- {
-			incr i
-			break
-		    }
-		    default {
-			return -code error -errorcode {TDBC badOption} \
-			    "bad option \"$key\":\
-                             must be -as"
-		    }
-		}
-	    } else {
-		break
-	    }
-	    incr i 2
-	}
-	set args [lrange $args[set args {}] $i end]
-	if {[llength $args] != 1} {
-	    return -code error "wrong # args: should be\
-                [lrange [info level 0] 0 1] ?-as dicts|lists? ?--? varName"
-	}
-	upvar 1 [lindex $args 0] row
-	switch -exact -- $as {
-	    dicts - lists {}
-	    default {
-		return -code error "bad variable type \"$as\":\
-                    must be lists or dicts"
-	    }
-	}
 	if {[incr Cursor] >= [llength $results]} {
 	    return 0
-	} elseif {$as eq {dicts}} {
-	    set row [lindex $results $Cursor]
 	} else {
 	    my variable columns
 	    set row {}
@@ -392,6 +346,23 @@ namespace eval tdbc::sqlite3 {
 		    lappend row {}
 		}
 	    }
+	}
+	return 1
+    }
+
+    # Return the next row of the result set as a dict
+
+    method nextdict var {
+
+	my variable Cursor
+	my variable results
+
+	upvar 1 $var row
+
+	if {[incr Cursor] >= [llength $results]} {
+	    return 0
+	} else {
+	    set row [lindex $results $Cursor]
 	}
 	return 1
     }

@@ -1,3 +1,8 @@
+2008-06-11  Kevin B. Kenny  <kennykb@acm.org>
+	
+	* library/tdbcsqlite3.tcl: Split [$resultset nextrow] into two 
+	primitive methods: [$resultset nextlist] and [$resultset nextdict]. 
+
 2008-05-13  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tests/tdbcsqlite3.test: Added cleanup for the test for
