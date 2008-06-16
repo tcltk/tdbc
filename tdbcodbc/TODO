@@ -11,10 +11,10 @@ db: Clean up Tk connection - less urgent now that it's using
                              SQL_DRIVER_COMPLETE_REQUIRED
 
 Test conversion of BIT, NUMERIC, DECIMAL, TINYINT, SMALLINT, BIGINT,
-FLOAT, REAL, DOUBLE
+FLOAT, REAL, DOUBLE, BINARY, WVARCHAR
 
 Direct param conversions
-Direct result conversions - any left?
+Direct result conversions - any left?  (Yes, BINARY)
 
 WVARCHAR stuff
 

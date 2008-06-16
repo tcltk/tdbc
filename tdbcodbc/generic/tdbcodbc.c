@@ -319,6 +319,10 @@ static SQLHSTMT AllocAndPrepareStatement(Tcl_Interp* interp,
 					  StatementData* sdata);
 static int GetResultSetDescription(Tcl_Interp* interp, StatementData* sdata,
 				   SQLHSTMT hStmt);
+static int ConfigureConnection(Tcl_Interp* interp, HDBC hDBC, int objc,
+			       Tcl_Obj *CONST objv[],
+			       SQLUSMALLINT* connectFlagsPtr,
+			       HWND* hParentWindowPtr);
 static int ConnectionInitMethod(ClientData clientData, Tcl_Interp* interp,
 				Tcl_ObjectContext context,
 				int objc, Tcl_Obj *const objv[]);
@@ -1059,6 +1063,147 @@ GetResultSetDescription(
 /*
  *-----------------------------------------------------------------------------
  *
+ * ConfigureConnection --
+ *
+ *	Processes configuration options for an ODBC connection.
+ *
+ * Results:
+ *	Returns a standard Tcl result; if TCL_ERROR is returned, the
+ *	interpreter result is set to an error message.
+ *
+ * Side effects:
+ *	Makes appropriate SQLSetConnectAttr calls to set the connection
+ *	attributes.  If connectFlagsPtr or hMainWindowPtr are not NULL,
+ *	also accepts a '-parent' option, sets *connectFlagsPtr to
+ *	SQL_DRIVER_COMPLETE_REQUIED or SQL_DRIVER_NOPROMPT according
+ *	to whether '-parent' is supplied, and *hParentWindowPtr to the
+ *	HWND corresponding to the parent window.
+ *
+ * objc,objv are presumed to frame just the options, with positional
+ * parameters already stripped. The following options are accepted:
+ *
+ * -parent PATH
+ *	Specifies the path name of a parent window to use in a connection
+ *	dialog.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConfigureConnection(
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    HDBC hDBC,			/* Handle to the database connection */
+    int objc,			/* Option count */
+    Tcl_Obj *CONST objv[],	/* Option vector */
+    SQLUSMALLINT* connectFlagsPtr,
+				/* Pointer to the driver connection options */
+    HWND* hParentWindowPtr	/* Handle to the parent window for a 
+				 * connection dialog */
+) {
+    const static char* options[] = {
+	"-parent",
+	NULL
+    };
+    enum optionType {
+	COPTION_PARENT
+    };
+    int indx;			/* Index of the current option */
+#ifdef USE_TK
+    Tk_Window tkwin;		/* Window identifier of the parent of the
+				 * connection dialog */
+#endif
+    int i;
+
+
+    fprintf(stderr, "in ConfigureConnection\n"); fflush(stderr);
+    if (connectFlagsPtr) {
+	*connectFlagsPtr = SQL_DRIVER_NOPROMPT;
+    }
+    if (hParentWindowPtr) {
+	*hParentWindowPtr = NULL;
+    }
+
+    for (i = 0; i < objc; i+=2) {
+	if (Tcl_GetIndexFromObj(interp, objv[i], options, "option",
+				0, &indx) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	switch (indx) {
+
+	case COPTION_PARENT:
+	    /* Parent window for connection dialog */
+
+#ifdef USE_TK
+	    /* Make sure we haven't connected already */
+
+	    if (connectFlagsPtr == NULL || hParentWindowPtr == NULL) {
+		Tcl_SetObjResult(interp,
+				 Tcl_NewStringObj("-parent option cannot "
+						  "be used after connection "
+						  "is established", -1));
+		Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY010", "-1", NULL);
+		return TCL_ERROR;
+	    }
+
+	    /* Make sure that Tk is present and its Stubs are initialized */
+
+	    if (Tcl_PkgRequire(interp, "Tk", TK_VERSION, 0) == NULL) {
+		Tcl_ResetResult(interp);
+		Tcl_SetObjResult(interp,
+				 Tcl_NewStringObj("cannot use -parent "
+						  "option because Tk is not "
+						  "loaded", -1));
+		Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY000", "-1", NULL);
+		return TCL_ERROR;
+	    }
+	    Tcl_MutexLock(&hEnvMutex);
+	    if (!tkStubsInited) {
+		if (Tk_InitStubs(interp, TK_VERSION, 0) == NULL) {
+		    Tcl_MutexUnlock(&hEnvMutex);
+		    return TCL_ERROR;
+		}
+		tkStubsInited = 1;
+	    }
+	    Tcl_MutexUnlock(&hEnvMutex);
+
+	    /* Find the parent window, and get its HWND if possible */
+
+	    if ((tkwin = Tk_NameToWindow(interp, Tcl_GetString(objv[i+1]),
+					 Tk_MainWindow(interp))) == NULL) {
+		return TCL_ERROR;
+	    }
+	    Tk_MakeWindowExist(tkwin);
+#ifdef _WIN32
+	    *hParentWindowPtr = Tk_GetHWND(Tk_WindowId(tkwin));
+#else
+	    *hParentWindowPtr = (HWND) 1;
+#endif
+	    *connectFlagsPtr = SQL_DRIVER_COMPLETE_REQUIRED;
+	    break;
+
+#else /* not USE_TK */
+	    
+	    /* Tk is not present at build time. Complain if -parent is used */
+
+	    Tcl_SetObjResult(interp,
+			     Tcl_NewStringObj("cannot use -parent option "
+					      "because tdbc::odbc was built "
+					      "without Tk", -1));
+	    Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY000", "-1", NULL);
+	    return TCL_ERROR;
+#endif /* USE_TK */
+	    
+	}
+    }
+    fprintf(stderr, "connectFlags = %d parent=%p\n", *connectFlagsPtr,
+	    *hParentWindowPtr);
+    fflush(stderr);
+    return TCL_OK;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * ConnectionInitMethod --
  *
  *	Initializer for ::tdbc::odbc::connection, which represents a
@@ -1086,13 +1231,7 @@ ConnectionInitMethod(
     Tcl_Object thisObject;	/* The current connection object */
     SQLHDBC hDBC;		/* Handle to the database connection */
     SQLRETURN rc;		/* Return code from ODBC calls */
-#ifdef USE_TK
-				/* Take out the Tk stuff for now,
-				 * because the Stubs interface needs to
-				 * be sorted out */
-    Tk_Window tkwin;		/* The Tk main window for this interp */
-    HWND hMainWindow;		/* Windows handle of the main window */
-#endif
+    HWND hParentWindow = NULL;	/* Windows handle of the main window */
     SQLWCHAR* connectionStringReq;
 				/* Connection string requested by the caller */
     int connectionStringReqLen;
@@ -1103,6 +1242,8 @@ ConnectionInitMethod(
 				/* Length of the actual connection string */
     Tcl_DString connectionStringDS;
 				/* Connection string converted to UTF-8 */
+    SQLUSMALLINT connectFlags = SQL_DRIVER_NOPROMPT;
+				/* Driver options */
     ConnectionData *cdata;	/* Client data for the connection object */
 
     thisObject = Tcl_ObjectContextObject(objectContext);
@@ -1118,42 +1259,12 @@ ConnectionInitMethod(
      * to allow for SQL_DRIVER_PROMPT.
      */
 
-    if (objc != 3) {
-	Tcl_WrongNumArgs(interp, 2, objv, "connection-string");
+    fprintf(stderr, "in ConnectionInitMethod\n"); fflush(stderr);
+    if (objc < 3 || (objc%2) != 1) {
+	Tcl_WrongNumArgs(interp, 2, objv,
+			 "connection-string ?-option value?...");
 	return TCL_ERROR;
     }
-
-    /*
-     * If this is a Windows Tk application, we want the handle of the
-     * application main window, so that dialogs are parented correctly.
-     */
-
-#ifdef USE_TK
-    hMainWindow = NULL;
-    if (Tcl_PkgPresent(interp, "Tk", TK_VERSION, 0) == NULL) {
-	Tcl_ResetResult(interp);
-    } else {
-	Tcl_MutexLock(&hEnvMutex);
-	if (!tkStubsInited) {
-	    if (Tk_InitStubs(interp, TK_VERSION, 0) == NULL) {
-		Tcl_MutexUnlock(&hEnvMutex);
-		return TCL_ERROR;
-	    }
-	    tkStubsInited = 1;
-	}
-	Tcl_MutexUnlock(&hEnvMutex);
-	if ((tkwin = Tk_MainWindow(interp)) != NULL) {
-	    Tk_MakeWindowExist(tkwin);
-#ifdef _WIN32
-	    hMainWindow = Tk_GetHWND(Tk_WindowId(tkwin));
-#else
-	    hMainWindow = (HWND) 1;
-#endif
-	} else {
-	    Tcl_ResetResult(interp);
-	}
-    }
-#endif
 
     /*
      * Allocate a connection handle
@@ -1166,6 +1277,17 @@ ConnectionInitMethod(
 	return TCL_ERROR;
     }
 
+    /*
+     * Grab configuration options.
+     */
+
+    if (objc > 3 
+	&& ConfigureConnection(interp, hDBC, objc-3, objv+3,
+			       &connectFlags, &hParentWindow) != TCL_OK) {
+	SQLFreeHandle(SQL_HANDLE_DBC, hDBC);
+	return TCL_ERROR;
+    }
+    
     /*
      * TODO:
      * Several attributes either should or must be set before connecting
@@ -1181,11 +1303,10 @@ ConnectionInitMethod(
 
     connectionStringReq = GetWCharStringFromObj(objv[2],
 						&connectionStringReqLen);
-    rc = SQLDriverConnectW(hDBC, hMainWindow, connectionStringReq,
+    rc = SQLDriverConnectW(hDBC, hParentWindow, connectionStringReq,
 			   (SQLSMALLINT) connectionStringReqLen,
 			   connectionString, 1024, &connectionStringLen,
-			   (hMainWindow != NULL) ? 
-			   SQL_DRIVER_COMPLETE_REQUIRED : SQL_DRIVER_NOPROMPT);
+			   connectFlags);
     ckfree((char*) connectionStringReq);
     if (rc == SQL_NO_DATA) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("operation cancelled", -1));
