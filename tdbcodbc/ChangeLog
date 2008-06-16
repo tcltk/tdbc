@@ -1,9 +1,12 @@
 2006-06-15  Kevin B. Kenny  <kennykb@acm.org>
 
-	* generic/tdbcodbc.c: Removed the default check for Tk. Instead,
+	* generic/tdbcodbc.c: 
+	* tests/tdbcodbc.test: Removed the default check for Tk. Instead,
 	added a '-parent window' option to the constructor of
 	tdbc::odbc::connection that gives a parent window for the
 	driver manager dialog.
+	Added a 'configure' method to the connection object, and
+	rudimentary tests. (No configuration options yet implemented)
 	
 2008-06-11  Kevin B. Kenny  <kennykb@acm.org>
 	

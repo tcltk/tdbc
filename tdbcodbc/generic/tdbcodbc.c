@@ -330,6 +330,10 @@ static int ConnectionBeginTransactionMethod(ClientData clientData,
 					    Tcl_Interp* interp,
 					    Tcl_ObjectContext context,
 					    int objc, Tcl_Obj *const objv[]);
+static int ConnectionConfigureMethod(ClientData clientData,
+				     Tcl_Interp* interp,
+				     Tcl_ObjectContext context,
+				     int objc, Tcl_Obj *const objv[]);
 static int ConnectionEndXcnMethod(ClientData clientData,
 				  Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
@@ -433,9 +437,17 @@ const static Tcl_MethodType ConnectionInitMethodType = {
 const static Tcl_MethodType ConnectionBeginTransactionMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "begintransaction",			/* name */
+    "begintransaction",		/* name */
     ConnectionBeginTransactionMethod,
 				/* callProc */
+    DeleteCmd,			/* deleteProc */
+    CloneCmd			/* cloneProc */
+};
+const static Tcl_MethodType ConnectionConfigureMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "configure",		/* name */
+    ConnectionConfigureMethod,	/* callProc */
     DeleteCmd,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
@@ -455,6 +467,7 @@ const static Tcl_MethodType ConnectionEndXcnMethodType = {
 
 const static Tcl_MethodType* ConnectionMethods[] = {
     &ConnectionBeginTransactionMethodType,
+    &ConnectionConfigureMethodType,
     NULL
 };
 
@@ -1114,8 +1127,15 @@ ConfigureConnection(
 #endif
     int i;
 
+    /*
+     * TODO:
+     * Several attributes either should or must be set before connecting
+     *    SQL_ATTR_ACCESS_MODE
+     *    SQL_ATTR_CONNECTION_TIMEOUT
+     *    SQL_ATTR_LOGIN_TIMEOUT
+     *    SQL_ATTR_TXN_ISOLATION - Set after connect
+     */
 
-    fprintf(stderr, "in ConfigureConnection\n"); fflush(stderr);
     if (connectFlagsPtr) {
 	*connectFlagsPtr = SQL_DRIVER_NOPROMPT;
     }
@@ -1123,6 +1143,26 @@ ConfigureConnection(
 	*hParentWindowPtr = NULL;
     }
 
+    if (objc == 0) {
+	/* return configuration options */
+	return TCL_OK;
+    } else if (objc == 1) {
+	/* look up a single configuration option */
+	if (Tcl_GetIndexFromObj(interp, objv[0], options, "option",
+				0, &indx) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	switch (indx) {
+	case COPTION_PARENT:
+	    Tcl_SetObjResult(interp,
+			     Tcl_NewStringObj("-parent option cannot "
+					      "be used after connection "
+					      "is established", -1));
+	    Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY010", "-1", NULL);
+	    return TCL_ERROR;
+	}
+	return TCL_OK;
+    }
     for (i = 0; i < objc; i+=2) {
 	if (Tcl_GetIndexFromObj(interp, objv[i], options, "option",
 				0, &indx) != TCL_OK) {
@@ -1195,8 +1235,6 @@ ConfigureConnection(
 	    
 	}
     }
-    fprintf(stderr, "connectFlags = %d parent=%p\n", *connectFlagsPtr,
-	    *hParentWindowPtr);
     fflush(stderr);
     return TCL_OK;
 }
@@ -1249,17 +1287,9 @@ ConnectionInitMethod(
     thisObject = Tcl_ObjectContextObject(objectContext);
 
     /*
-     * TODO:
-     * Two forms -
-     *  2 arg - arg is a connection string, do SQLDriverConnect
-     *  4 args - DSN, userid, password, do SQLConnect
-     *			(Maybe never!)
-     * Right now, just do connection string.
-     * Also need a -parent option (conditional on Tk being loaded)
-     * to allow for SQL_DRIVER_PROMPT.
+     * Check param count
      */
 
-    fprintf(stderr, "in ConnectionInitMethod\n"); fflush(stderr);
     if (objc < 3 || (objc%2) != 1) {
 	Tcl_WrongNumArgs(interp, 2, objv,
 			 "connection-string ?-option value?...");
@@ -1288,15 +1318,6 @@ ConnectionInitMethod(
 	return TCL_ERROR;
     }
     
-    /*
-     * TODO:
-     * Several attributes either should or must be set before connecting
-     *    SQL_ATTR_ACCESS_MODE
-     *    SQL_ATTR_CONNECTION_TIMEOUT
-     *    SQL_ATTR_LOGIN_TIMEOUT
-     *    SQL_ATTR_TXN_ISOLATION - Set after connect
-     */
-
     /*
      * Connect to the database (SQLConnect, SQLDriverConnect, SQLBrowseConnect)
      */
@@ -1398,6 +1419,55 @@ ConnectionBeginTransactionMethod(
     }
 
     return TCL_OK;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionConfigureMethod --
+ *
+ *	Method that changes the configuration of an ODBC connection
+ *
+ * Usage:
+ *	$connection configure
+ * -or- $connection configure -option
+ * -or- $connection configure ?-option value?...
+ * 
+ * Parameters:
+ *	Alternating options and values
+ *
+ * Results:
+ *	With no arguments, returns a complete list of configuration options.
+ *	With a single argument, returns the value of the given configuration
+ *	option.  With two or more arguments, sets the given configuration
+ *	options to the given values.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionConfigureMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+
+    /* Check parameters */
+
+    if (objc != 2 && objc != 3 && (objc%2) != 0) {
+	Tcl_WrongNumArgs(interp, 2, objv,
+			 "?" "?-option? value? ?-option value?...");
+	return TCL_ERROR;
+    }
+
+    return ConfigureConnection(interp, cdata->hDBC, objc-2, objv+2, NULL, NULL);
 }
 
 /*

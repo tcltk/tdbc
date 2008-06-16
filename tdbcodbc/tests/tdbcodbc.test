@@ -2609,6 +2609,53 @@ test tdbcodbc-18.3 {$statement params - excess arg} {*}{
     -result {in numeric 10 0 in varchar 40}
 }
 
+test tdbcodbc-19.1 {$connection configure - no args} {*}{
+    -body {
+	::db configure
+    }
+    -result {}
+}
+
+test tdbcodbc-19.2 {$connection configure - unknown arg} {*}{
+    -body {
+	::db configure -junk
+    }
+    -returnCodes error
+    -match glob
+    -result "bad option *"
+}
+
+test tdbcodbc-19.3 {$connection configure - inappropriate arg} {*}{
+    -body {
+	list [catch {::db configure -parent} result] $::errorCode
+    }
+    -result {1 {TDBC ODBC HY010 -1}}
+}
+
+test tdbcodbc-19.4 {$connection configure - set unknown arg} {*}{
+    -body {
+	::db configure -junk morejunk
+    }
+    -returnCodes error
+    -match glob
+    -result "bad option *"
+}
+
+test tdbcodbc-19.5 {$connection configure - set inappropriate arg} {*}{
+    -body {
+	list [catch {::db configure -parent .} result] $::errorCode
+    }
+    -result {1 {TDBC ODBC HY010 -1}}
+}
+
+test tdbcodbc-19.6 {$connection configure - wrong # args} {*}{
+    -body {
+	::db configure -parent . -junk
+    }
+    -returnCodes error
+    -match glob
+    -result "wrong # args*"
+}
 
 #-------------------------------------------------------------------------------
 
