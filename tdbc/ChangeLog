@@ -1,3 +1,9 @@
+2008-10-23  Kevin B. Kenny  <kennykb@acm.org>
+
+	* library/tdbc.tcl: Fixed the constructor of tdbc::resultset
+	to *not* have an empty constructor (which is interpreted by
+	tcloo as deleting the constructor!).a
+	
 2008-06-11  Kevin B. Kenny  <kennykb@acm.org>
 
 	* library/tdbc.tcl: Split [$resultset nextrow] into two primitive

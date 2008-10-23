@@ -307,6 +307,8 @@ oo::class create ::tdbc::connection {
     # Derived classes are expected to implement the 'begintransaction',
     # 'commit', and 'rollback' methods.
 	
+    # Derived classes are expected to implement 'tables' and 'columns' method.
+
 }
 
 #------------------------------------------------------------------------------
@@ -504,6 +506,8 @@ oo::class create tdbc::statement {
 #------------------------------------------------------------------------------
 
 oo::class create tdbc::resultset {
+
+    constructor {} { }
 
     # The 'allrows' method returns a list of all rows that a given
     # result set returns.
