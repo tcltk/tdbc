@@ -2,7 +2,7 @@
 
 	* library/tdbc.tcl: Fixed the constructor of tdbc::resultset
 	to *not* have an empty constructor (which is interpreted by
-	tcloo as deleting the constructor!).a
+	tcloo as deleting the constructor!). Attempted to sign the commit.
 	
 2008-06-11  Kevin B. Kenny  <kennykb@acm.org>
 
