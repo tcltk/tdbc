@@ -44,8 +44,25 @@ TEA_LOAD_TCLCONFIG
 #TEA_PATH_TKCONFIG
 #TEA_LOAD_TKCONFIG
 
-TEA_PATH_CONFIG(tcloo)
-TEA_LOAD_CONFIG(tcloo)
+#--------------------------------------------------------------------
+# Load the tclooConfig.sh file on Tcl versions where oo is an
+# extension.
+#--------------------------------------------------------------------
+
+if test "${TCL_MAJOR_VERSION}" -lt 8 ; then
+    AC_MSG_ERROR([${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.5 or newer.
+Found configuration for Tcl ${TCL_VERSION}.])
+fi
+if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
+  if test "${TCL_MINOR_VERSION}" -lt 5 ; then
+    AC_MSG_ERROR([${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.5 or newer.
+Found configuration for Tcl ${TCL_VERSION}.])
+  fi
+  if test "${TCL_MINOR_VERSION}" -eq 5 ; then
+    TEA_PATH_CONFIG(tcloo)
+    TEA_LOAD_CONFIG(tcloo)
+  fi
+fi
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.
@@ -75,9 +92,13 @@ AC_C_INLINE
 
 TEA_ADD_SOURCES(tdbc.c tdbcStubInit.c tdbcTokenize.c)
 TEA_ADD_HEADERS(generic/tdbc.h generic/tdbcInt.h generic/tdbcDecls.h)
-TEA_ADD_INCLUDES([${TCLOO_INCLUDE_SPEC}])
-TEA_ADD_LIBS([${TCLOO_STUB_LIB_SPEC}])
-TEA_ADD_CFLAGS([${TCLOO_CFLAGS}])
+if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
+  if test "${TCL_MINOR_VERSION}" -eq 5 ; then
+    TEA_ADD_INCLUDES([${TCLOO_INCLUDE_SPEC}])
+    TEA_ADD_LIBS([${TCLOO_STUB_LIB_SPEC}])
+    TEA_ADD_CFLAGS([${TCLOO_CFLAGS}])
+  fi
+fi
 TEA_ADD_STUB_SOURCES([tdbcStubLib.c])
 TEA_ADD_TCL_SOURCES([library/tdbc.tcl])
 
