@@ -44,8 +44,27 @@ TEA_LOAD_TCLCONFIG
 TEA_PATH_TKCONFIG
 TEA_LOAD_TKCONFIG
 
-TEA_PATH_CONFIG(tcloo)
-TEA_LOAD_CONFIG(tcloo)
+#--------------------------------------------------------------------
+# Load the tclooConfig.sh file on Tcl versions where oo is an
+# extension.
+#--------------------------------------------------------------------
+
+if test "${TCL_MAJOR_VERSION}" -lt 8 ; then
+    AC_MSG_ERROR([${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.5 or newer.
+Found configuration for Tcl ${TCL_VERSION}.])
+fi
+if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
+  if test "${TCL_MINOR_VERSION}" -lt 5 ; then
+    AC_MSG_ERROR([${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.5 or newer.
+Found configuration for Tcl ${TCL_VERSION}.])
+  fi
+  if test "${TCL_MINOR_VERSION}" -eq 5 ; then
+    TEA_PATH_CONFIG(tcloo)
+    TEA_LOAD_CONFIG(tcloo)
+  else
+    TCLOO_CFLAGS='-DUSE_TCLOO_STUBS'
+  fi
+fi
 
 TEA_PATH_CONFIG(tdbc)
 TEA_LOAD_CONFIG(tdbc)
@@ -69,7 +88,7 @@ AC_C_INLINE
 AC_CHECK_TYPE([long long],[
     AC_DEFINE([HAVE_LONG_LONG],[1])
     AC_CHECK_SIZEOF([long long])
-])
+],[],[])
 AC_CHECK_SIZEOF([long])
 AC_DEFINE([DONT_TD_VOID],[1])
 
@@ -100,9 +119,16 @@ AC_SUBST(ODBC_LIB_SPEC)
 
 TEA_ADD_SOURCES(generic/tdbcodbc.c)
 TEA_ADD_HEADERS()
-TEA_ADD_INCLUDES([${TCLOO_INCLUDE_SPEC} ${TDBC_INCLUDE_SPEC} ${ODBC_INCLUDE_SPEC}])
-TEA_ADD_LIBS([${TCLOO_STUB_LIB_SPEC} ${TDBC_STUB_LIB_SPEC} ${ODBC_LIB_SPEC}])
-TEA_ADD_CFLAGS([${TCLOO_CFLAGS} ${TDBC_CFLAGS}])
+if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
+  if test "${TCL_MINOR_VERSION}" -eq 5 ; then
+    TEA_ADD_INCLUDES([${TCLOO_INCLUDE_SPEC}])
+    TEA_ADD_LIBS([${TCLOO_STUB_LIB_SPEC}])
+  fi
+fi
+TEA_ADD_CFLAGS([${TCLOO_CFLAGS}])
+TEA_ADD_INCLUDES([${TDBC_INCLUDE_SPEC} ${ODBC_INCLUDE_SPEC}])
+TEA_ADD_LIBS([${TDBC_STUB_LIB_SPEC} ${ODBC_LIB_SPEC}])
+TEA_ADD_CFLAGS([${TDBC_CFLAGS}])
 TEA_ADD_STUB_SOURCES()
 TEA_ADD_TCL_SOURCES([library/tdbcodbc.tcl])
 
