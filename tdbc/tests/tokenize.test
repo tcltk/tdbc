@@ -3,7 +3,7 @@
 #	Tests for the tokenizer in TDBC
 
 lappend auto_path .
-package require Tdbc
+package require tdbc
 if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest 2
     namespace import -force ::tcltest::*

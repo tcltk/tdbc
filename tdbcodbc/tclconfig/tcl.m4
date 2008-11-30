@@ -3911,13 +3911,18 @@ AC_DEFUN([TEA_PATH_CONFIG], [
 
 	    # check in a few common install locations
 	    if test x"${ac_cv_c_$1config}" = x ; then
+                ls -d ${exec_prefix}/lib
+                ls -d ${prefix}/lib
 		for i in `ls -d ${libdir} 2>/dev/null` \
 			`ls -d ${exec_prefix}/lib 2>/dev/null` \
+                        `ls -d ${exec_prefix}/lib/$1* 2>/dev/null` \
 			`ls -d ${prefix}/lib 2>/dev/null` \
+			`ls -d ${prefix}/lib/$1* 2>/dev/null` \
 			`ls -d /usr/local/lib 2>/dev/null` \
 			`ls -d /usr/contrib/lib 2>/dev/null` \
 			`ls -d /usr/lib 2>/dev/null` \
 			; do
+		    AC_MSG_WARN([Looking for $1Config.sh in $i])
 		    if test -f "$i/$1Config.sh" ; then
 			ac_cv_c_$1config=`(cd $i; pwd)`
 			break

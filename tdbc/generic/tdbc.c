@@ -31,7 +31,7 @@ static struct TdbcCommand {
 /* Initialization script to run once the base commands are created */
 
 static const char initScript[] = 
-    "tcl_findLibrary Tdbc " PACKAGE_VERSION " " PACKAGE_VERSION
+    "tcl_findLibrary tdbc " PACKAGE_VERSION " " PACKAGE_VERSION
     " tdbc.tcl TDBC_LIBRARY ::tdbc::Library";
 
 

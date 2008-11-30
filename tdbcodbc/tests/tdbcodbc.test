@@ -11,7 +11,7 @@
 #------------------------------------------------------------------------------
 
 lappend auto_path .
-package require Tdbcodbc
+package require tdbcodbc
 if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest 2
     namespace import -force ::tcltest::*
