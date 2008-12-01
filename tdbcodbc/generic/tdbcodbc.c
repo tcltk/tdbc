@@ -1407,7 +1407,6 @@ ConfigureConnection(
 	    
 	}
     }
-    fflush(stderr);
     return TCL_OK;
 }
 
@@ -2908,7 +2907,7 @@ ResultSetInitMethod(
 		dataType = SQL_C_WCHAR;
 		rdata->bindStrings[nBound] = (SQLCHAR*)
 		    GetWCharStringFromObj(paramValObj, &paramLen);
-		paramExternalLen = paramLen;
+		rdata->bindStringLengths[nBound] = paramLen * sizeof(SQLWCHAR);
 
 	    } else {
 
@@ -3389,17 +3388,19 @@ GetCell(
 	    }
 	    return TCL_ERROR;
 	}
-	Tcl_DStringInit(&colDS);
-	if (dataType == SQL_C_CHAR) {
-	    Tcl_ExternalToUtfDString(NULL, (char*) colPtr, (int)colLen,
-				     &colDS);
-	} else {
-	    DStringAppendWChars(&colDS, (SQLWCHAR*) colPtr,
-				(int)(colLen / sizeof(SQLWCHAR)));
+	if (colLen >= 0) {
+	    Tcl_DStringInit(&colDS);
+	    if (dataType == SQL_C_CHAR) {
+		Tcl_ExternalToUtfDString(NULL, (char*) colPtr, (int)colLen,
+					 &colDS);
+	    } else {
+		DStringAppendWChars(&colDS, (SQLWCHAR*) colPtr,
+				    (int)(colLen / sizeof(SQLWCHAR)));
+	    }
+	    colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
+				      Tcl_DStringLength(&colDS));
+	    Tcl_DStringFree(&colDS);
 	}
-	colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
-				  Tcl_DStringLength(&colDS));
-	Tcl_DStringFree(&colDS);
 	break;
 	
     } /* end of switch */
@@ -3576,7 +3577,6 @@ Tdbcodbc_Init(
 	return TCL_ERROR;
     }
     if (Tdbc_InitStubs(interp) == NULL) {
-	fprintf(stderr, "init stubs failed\n"); fflush(stderr);
 	return TCL_ERROR;
     }
 
