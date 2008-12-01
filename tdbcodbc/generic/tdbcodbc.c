@@ -902,11 +902,24 @@ static inline int LookupOdbcType(
     return LookupOdbcConstant(interp, OdbcTypeNames, "SQL data type",
 			      name, valuePtr);
 }
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TranslateOdbcIsolationLevel --
+ *
+ *	Translates an ODBC isolation level into human-readable form.
+ *
+ * Results:
+ *	Returns a Tcl_Obj with the human-readable level.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
 static Tcl_Obj*
 TranslateOdbcIsolationLevel(
-    SQLINTEGER level, 
-    Tcl_Obj* literals[]
+    SQLINTEGER level, 		/* Isolation level */
+    Tcl_Obj* literals[]		/* Pointer to the literal pool */
 ) {
     if (level & SQL_TXN_SERIALIZABLE) {
 	return literals[LIT_SERIALIZABLE];
