@@ -17,6 +17,7 @@
 			       tdbc::odbc. Renamed all tests accordingly.
 	* Makefile.in: Changed the script-level package name to tdbc::odbc
 	               for building pkgIndex.tcl
+	* test.mdb: Reverted a commit that corrupted this file.
 	
 2008-11-22  Kevin B. Kenny  <kennykb@acm.org>
 
