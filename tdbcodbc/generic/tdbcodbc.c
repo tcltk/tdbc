@@ -58,6 +58,7 @@ const char* LiteralValues[] = {
     "::info",
     "-isolation",
     "-readonly",
+    "-timeout",
     "readuncommitted",
     "readcommitted",
     "repeatableread",
@@ -71,6 +72,7 @@ enum LiteralIndex {
     LIT_INFO,
     LIT_ISOLATION,
     LIT_READONLY,
+    LIT_TIMEOUT,
     LIT_READUNCOMMITTED,
     LIT_READCOMMITTED,
     LIT_REPEATABLEREAD,
@@ -330,6 +332,8 @@ static SQLWCHAR* GetWCharStringFromObj(Tcl_Obj* obj, int* lengthPtr);
 
 static void TransferSQLError(Tcl_Interp* interp, SQLSMALLINT handleType,
 			     SQLHANDLE handle, const char* info);
+static int SQLStateIs(SQLSMALLINT handleType, SQLHANDLE handle,
+		      const char* sqlstate);
 static int LookupOdbcConstant(Tcl_Interp* interp, const OdbcConstant* table,
 			      const char* kind, Tcl_Obj* name,
 			      SQLSMALLINT* valuePtr);
@@ -814,6 +818,47 @@ TransferSQLError(
 /*
  *-----------------------------------------------------------------------------
  *
+ * SQLStateIs --
+ *
+ *	Determines whther SQLSTATE in the set of diagnostic records
+ *	contains a particular state.
+ *
+ * Results:
+ *	Returns 1 if the state matches, and 0 otherwise.
+ *
+ * This function is used primarily to look for the state "HYC00"
+ * (Optional Function Not Implemented), but may also be used for
+ * other states such as "HYT00" (Timeout Expired), "HY008"
+ * (Operation Cancelled), "01004" (Data Truncated) and "01S02"
+ * (Option Value Changed). 
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+SQLStateIs(
+    SQLSMALLINT handleType, 	/* Type of handle reporting the state */
+    SQLHANDLE handle,		/* Handle that reported the state */
+    const char* sqlstate	/* State to look for */
+) {
+    SQLCHAR state[6];		/* SQL state code from the diagnostic record */
+    SQLSMALLINT stateLen;	/* String length of the state code */
+    SQLSMALLINT i;		/* Loop index */
+
+    i = 1;
+    while (SQLGetDiagFieldA(handleType, handle, i, SQL_DIAG_SQLSTATE,
+			    (SQLPOINTER) state, sizeof (state), &stateLen)
+	   != SQL_NO_DATA) {
+	if (stateLen >= 0 && !strcmp(sqlstate, state)) {
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * LookupOdbcConstant --
  *
  *	Looks up an ODBC enumerated constant in a table.
@@ -1179,12 +1224,14 @@ ConfigureConnection(
 	"-isolation",
 	"-parent",
 	"-readonly",
+	"-timeout",
 	NULL
     };
     enum optionType {
 	COPTION_ISOLATION,
 	COPTION_PARENT,
-	COPTION_READONLY
+	COPTION_READONLY,
+	COPTION_TIMEOUT
     };
 
     int indx;			/* Index of the current option */
@@ -1199,11 +1246,11 @@ ConfigureConnection(
     int j;
     SQLINTEGER mode;		/* Access mode of the database */
     SQLSMALLINT isol;		/* Isolation level */
-    SQLRETURN rc;		/* Return code form SQL operations */
+    SQLINTEGER seconds;		/* Timeout value in seconds */
+    SQLRETURN rc;		/* Return code from SQL operations */
 
     /*
-     * TODO:
-     * Several attributes either should or must be set before connecting
+     * TODO: Do something about encoding 
      */
 
     if (connectFlagsPtr) {
@@ -1244,6 +1291,26 @@ ConfigureConnection(
 	Tcl_ListObjAppendElement(NULL, retval, literals[LIT_READONLY]);
 	Tcl_ListObjAppendElement(NULL, retval, 
 				 Tcl_NewIntObj(mode == SQL_MODE_READ_ONLY));
+
+	/* -timeout */
+
+	rc = SQLGetConnectAttr(hDBC, SQL_ATTR_CONNECTION_TIMEOUT,
+			       (SQLPOINTER)&seconds, 0, NULL);
+	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	    if (SQLStateIs(SQL_HANDLE_DBC, hDBC, "HYC00")) {
+		seconds = 0;
+	    } else {
+		TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
+				 "(getting connection timeout value)");
+		return TCL_ERROR;
+	    }
+	}
+	Tcl_ListObjAppendElement(NULL, retval, literals[LIT_TIMEOUT]);
+	Tcl_ListObjAppendElement(NULL, retval,
+				 Tcl_NewIntObj(1000 * (int) seconds));
+
+	/* end of options */
+
 	Tcl_SetObjResult(interp, retval);
 	return TCL_OK;
 
@@ -1268,7 +1335,7 @@ ConfigureConnection(
 	    }
 	    Tcl_SetObjResult(interp,
 			     TranslateOdbcIsolationLevel(mode, literals));
-	    return TCL_OK;
+	    break;
 
 	case COPTION_PARENT:
 	    Tcl_SetObjResult(interp,
@@ -1288,8 +1355,24 @@ ConfigureConnection(
 	    }
 	    Tcl_SetObjResult(interp,
 			     Tcl_NewIntObj(mode == SQL_MODE_READ_ONLY));
-	}
+	    break;
 
+	case COPTION_TIMEOUT:
+	    rc = SQLGetConnectAttr(hDBC, SQL_ATTR_CONNECTION_TIMEOUT,
+				   (SQLPOINTER)&seconds, 0, NULL);
+	    if (SQLStateIs(SQL_HANDLE_DBC, hDBC, "HYC00")) {
+		seconds = 0;
+	    } else {
+		if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+		    TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
+				     "(getting connection timeout value)");
+		    return TCL_ERROR;
+		}
+	    }
+	    Tcl_SetObjResult(interp, Tcl_NewIntObj(1000 * (int) seconds));
+	    break;
+
+	}
 
 	return TCL_OK;
 
@@ -1387,6 +1470,7 @@ ConfigureConnection(
 #endif /* USE_TK */
 	    
 	case COPTION_READONLY:
+	    /* read-only indicator */
 	    
 	    if (Tcl_GetBooleanFromObj(interp, objv[i+1], &j) != TCL_OK) {
 		return TCL_ERROR;
@@ -1404,7 +1488,30 @@ ConfigureConnection(
 		return TCL_ERROR;
 	    }
 	    break;
-	    
+
+	case COPTION_TIMEOUT:
+	    /* timeout value */
+
+	    if (Tcl_GetIntFromObj(interp, objv[i+1], &j) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    seconds = (SQLINTEGER)((j + 999) / 1000);
+	    rc = SQLSetConnectAttr(hDBC, SQL_ATTR_CONNECTION_TIMEOUT,
+				   (SQLPOINTER)&seconds, 0);
+	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+		/* 
+		 * A failure is OK if the SQL state is "Optional
+		 * Function Not Implemented" and we were trying to set
+		 * a zero timeout.
+		 */
+		if (!SQLStateIs(SQL_HANDLE_DBC, hDBC, "HYC00")
+		    || seconds != 0) {
+		    TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
+				     "(setting access mode of connection)");
+		    return TCL_ERROR;
+		}
+	    }
+	    break;
 	}
     }
     return TCL_OK;
