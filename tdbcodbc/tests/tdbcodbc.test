@@ -11,7 +11,7 @@
 #------------------------------------------------------------------------------
 
 lappend auto_path .
-package require tdbcodbc
+package require tdbc::odbc
 if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest 2
     namespace import -force ::tcltest::*
@@ -45,7 +45,7 @@ if {$tcl_platform(platform) eq {windows}} {
 
 #-------------------------------------------------------------------------------
 
-test tdbcodbc-1.1 {create a connection, wrong # args} {*}{
+test tdbc::odbc-1.1 {create a connection, wrong # args} {*}{
     -body {
 	tdbc::odbc::connection create
     }
@@ -54,7 +54,7 @@ test tdbcodbc-1.1 {create a connection, wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcodbc-1.2 {create a connection, connection string missing} {*}{
+test tdbc::odbc-1.2 {create a connection, connection string missing} {*}{
     -body {
 	tdbc::odbc::connection create db
     }
@@ -63,7 +63,7 @@ test tdbcodbc-1.2 {create a connection, connection string missing} {*}{
     -result {wrong # args*}
 }
 
-test tdbcodbc-1.3 {create a connection, failure} {*}{
+test tdbc::odbc-1.3 {create a connection, failure} {*}{
     -body {
 	set status [catch {
 	    tdbc::odbc::connection create db {DRIVER={rubbish}}
@@ -74,7 +74,7 @@ test tdbcodbc-1.3 {create a connection, failure} {*}{
     -result {1 {TDBC ODBC IM002 *}}
 }
 
-test tdbcodbc-1.4 {create a connection, successful} {*}{
+test tdbc::odbc-1.4 {create a connection, successful} {*}{
     -body {
 	tdbc::odbc::connection create ::db $::connStr
     }
@@ -92,7 +92,7 @@ tdbc::odbc::connection create ::db $::connStr
 
 #-------------------------------------------------------------------------------
 
-test tdbcodbc-2.1 {prepare statement, wrong # args} {*}{
+test tdbc::odbc-2.1 {prepare statement, wrong # args} {*}{
     -body {
 	::db prepare
     }
@@ -101,7 +101,7 @@ test tdbcodbc-2.1 {prepare statement, wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcodbc-2.2 {don't make a statement without a connection} {*}{
+test tdbc::odbc-2.2 {don't make a statement without a connection} {*}{
     -body {
 	tdbc::odbc::statement create stmt rubbish moreRubbish 
     }
@@ -109,7 +109,7 @@ test tdbcodbc-2.2 {don't make a statement without a connection} {*}{
     -result {rubbish does not refer to an object}
 }
 
-test tdbcodbc-2.3 {don't make a statement without a connection} {*}{
+test tdbc::odbc-2.3 {don't make a statement without a connection} {*}{
     -body {
 	tdbc::odbc::statement create stmt oo::class moreRubbish 
     }
@@ -117,7 +117,7 @@ test tdbcodbc-2.3 {don't make a statement without a connection} {*}{
     -result {oo::class does not refer to an ODBC connection}
 }
 
-test tdbcodbc-2.4 {semicolons in statements} {*}{
+test tdbc::odbc-2.4 {semicolons in statements} {*}{
     -body {
 	::db prepare {select foo from bar; select grill from quux}
     }
@@ -125,7 +125,7 @@ test tdbcodbc-2.4 {semicolons in statements} {*}{
     -result {Tdbcodbc does not support semicolons in statements}
 }
 
-test tdbcodbc-3.0 {prepare a valid statement} {*}{
+test tdbc::odbc-3.0 {prepare a valid statement} {*}{
     -body {
 	set stmt [::db prepare {
 	    CREATE TABLE people(
@@ -141,7 +141,7 @@ test tdbcodbc-3.0 {prepare a valid statement} {*}{
     }
 }
 
-test tdbcodbc-3.1 {execute a valid statement with no results} {*}{
+test tdbc::odbc-3.1 {execute a valid statement with no results} {*}{
     -body {
 	set stmt [::db prepare {
 	    CREATE TABLE people(
@@ -167,7 +167,7 @@ test tdbcodbc-3.1 {execute a valid statement with no results} {*}{
     }
 }
 
-test tdbcodbc-3.2 {result set: wrong # args} {*}{
+test tdbc::odbc-3.2 {result set: wrong # args} {*}{
     -body {
 	set stmt [::db prepare {
 	    CREATE TABLE people(
@@ -185,7 +185,7 @@ test tdbcodbc-3.2 {result set: wrong # args} {*}{
     }
 }
 
-test tdbcodbc-3.3 {result set: trying to create against a non-object} {*}{
+test tdbc::odbc-3.3 {result set: trying to create against a non-object} {*}{
     -body {
 	tdbc::odbc::resultset create rs nothing
     }
@@ -193,7 +193,7 @@ test tdbcodbc-3.3 {result set: trying to create against a non-object} {*}{
     -result {nothing does not refer to an object}
 }
 
-test tdbcodbc-3.4 {result set: trying to create against a non-statement} {*}{
+test tdbc::odbc-3.4 {result set: trying to create against a non-statement} {*}{
     -body {
 	tdbc::odbc::resultset create rs db
     }
@@ -216,7 +216,7 @@ set rs [$stmt execute]
 rename $rs {}
 rename $stmt {}
 
-test tdbcodbc-4.1 {execute an insert with no params} {*}{
+test tdbc::odbc-4.1 {execute an insert with no params} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(1, 'fred', 0)
@@ -239,7 +239,7 @@ test tdbcodbc-4.1 {execute an insert with no params} {*}{
     }
 }
 
-test tdbcodbc-4.2 {execute an insert with variable parameters} {*}{
+test tdbc::odbc-4.2 {execute an insert with variable parameters} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -266,7 +266,7 @@ test tdbcodbc-4.2 {execute an insert with variable parameters} {*}{
     }
 }
 
-test tdbcodbc-4.3 {execute an insert with dictionary parameters} {*}{
+test tdbc::odbc-4.3 {execute an insert with dictionary parameters} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -291,7 +291,7 @@ test tdbcodbc-4.3 {execute an insert with dictionary parameters} {*}{
     }
 }
 
-test tdbcodbc-4.4 {bad dictionary} {*}{
+test tdbc::odbc-4.4 {bad dictionary} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name)
@@ -315,7 +315,7 @@ test tdbcodbc-4.4 {bad dictionary} {*}{
     }
 }
 
-test tdbcodbc-4.5 {missing parameter variable} {*}{
+test tdbc::odbc-4.5 {missing parameter variable} {*}{
     -constraints !sqlite
     -setup {
 	catch {unset idnum}
@@ -345,7 +345,7 @@ test tdbcodbc-4.5 {missing parameter variable} {*}{
     }
 }
 
-test tdbcodbc-4.6 {missing parameter in dictionary} {*}{
+test tdbc::odbc-4.6 {missing parameter in dictionary} {*}{
     -constraints !sqlite
     -body {
 	set stmt [::db prepare {
@@ -371,7 +371,7 @@ test tdbcodbc-4.6 {missing parameter in dictionary} {*}{
     }
 }
 
-test tdbcodbc-4.7 {missing parameter - nullable} {*}{
+test tdbc::odbc-4.7 {missing parameter - nullable} {*}{
     -setup {
 	catch {unset info}
 	set stmt [::db prepare {
@@ -410,7 +410,7 @@ test tdbcodbc-4.7 {missing parameter - nullable} {*}{
     }
 }
 
-test tdbcodbc-4.8 {missing parameter in dictionary - nullable} {*}{
+test tdbc::odbc-4.8 {missing parameter in dictionary - nullable} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, :info)
@@ -446,7 +446,7 @@ test tdbcodbc-4.8 {missing parameter in dictionary - nullable} {*}{
     }
 }
 
-test tdbcodbc-4.9 {two result sets open against the same statement} {*}{
+test tdbc::odbc-4.9 {two result sets open against the same statement} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -474,7 +474,7 @@ test tdbcodbc-4.9 {two result sets open against the same statement} {*}{
     }
 }
 
-test tdbcodbc-4.10 {failed execution} {*}{
+test tdbc::odbc-4.10 {failed execution} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -501,7 +501,7 @@ test tdbcodbc-4.10 {failed execution} {*}{
     -result {1 {TDBC ODBC * *}}
 }
 
-test tdbcodbc-5.1 {paramtype - too few args} {*}{
+test tdbc::odbc-5.1 {paramtype - too few args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -518,7 +518,7 @@ test tdbcodbc-5.1 {paramtype - too few args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcodbc-5.2 {paramtype - just a direction} {*}{
+test tdbc::odbc-5.2 {paramtype - just a direction} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -535,7 +535,7 @@ test tdbcodbc-5.2 {paramtype - just a direction} {*}{
     -result {wrong # args*}
 }
     
-test tdbcodbc-5.3 {paramtype - bad type} {*}{
+test tdbc::odbc-5.3 {paramtype - bad type} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -552,7 +552,7 @@ test tdbcodbc-5.3 {paramtype - bad type} {*}{
     -result {bad SQL data type "rubbish":*}
 }
 
-test tdbcodbc-5.4 {paramtype - bad scale} {*}{
+test tdbc::odbc-5.4 {paramtype - bad scale} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -569,7 +569,7 @@ test tdbcodbc-5.4 {paramtype - bad scale} {*}{
     -result {expected integer but got "rubbish"}
 }
 
-test tdbcodbc-5.5 {paramtype - bad precision} {*}{
+test tdbc::odbc-5.5 {paramtype - bad precision} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -586,7 +586,7 @@ test tdbcodbc-5.5 {paramtype - bad precision} {*}{
     -result {expected integer but got "rubbish"}
 }
 
-test tdbcodbc-5.6 {paramtype - unknown parameter} {*}{
+test tdbc::odbc-5.6 {paramtype - unknown parameter} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -603,7 +603,7 @@ test tdbcodbc-5.6 {paramtype - unknown parameter} {*}{
     -result {unknown parameter "rubbish":*}
 }
 
-test tdbcodbc-6.1 {rowcount - wrong args} {*}{
+test tdbc::odbc-6.1 {rowcount - wrong args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -651,7 +651,7 @@ catch {
 
 #-------------------------------------------------------------------------------
 
-test tdbcodbc-7.1 {columns - bad args} {*}{
+test tdbc::odbc-7.1 {columns - bad args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT * FROM people
@@ -670,7 +670,7 @@ test tdbcodbc-7.1 {columns - bad args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcodbc-7.2 {columns - get column names} {*}{
+test tdbc::odbc-7.2 {columns - get column names} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT * FROM people
@@ -687,7 +687,7 @@ test tdbcodbc-7.2 {columns - get column names} {*}{
     -result {idnum name info}
 }
 
-test tdbcodbc-8.1 {nextrow - as dicts} {*}{
+test tdbc::odbc-8.1 {nextrow - as dicts} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people ORDER BY idnum
@@ -715,7 +715,7 @@ test tdbcodbc-8.1 {nextrow - as dicts} {*}{
     -result {fred wilma pebbles barney betty bam-bam}
 }
     
-test tdbcodbc-8.2 {nextrow - as lists} {*}{
+test tdbc::odbc-8.2 {nextrow - as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people ORDER BY idnum
@@ -741,7 +741,7 @@ test tdbcodbc-8.2 {nextrow - as lists} {*}{
     -result {fred wilma pebbles barney betty bam-bam}
 }
 
-test tdbcodbc-8.3 {nextrow - bad cursor state} {*}{
+test tdbc::odbc-8.3 {nextrow - bad cursor state} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people ORDER BY idnum
@@ -760,7 +760,7 @@ test tdbcodbc-8.3 {nextrow - bad cursor state} {*}{
     -result 0
 }
 
-test tdbcodbc-8.4 {anonymous columns - dicts} {*}{
+test tdbc::odbc-8.4 {anonymous columns - dicts} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT COUNT(*), MAX(idnum) FROM people
@@ -780,7 +780,7 @@ test tdbcodbc-8.4 {anonymous columns - dicts} {*}{
     -result {1 {* 6 * 6} 0}
 };
 
-test tdbcodbc-8.5 {anonymous columns - lists} {*}{
+test tdbc::odbc-8.5 {anonymous columns - lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT COUNT(*), MAX(idnum) FROM people
@@ -798,7 +798,7 @@ test tdbcodbc-8.5 {anonymous columns - lists} {*}{
     -result {1 {6 6} 0}
 };
 
-test tdbcodbc-8.6 {null results - dicts} {*}{
+test tdbc::odbc-8.6 {null results - dicts} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name = 'fred'
@@ -814,7 +814,7 @@ test tdbcodbc-8.6 {null results - dicts} {*}{
     -result {1 {idnum 1 name fred} 0}
 }
 
-test tdbcodbc-8.7 {null results - lists} {*}{
+test tdbc::odbc-8.7 {null results - lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name = 'fred'
@@ -830,7 +830,7 @@ test tdbcodbc-8.7 {null results - lists} {*}{
     -result {1 {1 fred {}} 0}
 }
 	
-test tdbcodbc-9.1 {rs foreach var script} {*}{
+test tdbc::odbc-9.1 {rs foreach var script} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -851,7 +851,7 @@ test tdbcodbc-9.1 {rs foreach var script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.2 {stmt foreach var script} {*}{
+test tdbc::odbc-9.2 {stmt foreach var script} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -871,7 +871,7 @@ test tdbcodbc-9.2 {stmt foreach var script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.3 {db foreach var sqlcode script} {*}{
+test tdbc::odbc-9.3 {db foreach var sqlcode script} {*}{
     -body {
 	set result {}
 	db foreach row {
@@ -884,7 +884,7 @@ test tdbcodbc-9.3 {db foreach var sqlcode script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.4 {rs foreach -- var script} {*}{
+test tdbc::odbc-9.4 {rs foreach -- var script} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -905,7 +905,7 @@ test tdbcodbc-9.4 {rs foreach -- var script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.5 {stmt foreach -- var script} {*}{
+test tdbc::odbc-9.5 {stmt foreach -- var script} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -924,7 +924,7 @@ test tdbcodbc-9.5 {stmt foreach -- var script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.6 {db foreach -- var query script} {*}{
+test tdbc::odbc-9.6 {db foreach -- var query script} {*}{
     -body {
 	set result {}
 	db foreach -- row {
@@ -937,7 +937,7 @@ test tdbcodbc-9.6 {db foreach -- var query script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.7 {rs foreach -- -as lists} {*}{
+test tdbc::odbc-9.7 {rs foreach -- -as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -958,7 +958,7 @@ test tdbcodbc-9.7 {rs foreach -- -as lists} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcodbc-9.8 {stmt foreach -as lists} {*}{
+test tdbc::odbc-9.8 {stmt foreach -as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -977,7 +977,7 @@ test tdbcodbc-9.8 {stmt foreach -as lists} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcodbc-9.9 {db foreach -as lists} {*}{
+test tdbc::odbc-9.9 {db foreach -as lists} {*}{
     -body {
 	set result {}
 	db foreach -as lists row {
@@ -990,7 +990,7 @@ test tdbcodbc-9.9 {db foreach -as lists} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcodbc-9.10 {rs foreach -as lists --} {*}{
+test tdbc::odbc-9.10 {rs foreach -as lists --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1011,7 +1011,7 @@ test tdbcodbc-9.10 {rs foreach -as lists --} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcodbc-9.11 {stmt foreach -as lists --} {*}{
+test tdbc::odbc-9.11 {stmt foreach -as lists --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1030,7 +1030,7 @@ test tdbcodbc-9.11 {stmt foreach -as lists --} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcodbc-9.12 {db foreach -as lists --} {*}{
+test tdbc::odbc-9.12 {db foreach -as lists --} {*}{
     -body {
 	set result {}
 	db foreach -as lists row {
@@ -1043,7 +1043,7 @@ test tdbcodbc-9.12 {db foreach -as lists --} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcodbc-9.13 {rs foreach -as lists -columnsvar c --} {*}{
+test tdbc::odbc-9.13 {rs foreach -as lists -columnsvar c --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1066,7 +1066,7 @@ test tdbcodbc-9.13 {rs foreach -as lists -columnsvar c --} {*}{
     -result {idnum 4 name barney idnum 5 name betty idnum 6 name bam-bam}
 }
 
-test tdbcodbc-9.14 {stmt foreach -as lists -columnsvar c --} {*}{
+test tdbc::odbc-9.14 {stmt foreach -as lists -columnsvar c --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1087,7 +1087,7 @@ test tdbcodbc-9.14 {stmt foreach -as lists -columnsvar c --} {*}{
     -result {idnum 4 name barney idnum 5 name betty idnum 6 name bam-bam}
 }
 
-test tdbcodbc-9.15 {db foreach -as lists -columnsvar c --} {*}{
+test tdbc::odbc-9.15 {db foreach -as lists -columnsvar c --} {*}{
     -body {
 	set result {}
 	db foreach -as lists -columnsvar c -- row {
@@ -1102,7 +1102,7 @@ test tdbcodbc-9.15 {db foreach -as lists -columnsvar c --} {*}{
     -result {idnum 4 name barney idnum 5 name betty idnum 6 name bam-bam}
 }
 
-test tdbcodbc-9.16 {rs foreach / break out of loop} {*}{
+test tdbc::odbc-9.16 {rs foreach / break out of loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1124,7 +1124,7 @@ test tdbcodbc-9.16 {rs foreach / break out of loop} {*}{
     -result {{4 barney {}}}
 }
 
-test tdbcodbc-9.17 {stmt foreach / break out of loop} {*}{
+test tdbc::odbc-9.17 {stmt foreach / break out of loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1144,7 +1144,7 @@ test tdbcodbc-9.17 {stmt foreach / break out of loop} {*}{
     -result {{4 barney {}}}
 }
 
-test tdbcodbc-9.18 {db foreach / break out of loop} {*}{
+test tdbc::odbc-9.18 {db foreach / break out of loop} {*}{
     -body {
 	set result {}
 	db foreach -as lists -- row {
@@ -1158,7 +1158,7 @@ test tdbcodbc-9.18 {db foreach / break out of loop} {*}{
     -result {{4 barney {}}}
 }
 
-test tdbcodbc-9.19 {rs foreach / continue in loop} {*}{
+test tdbc::odbc-9.19 {rs foreach / continue in loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1180,7 +1180,7 @@ test tdbcodbc-9.19 {rs foreach / continue in loop} {*}{
     -result {{4 barney {}} {6 bam-bam {}}}
 }
 
-test tdbcodbc-9.20 {stmt foreach / continue in loop} {*}{
+test tdbc::odbc-9.20 {stmt foreach / continue in loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1200,7 +1200,7 @@ test tdbcodbc-9.20 {stmt foreach / continue in loop} {*}{
     -result {{4 barney {}} {6 bam-bam {}}}
 }
 
-test tdbcodbc-9.21 {db foreach / continue in loop} {*}{
+test tdbc::odbc-9.21 {db foreach / continue in loop} {*}{
     -body {
 	set result {}
 	db foreach -as lists -- row {
@@ -1214,7 +1214,7 @@ test tdbcodbc-9.21 {db foreach / continue in loop} {*}{
     -result {{4 barney {}} {6 bam-bam {}}}
 }
 
-test tdbcodbc-9.22 {rs foreach / return out of the loop} {*}{
+test tdbc::odbc-9.22 {rs foreach / return out of the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1240,7 +1240,7 @@ test tdbcodbc-9.22 {rs foreach / return out of the loop} {*}{
     -result 5
 }
 
-test tdbcodbc-9.23 {stmt foreach / return out of the loop} {*}{
+test tdbc::odbc-9.23 {stmt foreach / return out of the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1264,7 +1264,7 @@ test tdbcodbc-9.23 {stmt foreach / return out of the loop} {*}{
     -result 5
 }
 
-test tdbcodbc-9.24 {db foreach / return out of the loop} {*}{
+test tdbc::odbc-9.24 {db foreach / return out of the loop} {*}{
     -setup {
 	proc tdbcodbc-9.24 {stmt} {
 	    db foreach -as lists -- row {
@@ -1286,7 +1286,7 @@ test tdbcodbc-9.24 {db foreach / return out of the loop} {*}{
     -result 5
 }
 
-test tdbcodbc-9.25 {rs foreach / error out of the loop} {*}{
+test tdbc::odbc-9.25 {rs foreach / error out of the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1313,7 +1313,7 @@ test tdbcodbc-9.25 {rs foreach / error out of the loop} {*}{
     -result 5
 }
 
-test tdbcodbc-9.26 {stmt foreach - error out of the loop} {*}{
+test tdbc::odbc-9.26 {stmt foreach - error out of the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1338,7 +1338,7 @@ test tdbcodbc-9.26 {stmt foreach - error out of the loop} {*}{
     -result 5
 }
 
-test tdbcodbc-9.27 {db foreach / error out of the loop} {*}{
+test tdbc::odbc-9.27 {db foreach / error out of the loop} {*}{
     -setup {
 	proc tdbcodbc-9.27 {} {
 	    db foreach -as lists -- row {
@@ -1361,7 +1361,7 @@ test tdbcodbc-9.27 {db foreach / error out of the loop} {*}{
     -result 5
 }
 
-test tdbcodbc-9.28 {rs foreach / unknown status from the loop} {*}{
+test tdbc::odbc-9.28 {rs foreach / unknown status from the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1388,7 +1388,7 @@ test tdbcodbc-9.28 {rs foreach / unknown status from the loop} {*}{
     -result 5
 }
 
-test tdbcodbc-9.29 {stmt foreach / unknown status from the loop} {*}{
+test tdbc::odbc-9.29 {stmt foreach / unknown status from the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1413,7 +1413,7 @@ test tdbcodbc-9.29 {stmt foreach / unknown status from the loop} {*}{
     -result 5
 }
 
-test tdbcodbc-9.30 {db foreach / unknown status from the loop} {*}{
+test tdbc::odbc-9.30 {db foreach / unknown status from the loop} {*}{
     -setup {
 	proc tdbcodbc-9.30 {stmt} {
 	    db foreach -as lists -- row {
@@ -1436,7 +1436,7 @@ test tdbcodbc-9.30 {db foreach / unknown status from the loop} {*}{
     -result 5
 }
 
-test tdbcodbc-9.31 {stmt foreach / params in variables} {*}{
+test tdbc::odbc-9.31 {stmt foreach / params in variables} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1457,7 +1457,7 @@ test tdbcodbc-9.31 {stmt foreach / params in variables} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.32 {db foreach / params in variables} {*}{
+test tdbc::odbc-9.32 {db foreach / params in variables} {*}{
     -body {
 	set result {}
 	set thePattern b%
@@ -1471,7 +1471,7 @@ test tdbcodbc-9.32 {db foreach / params in variables} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.33 {stmt foreach / parameters in a dictionary} {*}{
+test tdbc::odbc-9.33 {stmt foreach / parameters in a dictionary} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1491,7 +1491,7 @@ test tdbcodbc-9.33 {stmt foreach / parameters in a dictionary} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.34 {db foreach / parameters in a dictionary} {*}{
+test tdbc::odbc-9.34 {db foreach / parameters in a dictionary} {*}{
     -body {
 	set result {}
 	db foreach row {
@@ -1504,7 +1504,7 @@ test tdbcodbc-9.34 {db foreach / parameters in a dictionary} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-9.35 {stmt foreach - variable not found} {*}{
+test tdbc::odbc-9.35 {stmt foreach - variable not found} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1528,7 +1528,7 @@ test tdbcodbc-9.35 {stmt foreach - variable not found} {*}{
     -result {can't read "thePattern": variable is array}
 }
 
-test tdbcodbc-9.36 {db foreach - variable not found} {*}{
+test tdbc::odbc-9.36 {db foreach - variable not found} {*}{
     -setup {
 	catch {unset thePattern}
     }
@@ -1549,7 +1549,7 @@ test tdbcodbc-9.36 {db foreach - variable not found} {*}{
     -result {can't read "thePattern": variable is array}
 }
 
-test tdbcodbc-9.37 {rs foreach - too few args} {*}{
+test tdbc::odbc-9.37 {rs foreach - too few args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1568,7 +1568,7 @@ test tdbcodbc-9.37 {rs foreach - too few args} {*}{
     -match glob
 }
 
-test tdbcodbc-9.38 {stmt foreach - too few args} {*}{
+test tdbc::odbc-9.38 {stmt foreach - too few args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1585,7 +1585,7 @@ test tdbcodbc-9.38 {stmt foreach - too few args} {*}{
     -match glob
 }
 
-test tdbcodbc-9.39 {db foreach - too few args} {*}{
+test tdbc::odbc-9.39 {db foreach - too few args} {*}{
     -body {
 	db foreach row {
 	    SELECT idnum, name FROM people
@@ -1596,7 +1596,7 @@ test tdbcodbc-9.39 {db foreach - too few args} {*}{
     -match glob
 }
 
-test tdbcodbc-9.40 {rs foreach - too many args} {*}{
+test tdbc::odbc-9.40 {rs foreach - too many args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1615,7 +1615,7 @@ test tdbcodbc-9.40 {rs foreach - too many args} {*}{
     -match glob
 }
 
-test tdbcodbc-9.41 {stmt foreach - too many args} {*}{
+test tdbc::odbc-9.41 {stmt foreach - too many args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1632,7 +1632,7 @@ test tdbcodbc-9.41 {stmt foreach - too many args} {*}{
     -match glob
 }
 
-test tdbcodbc-9.42 {db foreach - too many args} {*}{
+test tdbc::odbc-9.42 {db foreach - too many args} {*}{
     -body {
 	db foreach row {
 	    SELECT idnum, name FROM people
@@ -1643,7 +1643,7 @@ test tdbcodbc-9.42 {db foreach - too many args} {*}{
     -match glob
 }
 
-test tdbcodbc-10.1 {allrows - no args} {*}{
+test tdbc::odbc-10.1 {allrows - no args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1660,7 +1660,7 @@ test tdbcodbc-10.1 {allrows - no args} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-10.2 {allrows - no args} {*}{
+test tdbc::odbc-10.2 {allrows - no args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1675,7 +1675,7 @@ test tdbcodbc-10.2 {allrows - no args} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-10.3 {allrows - no args} {*}{
+test tdbc::odbc-10.3 {allrows - no args} {*}{
     -body {
 	db allrows {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1684,7 +1684,7 @@ test tdbcodbc-10.3 {allrows - no args} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-10.4 {allrows --} {*}{
+test tdbc::odbc-10.4 {allrows --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1701,7 +1701,7 @@ test tdbcodbc-10.4 {allrows --} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-10.5 {allrows --} {*}{
+test tdbc::odbc-10.5 {allrows --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1716,7 +1716,7 @@ test tdbcodbc-10.5 {allrows --} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-10.6 {allrows --} {*}{
+test tdbc::odbc-10.6 {allrows --} {*}{
     -body {
 	db allrows -- {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1725,7 +1725,7 @@ test tdbcodbc-10.6 {allrows --} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }    
 
-test tdbcodbc-10.7 {allrows -as lists} {*}{
+test tdbc::odbc-10.7 {allrows -as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1742,7 +1742,7 @@ test tdbcodbc-10.7 {allrows -as lists} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcodbc-10.8 {allrows -as lists} {*}{
+test tdbc::odbc-10.8 {allrows -as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1757,7 +1757,7 @@ test tdbcodbc-10.8 {allrows -as lists} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcodbc-10.9 {allrows -as lists} {*}{
+test tdbc::odbc-10.9 {allrows -as lists} {*}{
     -body {
 	db allrows -as lists {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1766,7 +1766,7 @@ test tdbcodbc-10.9 {allrows -as lists} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
     
-test tdbcodbc-10.10 {allrows -as lists --} {*}{
+test tdbc::odbc-10.10 {allrows -as lists --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1783,7 +1783,7 @@ test tdbcodbc-10.10 {allrows -as lists --} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcodbc-10.11 {allrows -as lists --} {*}{
+test tdbc::odbc-10.11 {allrows -as lists --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1798,7 +1798,7 @@ test tdbcodbc-10.11 {allrows -as lists --} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcodbc-10.12 {allrows -as lists --} {*}{
+test tdbc::odbc-10.12 {allrows -as lists --} {*}{
     -body {
 	db allrows -as lists -- {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1807,7 +1807,7 @@ test tdbcodbc-10.12 {allrows -as lists --} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcodbc-10.13 {allrows -as lists -columnsvar c} {*}{
+test tdbc::odbc-10.13 {allrows -as lists -columnsvar c} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1825,7 +1825,7 @@ test tdbcodbc-10.13 {allrows -as lists -columnsvar c} {*}{
     -result {{idnum name} {{4 barney} {5 betty} {6 bam-bam}}}
 }
 
-test tdbcodbc-10.14 {allrows -as lists -columnsvar c} {*}{
+test tdbc::odbc-10.14 {allrows -as lists -columnsvar c} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1841,7 +1841,7 @@ test tdbcodbc-10.14 {allrows -as lists -columnsvar c} {*}{
     -result {{idnum name} {{4 barney} {5 betty} {6 bam-bam}}}
 }
 
-test tdbcodbc-10.15 {allrows -as lists -columnsvar c} {*}{
+test tdbc::odbc-10.15 {allrows -as lists -columnsvar c} {*}{
     -body {
 	set result [db allrows -as lists -columnsvar c {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1851,7 +1851,7 @@ test tdbcodbc-10.15 {allrows -as lists -columnsvar c} {*}{
     -result {{idnum name} {{4 barney} {5 betty} {6 bam-bam}}}
 }
 
-test tdbcodbc-10.16 {allrows - correct lexical scoping of variables} {*}{
+test tdbc::odbc-10.16 {allrows - correct lexical scoping of variables} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1868,7 +1868,7 @@ test tdbcodbc-10.16 {allrows - correct lexical scoping of variables} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-10.17 {allrows - parameters in a dictionary} {*}{
+test tdbc::odbc-10.17 {allrows - parameters in a dictionary} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1884,7 +1884,7 @@ test tdbcodbc-10.17 {allrows - parameters in a dictionary} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-10.18 {allrows - parameters in a dictionary} {*}{
+test tdbc::odbc-10.18 {allrows - parameters in a dictionary} {*}{
     -body {
 	db allrows {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1893,7 +1893,7 @@ test tdbcodbc-10.18 {allrows - parameters in a dictionary} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcodbc-10.19 {allrows - variable not found} {*}{
+test tdbc::odbc-10.19 {allrows - variable not found} {*}{
     -setup {
 	catch {unset thePattern}
     }
@@ -1910,7 +1910,7 @@ test tdbcodbc-10.19 {allrows - variable not found} {*}{
     -result {can't read "thePattern": variable is array}
 }
 
-test tdbcodbc-10.20 {allrows - too many args} {*}{
+test tdbc::odbc-10.20 {allrows - too many args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1927,7 +1927,7 @@ test tdbcodbc-10.20 {allrows - too many args} {*}{
     -match glob
 }
 
-test tdbcodbc-10.21 {bad -as} {*}{
+test tdbc::odbc-10.21 {bad -as} {*}{
     -body {
 	db allrows -as trash {
 	    SELECT idnum, name FROM people
@@ -1937,7 +1937,7 @@ test tdbcodbc-10.21 {bad -as} {*}{
     -result {bad variable type "trash": must be lists or dicts}
 }
 
-test tdbcodbc-11.1 {update - no rows} {*}{
+test tdbc::odbc-11.1 {update - no rows} {*}{
     -setup {
 	set stmt [::db prepare {
 	    UPDATE people SET info = 1 WHERE idnum > 6
@@ -1954,7 +1954,7 @@ test tdbcodbc-11.1 {update - no rows} {*}{
     -result 0
 }
 
-test tdbcodbc-11.2 {update - unique row} {*}{
+test tdbc::odbc-11.2 {update - unique row} {*}{
     -setup {
 	set stmt [::db prepare {
 	    UPDATE people SET info = 1 WHERE name = 'fred'
@@ -1971,7 +1971,7 @@ test tdbcodbc-11.2 {update - unique row} {*}{
     -result 1
 }
 
-test tdbcodbc-11.3 {update - multiple rows} {*}{
+test tdbc::odbc-11.3 {update - multiple rows} {*}{
     -setup {
 	set stmt [::db prepare {
 	    UPDATE people SET info = 1 WHERE name LIKE 'b%'
@@ -1988,7 +1988,7 @@ test tdbcodbc-11.3 {update - multiple rows} {*}{
     -result 3
 }
 
-test tdbcodbc-12.1 {delete - no rows} {*}{
+test tdbc::odbc-12.1 {delete - no rows} {*}{
     -setup {
 	set stmt [::db prepare {
 	    DELETE FROM people WHERE name = 'nobody'
@@ -2005,7 +2005,7 @@ test tdbcodbc-12.1 {delete - no rows} {*}{
     -result 0
 }
 
-test tdbcodbc-12.2 {delete - unique row} {*}{
+test tdbc::odbc-12.2 {delete - unique row} {*}{
     -setup {
 	set stmt [::db prepare {
 	    DELETE FROM people WHERE name = 'fred'
@@ -2022,7 +2022,7 @@ test tdbcodbc-12.2 {delete - unique row} {*}{
     -result 1
 }
 
-test tdbcodbc-12.3 {delete - multiple rows} {*}{
+test tdbc::odbc-12.3 {delete - multiple rows} {*}{
     -setup {
 	set stmt [::db prepare {
 	    DELETE FROM people WHERE name LIKE 'b%'
@@ -2039,7 +2039,7 @@ test tdbcodbc-12.3 {delete - multiple rows} {*}{
     -result 3
 }
 
-test tdbcodbc-13.1 {resultsets - no results} {*}{
+test tdbc::odbc-13.1 {resultsets - no results} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT name FROM people WHERE idnum = $idnum
@@ -2056,7 +2056,7 @@ test tdbcodbc-13.1 {resultsets - no results} {*}{
     -result {0 0}
 }
 
-test tdbcodbc-13.2 {resultsets - various statements and results} {*}{
+test tdbc::odbc-13.2 {resultsets - various statements and results} {*}{
     -setup {
 	for {set i 0} {$i < 6} {incr i} {
 	    set stmts($i) [::db prepare {
@@ -2117,7 +2117,7 @@ catch {
     rename $stmt {}
 }
 
-test tdbcodbc-14.1 {begin transaction - wrong # args} {*}{
+test tdbc::odbc-14.1 {begin transaction - wrong # args} {*}{
     -body {
 	::db begintransaction junk
     }
@@ -2126,7 +2126,7 @@ test tdbcodbc-14.1 {begin transaction - wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcodbc-14.2 {commit - wrong # args} {*}{
+test tdbc::odbc-14.2 {commit - wrong # args} {*}{
     -body {
 	::db commit junk
     }
@@ -2135,7 +2135,7 @@ test tdbcodbc-14.2 {commit - wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcodbc-14.3 {rollback - wrong # args} {*}{
+test tdbc::odbc-14.3 {rollback - wrong # args} {*}{
     -body {
 	::db rollback junk
     }
@@ -2144,7 +2144,7 @@ test tdbcodbc-14.3 {rollback - wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcodbc-14.4 {commit - not in transaction} {*}{
+test tdbc::odbc-14.4 {commit - not in transaction} {*}{
     -body {
 	list [catch {::db commit} result] $result $::errorCode
     }
@@ -2152,7 +2152,7 @@ test tdbcodbc-14.4 {commit - not in transaction} {*}{
     -result {1 {no transaction is in progress} {TDBC ODBC HY010 *}}
 }
 
-test tdbcodbc-14.5 {rollback - not in transaction} {*}{
+test tdbc::odbc-14.5 {rollback - not in transaction} {*}{
     -body {
 	list [catch {::db rollback} result] $result $::errorCode
     }
@@ -2160,7 +2160,7 @@ test tdbcodbc-14.5 {rollback - not in transaction} {*}{
     -result {1 {no transaction is in progress} {TDBC ODBC HY010 *}}
 }
 
-test tdbcodbc-14.6 {empty transaction} {*}{
+test tdbc::odbc-14.6 {empty transaction} {*}{
     -body {
 	::db begintransaction
 	::db commit
@@ -2168,7 +2168,7 @@ test tdbcodbc-14.6 {empty transaction} {*}{
     -result {}
 }
 
-test tdbcodbc-14.7 {empty rolled-back transaction} {*}{
+test tdbc::odbc-14.7 {empty rolled-back transaction} {*}{
     -body {
 	::db begintransaction
 	::db rollback
@@ -2198,7 +2198,7 @@ test tdbcobdc-14.8 {rollback does not change database} {*}{
     -result 1
 }
 
-test tdbcodbc-14.9 {commit does change database} {*}{
+test tdbc::odbc-14.9 {commit does change database} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2227,7 +2227,7 @@ test tdbcodbc-14.9 {commit does change database} {*}{
     -result 7
 }
 
-test tdbcodbc-14.10 {nested transactions} {*}{
+test tdbc::odbc-14.10 {nested transactions} {*}{
     -body {
 	::db begintransaction
 	list [catch {::db begintransaction} result] $result $::errorCode
@@ -2269,7 +2269,7 @@ catch {
     rename $stmt {}
 }
 
-test tdbcodbc-15.1 {successful (empty) transaction} {*}{
+test tdbc::odbc-15.1 {successful (empty) transaction} {*}{
     -body {
 	db transaction {
 	    concat ok
@@ -2278,7 +2278,7 @@ test tdbcodbc-15.1 {successful (empty) transaction} {*}{
     -result ok
 }
 
-test tdbcodbc-15.2 {failing transaction does not get committed} {*}{
+test tdbc::odbc-15.2 {failing transaction does not get committed} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    DELETE FROM people WHERE name = 'fred'
@@ -2310,7 +2310,7 @@ test tdbcodbc-15.2 {failing transaction does not get committed} {*}{
     -result {{abort the transaction} 1}
 }
 
-test tdbcodbc-15.3 {successful transaction gets committed} {*}{
+test tdbc::odbc-15.3 {successful transaction gets committed} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2339,7 +2339,7 @@ test tdbcodbc-15.3 {successful transaction gets committed} {*}{
     -result 7
 }
 
-test tdbcodbc-15.4 {break out of transaction commits it} {*}{
+test tdbc::odbc-15.4 {break out of transaction commits it} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2371,7 +2371,7 @@ test tdbcodbc-15.4 {break out of transaction commits it} {*}{
     -result 8
 }
 
-test tdbcodbc-15.5 {continue in transaction commits it} {*}{
+test tdbc::odbc-15.5 {continue in transaction commits it} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2403,7 +2403,7 @@ test tdbcodbc-15.5 {continue in transaction commits it} {*}{
     -result 9
 }
 
-test tdbcodbc-15.6 {return in transaction commits it} {*}{
+test tdbc::odbc-15.6 {return in transaction commits it} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2437,7 +2437,7 @@ test tdbcodbc-15.6 {return in transaction commits it} {*}{
     -result 10
 }
 
-test tdbcodbc-16.1 {database tables, wrong # args} {
+test tdbc::odbc-16.1 {database tables, wrong # args} {
     -body {
 	set dict [::db tables % rubbish]
     }
@@ -2446,14 +2446,14 @@ test tdbcodbc-16.1 {database tables, wrong # args} {
     -result {wrong # args*}
 }
 
-test tdbcodbc-16.2 {database tables - empty set} {
+test tdbc::odbc-16.2 {database tables - empty set} {
     -body {
 	::db tables q%
     }
     -result {}
 }
 
-test tdbcodbc-16.3 {enumerate database tables} {*}{
+test tdbc::odbc-16.3 {enumerate database tables} {*}{
     -body {
 	set dict [::db tables]
 	list [dict exists $dict people] [dict exists $dict property]
@@ -2461,7 +2461,7 @@ test tdbcodbc-16.3 {enumerate database tables} {*}{
     -result {1 0}
 }
 
-test tdbcodbc-16.4 {enumerate database tables} {*}{
+test tdbc::odbc-16.4 {enumerate database tables} {*}{
     -body {
 	set dict [::db tables p%]
 	list [dict exists $dict people] [dict exists $dict property]
@@ -2469,7 +2469,7 @@ test tdbcodbc-16.4 {enumerate database tables} {*}{
     -result {1 0}
 }
 
-test tdbcodbc-17.1 {database columns - wrong # args} {*}{
+test tdbc::odbc-17.1 {database columns - wrong # args} {*}{
     -body {
 	set dict [::db columns people % rubbish]
     }
@@ -2480,7 +2480,7 @@ test tdbcodbc-17.1 {database columns - wrong # args} {*}{
 
 # sqlite driver appears to report "Function sequence error" if asked for
 # columns on a nonexistent table
-test tdbcodbc-17.2 {database columns - no such table} {*}{
+test tdbc::odbc-17.2 {database columns - no such table} {*}{
     -constraints !sqlite
     -body {
 	::db columns rubbish
@@ -2489,7 +2489,7 @@ test tdbcodbc-17.2 {database columns - no such table} {*}{
 }
 
 # Jet driver promotes varchar to wvarchar
-test tdbcodbc-17.3a {database columns - no match pattern} {*}{
+test tdbc::odbc-17.3a {database columns - no match pattern} {*}{
     -constraints !sqlite
     -body {
 	set result {}
@@ -2508,7 +2508,7 @@ test tdbcodbc-17.3a {database columns - no match pattern} {*}{
     -result {idnum integer * 0 1 name wvarchar 40 * info integer * 0 1}
 }
 
-test tdbcodbc-17.3b {database columns - no match pattern} {*}{
+test tdbc::odbc-17.3b {database columns - no match pattern} {*}{
     -constraints sqlite
     -body {
 	set result {}
@@ -2528,7 +2528,7 @@ test tdbcodbc-17.3b {database columns - no match pattern} {*}{
 }
 
 # sqlite driver appears not to implement pattern matching for SQLGetColumns
-test tdbcodbc-17.4 {database columns - match pattern} {*}{
+test tdbc::odbc-17.4 {database columns - match pattern} {*}{
     -constraints !sqlite
     -body {
 	set result {}
@@ -2546,7 +2546,7 @@ test tdbcodbc-17.4 {database columns - match pattern} {*}{
     -result {idnum integer 10 0 1 info integer 10 0 1}
 }
 
-test tdbcodbc-18.1 {$statement params - excess arg} {*}{
+test tdbc::odbc-18.1 {$statement params - excess arg} {*}{
     -setup {
 	set s [::db prepare {
 	    SELECT name FROM people 
@@ -2567,7 +2567,7 @@ test tdbcodbc-18.1 {$statement params - excess arg} {*}{
     -result {wrong # args*}
 }
 
-test tdbcodbc-18.2 {$statement params - no params} {*}{
+test tdbc::odbc-18.2 {$statement params - no params} {*}{
     -setup {
 	set s [::db prepare {
 	    SELECT name FROM people 
@@ -2582,7 +2582,7 @@ test tdbcodbc-18.2 {$statement params - no params} {*}{
     -result {}
 }
 
-test tdbcodbc-18.3 {$statement params - excess arg} {*}{
+test tdbc::odbc-18.3 {$statement params - excess arg} {*}{
     -setup {
 	set s [::db prepare {
 	    SELECT name FROM people 
@@ -2609,14 +2609,14 @@ test tdbcodbc-18.3 {$statement params - excess arg} {*}{
     -result {in numeric 10 0 in varchar 40}
 }
 
-test tdbcodbc-19.1 {$connection configure - no args} {*}{
+test tdbc::odbc-19.1 {$connection configure - no args} {*}{
     -body {
 	::db configure
     }
     -result {}
 }
 
-test tdbcodbc-19.2 {$connection configure - unknown arg} {*}{
+test tdbc::odbc-19.2 {$connection configure - unknown arg} {*}{
     -body {
 	::db configure -junk
     }
@@ -2625,14 +2625,14 @@ test tdbcodbc-19.2 {$connection configure - unknown arg} {*}{
     -result "bad option *"
 }
 
-test tdbcodbc-19.3 {$connection configure - inappropriate arg} {*}{
+test tdbc::odbc-19.3 {$connection configure - inappropriate arg} {*}{
     -body {
 	list [catch {::db configure -parent} result] $::errorCode
     }
     -result {1 {TDBC ODBC HY010 -1}}
 }
 
-test tdbcodbc-19.4 {$connection configure - set unknown arg} {*}{
+test tdbc::odbc-19.4 {$connection configure - set unknown arg} {*}{
     -body {
 	::db configure -junk morejunk
     }
@@ -2641,14 +2641,14 @@ test tdbcodbc-19.4 {$connection configure - set unknown arg} {*}{
     -result "bad option *"
 }
 
-test tdbcodbc-19.5 {$connection configure - set inappropriate arg} {*}{
+test tdbc::odbc-19.5 {$connection configure - set inappropriate arg} {*}{
     -body {
 	list [catch {::db configure -parent .} result] $::errorCode
     }
     -result {1 {TDBC ODBC HY010 -1}}
 }
 
-test tdbcodbc-19.6 {$connection configure - wrong # args} {*}{
+test tdbc::odbc-19.6 {$connection configure - wrong # args} {*}{
     -body {
 	::db configure -parent . -junk
     }

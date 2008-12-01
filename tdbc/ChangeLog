@@ -1,4 +1,21 @@
-2008-11-22 Kevin B. Kenny  <kennykb@acm.org>
+2008-11-30  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in: Removed nagging reminder about documentation.
+	* configure.in: Advanced revision to 0.2
+	* configure: Autoconf 2.61
+	* doc/tdbc.n:			First cut at a set of man
+	* doc/tdbc_connection.n:	pages for TDBC. Redactors
+	* doc/tdbc_resultSet.n:		and proofreaders are
+	* doc/tdbc_statement.n:		welcome to submit
+	* doc/tdbc_tokenize.n:		improvements.
+	* generic/tdbc.c: Lowercased the package name 'tdbc'
+	* generic/tdbc.h: Advanced patchlevel to 0.2a1
+	* generic/tdbcDecls.h: Lowercased the package name 'tdbc'
+	* generic/tdbcStubLib.c: Lowercased the package name 'tdbc'
+	* tests/tokenize.test: Lowercased the package name 'tdbc'
+	
+	
+2008-11-22  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Changed to make TDBC buildable on 8.6 without
 	needing to install a dummy tclooConfig.sh.

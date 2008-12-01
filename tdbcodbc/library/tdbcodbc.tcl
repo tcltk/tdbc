@@ -10,7 +10,7 @@
 #
 #------------------------------------------------------------------------------
 
-package require Tdbc 0.1
+package require tdbc 0.2
 
 ::namespace eval ::tdbc::odbc {
 
@@ -60,7 +60,10 @@ package require Tdbc 0.1
     # The constructor takes the connection string as its argument
     # It sets up a namespace to hold the statements associated with
     # the connection, and then delegates to the 'init' method (written in C)
-    # to do the actual work of attaching to the database.
+    # to do the actual work of attaching to the database. When that comes back,
+    # it sets up a statement to query the support types, makes a dictionary
+    # to enumerate them, and calls back to set a flag if WVARCHAR is seen
+    # (If WVARCHAR is seen, the database supports Unicode.)
 
     constructor args {
 	next
@@ -75,6 +78,9 @@ package require Tdbc 0.1
 	    if {![dict exists $typemap $typeNum]} {
 		dict set typemap $typeNum [string tolower \
 					       [dict get $row TYPE_NAME]]
+	    }
+	    if {$typeNum == -9} {
+		[self] HasWvarchar 1
 	    }
 	}
 	rename $typesStmt {}

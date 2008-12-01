@@ -50,7 +50,7 @@ TdbcInitializeStubs(
     int revision		/* Revision number within the epoch */
 ) {
     const int exact = 0;	/* Set this to 1 to require exact version */
-    const char* packageName = "Tdbc";
+    const char* packageName = "tdbc";
 				/* Name of the package */
     const char* errorMsg = NULL;
 				/* Error message if an error occurs */

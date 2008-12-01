@@ -1,4 +1,5 @@
-Configuration: encoding, isolation, timeout, readonly ...
+Configuration: encoding, timeout
+Test Configuration: isolation, readonly ...
 
 odbc datasources
 odbc drivers

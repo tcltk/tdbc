@@ -22,7 +22,7 @@
                              TDBC_STUBS_REVISION))
 #else
 #    define Tdbc_InitStubs(interp) \
-    (Tcl_PkgRequire(interp, "Tdbc", TDBC_VERSION))
+    (Tcl_PkgRequire(interp, "tdbc", TDBC_VERSION))
 #endif
 
 /* !BEGIN!: Do not edit below this line. */

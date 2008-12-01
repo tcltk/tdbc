@@ -1,3 +1,23 @@
+2008-11-30  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in: Changed PACKAGE_NAME to lowercase 'tdbcodbc'
+			Changed PACKAGE_VERSION to 0.2a1
+	* tclconfig/tcl.m4: 
+			Look in a few additional places for dependent packages.
+	* library/tdbcodbc.tcl: Lowercased the 'tdbc' package and advanced the
+	                        version number on which tdbcodbc depends.
+			        Added code to detect whether the connection
+	                        supports Unicode.
+	* generic/tdbcodbc.c: Added '-isolation' and '-readonly' configuration
+		              options. Added code to use Unicode if possible
+			      for columns of unknown type and wide-character
+			      columns. Changed the script-level package name
+			      to tdbc::odbc.
+	* tests/tdbcodbc.test: Changed the script-level package name to
+			       tdbc::odbc. Renamed all tests accordingly.
+	* Makefile.in: Changed the script-level package name to tdbc::odbc
+	               for building pkgIndex.tcl
+	
 2008-11-22  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Changed configurator so that 8.6 no longer requires a

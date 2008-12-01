@@ -56,6 +56,12 @@ const char* LiteralValues[] = {
     "1",
     "exists",
     "::info",
+    "-isolation",
+    "-readonly",
+    "readuncommitted",
+    "readcommitted",
+    "repeatableread",
+    "serializable",
     NULL
 };
 enum LiteralIndex {
@@ -63,6 +69,12 @@ enum LiteralIndex {
     LIT_1,
     LIT_EXISTS,
     LIT_INFO,
+    LIT_ISOLATION,
+    LIT_READONLY,
+    LIT_READUNCOMMITTED,
+    LIT_READCOMMITTED,
+    LIT_REPEATABLEREAD,
+    LIT_SERIALIZABLE,
     LIT__END
 };
 
@@ -120,6 +132,8 @@ typedef struct ConnectionData {
 				/* Connection has a transaction in progress.
 				 * (Note that ODBC does not support nesting
 				 * of transactions.) */
+#define CONNECTION_FLAG_HAS_WVARCHAR	(1<<2)
+				/* Connection supports WVARCHAR */
 
 #define IncrConnectionRefCount(x) \
     do {			  \
@@ -293,12 +307,20 @@ const static OdbcConstant OdbcTypeNames[] = {
     { NULL,		-1 }
 };
 
+const static OdbcConstant OdbcIsolationLevels[] = {
+    { "readuncommitted",	SQL_TXN_READ_UNCOMMITTED },
+    { "readcommitted",		SQL_TXN_READ_COMMITTED },
+    { "repeatableread",		SQL_TXN_REPEATABLE_READ },
+    { "serializable",		SQL_TXN_SERIALIZABLE },
+    { NULL,			0 }};
+	    
+
 
 /* Initialization script */
 
 static const char initScript[] =
     "namespace eval ::tdbc::odbc {}\n"
-    "tcl_findLibrary tdbcodbc " PACKAGE_VERSION " " PACKAGE_VERSION
+    "tcl_findLibrary tdbc::odbc " PACKAGE_VERSION " " PACKAGE_VERSION
     " tdbcodbc.tcl TDBCODBC_LIBRARY ::tdbc::odbc::Library";
 
 /* Prototypes for static functions appearing in this file */
@@ -313,14 +335,18 @@ static int LookupOdbcConstant(Tcl_Interp* interp, const OdbcConstant* table,
 			      SQLSMALLINT* valuePtr);
 static int LookupOdbcType(Tcl_Interp* interp, Tcl_Obj* name,
 			  SQLSMALLINT* valuePtr);
+static Tcl_Obj* TranslateOdbcIsolationLevel(SQLINTEGER level,
+					    Tcl_Obj* literals[]);
 static SQLHENV GetHEnv(Tcl_Interp* interp);
 static void DismissHEnv(void);
 static SQLHSTMT AllocAndPrepareStatement(Tcl_Interp* interp,
 					  StatementData* sdata);
 static int GetResultSetDescription(Tcl_Interp* interp, StatementData* sdata,
 				   SQLHSTMT hStmt);
-static int ConfigureConnection(Tcl_Interp* interp, HDBC hDBC, int objc,
-			       Tcl_Obj *CONST objv[],
+static int ConfigureConnection(Tcl_Interp* interp, 
+			       SQLHDBC hDBC,
+			       PerInterpData* pidata,
+			       int objc, Tcl_Obj *CONST objv[],
 			       SQLUSMALLINT* connectFlagsPtr,
 			       HWND* hParentWindowPtr);
 static int ConnectionInitMethod(ClientData clientData, Tcl_Interp* interp,
@@ -338,6 +364,10 @@ static int ConnectionEndXcnMethod(ClientData clientData,
 				  Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
+static int ConnectionHasWvarcharMethod(ClientData clientData,
+				       Tcl_Interp* interp,
+				       Tcl_ObjectContext context,
+				       int objc, Tcl_Obj *const objv[]);
 static int SetAutocommitFlag(Tcl_Interp* interp, ConnectionData* cdata,
 			     SQLINTEGER flag);
 static void DeleteCmd(ClientData clientData);
@@ -459,6 +489,15 @@ const static Tcl_MethodType ConnectionEndXcnMethodType = {
     DeleteCmd,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
+const static Tcl_MethodType ConnectionHasWvarcharMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "HasWvarchar",		/* name */
+    ConnectionHasWvarcharMethod,
+				/* callProc */
+    DeleteCmd,			/* deleteProc */
+    CloneCmd			/* cloneProc */
+};
 
 /* 
  * Methods to create on the connection class. Note that 'init', 'commit' and
@@ -468,6 +507,7 @@ const static Tcl_MethodType ConnectionEndXcnMethodType = {
 const static Tcl_MethodType* ConnectionMethods[] = {
     &ConnectionBeginTransactionMethodType,
     &ConnectionConfigureMethodType,
+    &ConnectionHasWvarcharMethodType,
     NULL
 };
 
@@ -815,6 +855,24 @@ static inline int LookupOdbcType(
     return LookupOdbcConstant(interp, OdbcTypeNames, "SQL data type",
 			      name, valuePtr);
 }
+
+static Tcl_Obj*
+TranslateOdbcIsolationLevel(
+    SQLINTEGER level, 
+    Tcl_Obj* literals[]
+) {
+    fprintf(stderr, "isolation level 0x%08x\n", level);
+    if (level & SQL_TXN_SERIALIZABLE) {
+	return literals[LIT_SERIALIZABLE];
+    }
+    if (level & SQL_TXN_REPEATABLE_READ) {
+	return literals[LIT_REPEATABLEREAD];
+    }
+    if (level & SQL_TXN_READ_COMMITTED) {
+	return literals[LIT_READCOMMITTED];
+    }
+    return literals[LIT_READUNCOMMITTED];
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -1105,7 +1163,8 @@ GetResultSetDescription(
 static int
 ConfigureConnection(
     Tcl_Interp* interp,		/* Tcl interpreter */
-    HDBC hDBC,			/* Handle to the database connection */
+    SQLHDBC hDBC,		/* Handle to the connection */
+    PerInterpData* pidata,	/* Package-global data */
     int objc,			/* Option count */
     Tcl_Obj *CONST objv[],	/* Option vector */
     SQLUSMALLINT* connectFlagsPtr,
@@ -1113,27 +1172,38 @@ ConfigureConnection(
     HWND* hParentWindowPtr	/* Handle to the parent window for a 
 				 * connection dialog */
 ) {
+
+    /* Configuration options */
+
     const static char* options[] = {
+	"-isolation",
 	"-parent",
+	"-readonly",
 	NULL
     };
     enum optionType {
-	COPTION_PARENT
+	COPTION_ISOLATION,
+	COPTION_PARENT,
+	COPTION_READONLY
     };
+
     int indx;			/* Index of the current option */
 #ifdef USE_TK
     Tk_Window tkwin;		/* Window identifier of the parent of the
 				 * connection dialog */
 #endif
+    Tcl_Obj** literals = pidata->literals;
+				/* Literal pool */
+    Tcl_Obj* retval;		/* Return value from this command */
     int i;
+    int j;
+    SQLINTEGER mode;		/* Access mode of the database */
+    SQLSMALLINT isol;		/* Isolation level */
+    SQLRETURN rc;		/* Return code form SQL operations */
 
     /*
      * TODO:
      * Several attributes either should or must be set before connecting
-     *    SQL_ATTR_ACCESS_MODE
-     *    SQL_ATTR_CONNECTION_TIMEOUT
-     *    SQL_ATTR_LOGIN_TIMEOUT
-     *    SQL_ATTR_TXN_ISOLATION - Set after connect
      */
 
     if (connectFlagsPtr) {
@@ -1144,15 +1214,62 @@ ConfigureConnection(
     }
 
     if (objc == 0) {
+
 	/* return configuration options */
+
+	retval = Tcl_NewObj();
+
+	/* -isolation */
+
+	rc = SQLGetConnectAttr(hDBC, SQL_ATTR_TXN_ISOLATION,
+			       (SQLPOINTER) &mode, 0, NULL);
+	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	    TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
+			     "(getting isolation level of connection)");
+	    return TCL_ERROR;
+	}
+	Tcl_ListObjAppendElement(NULL, retval, literals[LIT_ISOLATION]);
+	Tcl_ListObjAppendElement(NULL, retval,
+				 TranslateOdbcIsolationLevel(mode, literals));
+
+	/* -readonly */
+
+	rc = SQLGetConnectAttr(hDBC, SQL_ATTR_ACCESS_MODE,
+			       (SQLPOINTER) &mode, 0, NULL);
+	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	    TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
+			     "(getting access mode of connection)");
+	    return TCL_ERROR;
+	}
+	Tcl_ListObjAppendElement(NULL, retval, literals[LIT_READONLY]);
+	Tcl_ListObjAppendElement(NULL, retval, 
+				 Tcl_NewIntObj(mode == SQL_MODE_READ_ONLY));
+	Tcl_SetObjResult(interp, retval);
 	return TCL_OK;
+
     } else if (objc == 1) {
+
 	/* look up a single configuration option */
+
 	if (Tcl_GetIndexFromObj(interp, objv[0], options, "option",
 				0, &indx) != TCL_OK) {
 	    return TCL_ERROR;
 	}
+
 	switch (indx) {
+
+	case COPTION_ISOLATION:
+	    rc = SQLGetConnectAttr(hDBC, SQL_ATTR_TXN_ISOLATION,
+				   (SQLPOINTER) &mode, 0, NULL);
+	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+		TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
+				 "(getting isolation level of connection)");
+		return TCL_ERROR;
+	    }
+	    Tcl_SetObjResult(interp,
+			     TranslateOdbcIsolationLevel(mode, literals));
+	    return TCL_OK;
+
 	case COPTION_PARENT:
 	    Tcl_SetObjResult(interp,
 			     Tcl_NewStringObj("-parent option cannot "
@@ -1160,15 +1277,51 @@ ConfigureConnection(
 					      "is established", -1));
 	    Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY010", "-1", NULL);
 	    return TCL_ERROR;
+
+	case COPTION_READONLY:
+	    rc = SQLGetConnectAttr(hDBC, SQL_ATTR_ACCESS_MODE,
+				   (SQLPOINTER) &mode, 0, NULL);
+	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+		TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
+				 "(getting access mode of connection)");
+		return TCL_ERROR;
+	    }
+	    Tcl_SetObjResult(interp,
+			     Tcl_NewIntObj(mode == SQL_MODE_READ_ONLY));
 	}
+
+
 	return TCL_OK;
+
     }
+
+    /* set configuration options */
+
     for (i = 0; i < objc; i+=2) {
+
 	if (Tcl_GetIndexFromObj(interp, objv[i], options, "option",
 				0, &indx) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	switch (indx) {
+
+	case COPTION_ISOLATION:
+	    /* Transaction isolation level */
+
+	    if (LookupOdbcConstant(interp, OdbcIsolationLevels,
+				   "isolation level", objv[i+1],
+				   &isol) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    mode = isol;
+	    rc = SQLSetConnectAttr(hDBC, SQL_ATTR_TXN_ISOLATION,
+				   (SQLPOINTER)&mode, 0);
+	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+		TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
+				 "(setting isolation level of connection)");
+		return TCL_ERROR;
+	    }
+	    break;
 
 	case COPTION_PARENT:
 	    /* Parent window for connection dialog */
@@ -1232,6 +1385,25 @@ ConfigureConnection(
 	    Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY000", "-1", NULL);
 	    return TCL_ERROR;
 #endif /* USE_TK */
+	    
+	case COPTION_READONLY:
+	    
+	    if (Tcl_GetBooleanFromObj(interp, objv[i+1], &j) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    if (j) {
+		mode = SQL_MODE_READ_ONLY;
+	    } else {
+		mode = SQL_MODE_READ_WRITE;
+	    }
+	    rc = SQLSetConnectAttr(hDBC, SQL_ATTR_ACCESS_MODE,
+				   (SQLPOINTER)&mode, 0);
+	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+		TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
+				 "(setting access mode of connection)");
+		return TCL_ERROR;
+	    }
+	    break;
 	    
 	}
     }
@@ -1312,7 +1484,7 @@ ConnectionInitMethod(
      */
 
     if (objc > 3 
-	&& ConfigureConnection(interp, hDBC, objc-3, objv+3,
+	&& ConfigureConnection(interp, hDBC, pidata, objc-3, objv+3,
 			       &connectFlags, &hParentWindow) != TCL_OK) {
 	SQLFreeHandle(SQL_HANDLE_DBC, hDBC);
 	return TCL_ERROR;
@@ -1467,7 +1639,8 @@ ConnectionConfigureMethod(
 	return TCL_ERROR;
     }
 
-    return ConfigureConnection(interp, cdata->hDBC, objc-2, objv+2, NULL, NULL);
+    return ConfigureConnection(interp, cdata->hDBC, cdata->pidata,
+			       objc-2, objv+2, NULL, NULL);
 }
 
 /*
@@ -1535,6 +1708,59 @@ ConnectionEndXcnMethod(
     }
     return TCL_OK;
 }
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionHasWvarcharMethod --
+ *
+ *	Private method that informs the code whether the connection supports
+ *	WVARCHAR strings.
+ *
+ * Usage:
+ *	$connection HasWvarchar boolean
+ *
+ * Parameters:
+ *	boolean - 1 if the connection supports WVARCHAR, 0 otherwise
+ *
+ * Results:
+ *	Returns an empty Tcl result.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionHasWvarcharMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    int flag;
+
+    /* Check parameters */
+
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "flag");
+	return TCL_ERROR;
+    }
+    if (Tcl_GetBooleanFromObj(interp, objv[2], &flag) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (flag) {
+	cdata->flags |= CONNECTION_FLAG_HAS_WVARCHAR;
+    } else {
+	cdata->flags &= ~CONNECTION_FLAG_HAS_WVARCHAR;
+    }
+    return TCL_OK;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1830,11 +2056,11 @@ StatementInitMethod(
 
 	case ';':
 	    Tcl_SetObjResult(interp,
-			     Tcl_NewStringObj(PACKAGE_NAME
+			     Tcl_NewStringObj("tdbc::odbc"
 					      " does not support semicolons "
 					      "in statements", -1));
 	    goto freeNativeSql;
-	    break;
+	    break; 
 
 	default:
 	    Tcl_AppendToObj(nativeSql, tokenStr, tokenLen);
@@ -1862,7 +2088,11 @@ StatementInitMethod(
 	 * of parameters.  Since not all drivers do WVARCHAR, VARCHAR
 	 * appears to be the only workable option.
 	 */
-	sdata->params[j].dataType = SQL_VARCHAR;
+	if (cdata->flags && CONNECTION_FLAG_HAS_WVARCHAR) {
+	    sdata->params[j].dataType = SQL_WVARCHAR;
+	} else {
+	    sdata->params[j].dataType = SQL_VARCHAR;
+	}
 	sdata->params[j].precision = 255;
 	sdata->params[j].scale = 0;
 	sdata->params[j].nullable = SQL_NULLABLE_UNKNOWN;
@@ -1909,7 +2139,11 @@ StatementInitMethod(
 		 * handle WVARCHAR, so VARCHAR seems to be the only
 		 * workable option.
 		 */
-		sdata->params[j].dataType = SQL_VARCHAR;
+		if (cdata->flags && CONNECTION_FLAG_HAS_WVARCHAR) {
+		    sdata->params[j].dataType = SQL_WVARCHAR;
+		} else {
+		    sdata->params[j].dataType = SQL_VARCHAR;
+		}
 		sdata->params[j].precision = 255;
 		sdata->params[j].scale = 0;
 		sdata->params[j].nullable = SQL_NULLABLE_UNKNOWN;
@@ -2526,6 +2760,7 @@ ResultSetInitMethod(
 				 * the statement */
     int nBound;			/* Number of substituted parameters that
 				 * have been bound successfully */
+    SQLSMALLINT dataType;	/* Data type of a parameter */
     Tcl_Obj* paramNameObj;	/* Name of a substituted parameter */
     const char* paramName;	/* Name of a substituted parameter */
     Tcl_Obj* paramValObj;	/* Value of a substituted parameter */
@@ -2665,37 +2900,51 @@ ResultSetInitMethod(
 	 */
 
 	if (paramValObj != NULL) {
-	    /* 
-	     * We need to convert the character string to system encoding
-	     * and store in rdata->bindStrings[nBound].  It is tempting to
-	     * avoid this step by using SQL_C_WCHAR as the parameter type,
-	     * but not all drivers can handle that.
-	     */
-	    paramVal = Tcl_GetStringFromObj(paramValObj, &paramLen);
-	    Tcl_DStringInit(&paramExternal);
-	    Tcl_UtfToExternalDString(NULL, paramVal, paramLen, &paramExternal);
-	    paramExternalLen = Tcl_DStringLength(&paramExternal);
-	    rdata->bindStrings[nBound] = (SQLCHAR*)
-		ckalloc(paramExternalLen + 1);
-	    memcpy(rdata->bindStrings[nBound],
-		   Tcl_DStringValue(&paramExternal),
-		   paramExternalLen + 1);
-	    rdata->bindStringLengths[nBound] = paramExternalLen;
-	    Tcl_DStringFree(&paramExternal);
+
+	    if (cdata->flags & CONNECTION_FLAG_HAS_WVARCHAR) {
+
+		/* We prefer to transfer strings in Unicode if possible */
+
+		dataType = SQL_C_WCHAR;
+		rdata->bindStrings[nBound] = (SQLCHAR*)
+		    GetWCharStringFromObj(paramValObj, &paramLen);
+		paramExternalLen = paramLen;
+
+	    } else {
+
+		/* 
+		 * We need to convert the character string to system encoding
+		 * and store in rdata->bindStrings[nBound].
+		 */
+		dataType = SQL_C_CHAR;
+		paramVal = Tcl_GetStringFromObj(paramValObj, &paramLen);
+		Tcl_DStringInit(&paramExternal);
+		Tcl_UtfToExternalDString(NULL, paramVal, paramLen,
+					 &paramExternal);
+		paramExternalLen = Tcl_DStringLength(&paramExternal);
+		rdata->bindStrings[nBound] = (SQLCHAR*)
+		    ckalloc(paramExternalLen + 1);
+		memcpy(rdata->bindStrings[nBound],
+		       Tcl_DStringValue(&paramExternal),
+		       paramExternalLen + 1);
+		rdata->bindStringLengths[nBound] = paramExternalLen;
+		Tcl_DStringFree(&paramExternal);
+	    }
 	} else {
+	    dataType = SQL_C_CHAR;
 	    rdata->bindStrings[nBound] = NULL;
-	    paramLen = 0;
+	    paramExternalLen = paramLen = 0;
 	    rdata->bindStringLengths[nBound] = SQL_NULL_DATA;
 	}
 	rc = SQLBindParameter(rdata->hStmt,
 			      nBound + 1,
 			      SQL_PARAM_INPUT, /* TODO - Fix this! */
-			      SQL_C_CHAR,
+			      dataType,
 			      sdata->params[nBound].dataType,
 			      sdata->params[nBound].precision,
 			      sdata->params[nBound].scale,
 			      rdata->bindStrings[nBound],
-			      paramLen,
+			      paramExternalLen,
 			      rdata->bindStringLengths + nBound);
 	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
 	    char* info = ckalloc(80 * strlen(paramName));
@@ -2966,17 +3215,20 @@ GetCell(
 ) {
 
     StatementData* sdata = rdata->sdata;
-    SQLCHAR colBuf[256];	/* Buffer to hold the string value of a 
+    ConnectionData* cdata = sdata->cdata;
+    SQLSMALLINT dataType;	/* Type of character data to retrieve */
+    SQLWCHAR colWBuf[256];	/* Buffer to hold the string value of a 
 				 * column */
-    SQLCHAR* colW = colBuf;	/* Pointer to the current allocated buffer
+    SQLCHAR* colBuf = (SQLCHAR*) colWBuf;
+    SQLCHAR* colPtr = colBuf;	/* Pointer to the current allocated buffer
 				 * (which may have grown) */
-    SQLLEN colAllocLen = 256 * sizeof(SQLCHAR);
+    SQLLEN colAllocLen = 256 * sizeof(SQLWCHAR);
 				/* Current allocated size of the buffer,
 				 * in bytes */
+    SQLLEN colLen;		/* Actual size of the return value, in bytes */
     SQLINTEGER colLong;		/* Integer value of the column */
     SQLBIGINT colWide;		/* Wide-integer value of the column */
     SQLDOUBLE colDouble;	/* Double value of the column */
-    SQLLEN colLen;		/* Actual size of the return value */
     Tcl_DString colDS;		/* Column expressed as a Tcl_DString */
     Tcl_Obj* colObj;		/* Column expressed as a Tcl_Obj */
     SQLRETURN rc;		/* ODBC result code */
@@ -3085,8 +3337,26 @@ GetCell(
 	}
 	break;
 	
-	
+    case SQL_CHAR:
+    case SQL_VARCHAR:
+    case SQL_LONGVARCHAR:
+	dataType = SQL_C_CHAR;
+	goto convertString;
+
+    case SQL_WCHAR:
+    case SQL_WVARCHAR:
+    case SQL_WLONGVARCHAR:
+	dataType = SQL_C_WCHAR;
+	goto convertString;
+
     default:
+	if (cdata->flags & CONNECTION_FLAG_HAS_WVARCHAR) {
+	    dataType = SQL_C_WCHAR;
+	} else {
+	    dataType = SQL_C_CHAR;
+	}
+	goto convertString;
+
     convertString:
 	/* Anything else is converted as a string */
 	retry = 0;
@@ -3097,20 +3367,16 @@ GetCell(
 	     * that it's always initialized.
 	     */
 	    colLen = 0;
-	    /*
-	     * It's tempting to use SQL_C_WCHAR here to avoid
-	     * encoding issues, but not all drivers can handle it!
-	     */
-	    rc = SQLGetData(rdata->hStmt, i+1, SQL_C_CHAR,
-			    (SQLPOINTER) colW, colAllocLen,
+	    rc = SQLGetData(rdata->hStmt, i+1, dataType,
+			    (SQLPOINTER) colPtr, colAllocLen,
 			    &colLen);
 	    if (colLen >= colAllocLen) {
-		colAllocLen = 2 * colLen + 1;
-		if (colW != colBuf) {
-		    ckfree((char*) colW);
+		colAllocLen = 2 * colLen + sizeof(SQLWCHAR);
+		if (colPtr != colBuf) {
+		    ckfree((char*) colPtr);
 		}
-		colW = (SQLCHAR*)
-		    ckalloc(colAllocLen * sizeof(SQLCHAR));
+		colPtr = (SQLCHAR*)
+		    ckalloc(colAllocLen);
 		retry = 1;
 	    }
 	} while (retry);
@@ -3118,23 +3384,26 @@ GetCell(
 	    char info[80];		
 	    sprintf(info, "(retrieving result set column #%d)\n", i+1);
 	    TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
-	    if (colW != colBuf) {
-		ckfree((char*) colW);
+	    if (colPtr != colBuf) {
+		ckfree((char*) colPtr);
 	    }
 	    return TCL_ERROR;
 	}
-	if (colLen >= 0) {
-	    Tcl_DStringInit(&colDS);
-	    Tcl_ExternalToUtfDString(NULL, (char*) colW, (int)colLen,
+	Tcl_DStringInit(&colDS);
+	if (dataType == SQL_C_CHAR) {
+	    Tcl_ExternalToUtfDString(NULL, (char*) colPtr, (int)colLen,
 				     &colDS);
-	    colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
-				      Tcl_DStringLength(&colDS));
-	    Tcl_DStringFree(&colDS);
-	    if (colW != colBuf) {
-		ckfree((char*) colW);
-	    }
+	} else {
+	    DStringAppendWChars(&colDS, (SQLWCHAR*) colPtr,
+				(int)(colLen / sizeof(SQLWCHAR)));
 	}
-    }
+	colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
+				  Tcl_DStringLength(&colDS));
+	Tcl_DStringFree(&colDS);
+	break;
+	
+    } /* end of switch */
+
     *colObjPtr = colObj;
     return TCL_OK;
 }
@@ -3307,12 +3576,13 @@ Tdbcodbc_Init(
 	return TCL_ERROR;
     }
     if (Tdbc_InitStubs(interp) == NULL) {
+	fprintf(stderr, "init stubs failed\n"); fflush(stderr);
 	return TCL_ERROR;
     }
 
     /* Provide the current package */
 
-    if (Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION) == TCL_ERROR) {
+    if (Tcl_PkgProvide(interp, "tdbc::odbc", PACKAGE_VERSION) == TCL_ERROR) {
 	return TCL_ERROR;
     }
 
