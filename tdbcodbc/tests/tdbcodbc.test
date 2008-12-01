@@ -2698,10 +2698,10 @@ test tdbc::odbc-19.10 {$connection configure - -isolation} {*}{
 
 test tdbc::odbc-19.11 {$connection configure - -isolation} {*}{
     -body {
-	list [::db configure -isolation serializable] \
+	list [::db configure -isolation readcommitted] \
 	    [::db configure -isolation]
     }
-    -result {{} serializable}
+    -result {{} readcommitted}
 }
 
 test tdbc::odbc-19.12 {$connection configure - -readonly} {*}{

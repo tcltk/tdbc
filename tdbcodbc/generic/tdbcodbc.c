@@ -1451,7 +1451,7 @@ ConfigureConnection(
 	    }
 	    mode = isol;
 	    rc = SQLSetConnectAttr(hDBC, SQL_ATTR_TXN_ISOLATION,
-				   (SQLPOINTER)&mode, 0);
+				   (SQLPOINTER)mode, 0);
 	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
 		TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
 				 "(setting isolation level of connection)");
@@ -1534,7 +1534,7 @@ ConfigureConnection(
 		mode = SQL_MODE_READ_WRITE;
 	    }
 	    rc = SQLSetConnectAttr(hDBC, SQL_ATTR_ACCESS_MODE,
-				   (SQLPOINTER)&mode, 0);
+				   (SQLPOINTER)mode, 0);
 	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
 		TransferSQLError(interp, SQL_HANDLE_DBC, hDBC, 
 				 "(setting access mode of connection)");
@@ -1550,7 +1550,7 @@ ConfigureConnection(
 	    }
 	    seconds = (SQLINTEGER)((j + 999) / 1000);
 	    rc = SQLSetConnectAttr(hDBC, SQL_ATTR_CONNECTION_TIMEOUT,
-				   (SQLPOINTER)&seconds, 0);
+				   (SQLPOINTER)seconds, 0);
 	    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
 		/* 
 		 * A failure is OK if the SQL state is "Optional
