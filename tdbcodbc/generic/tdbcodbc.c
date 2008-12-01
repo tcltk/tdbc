@@ -849,7 +849,7 @@ SQLStateIs(
     while (SQLGetDiagFieldA(handleType, handle, i, SQL_DIAG_SQLSTATE,
 			    (SQLPOINTER) state, sizeof (state), &stateLen)
 	   != SQL_NO_DATA) {
-	if (stateLen >= 0 && !strcmp(sqlstate, state)) {
+	if (stateLen >= 0 && !strcmp(sqlstate, (const char*) state)) {
 	    return 1;
 	}
     }

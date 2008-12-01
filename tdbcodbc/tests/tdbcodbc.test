@@ -122,7 +122,7 @@ test tdbc::odbc-2.4 {semicolons in statements} {*}{
 	::db prepare {select foo from bar; select grill from quux}
     }
     -returnCodes error
-    -result {Tdbcodbc does not support semicolons in statements}
+    -result {tdbc::odbc does not support semicolons in statements}
 }
 
 test tdbc::odbc-3.0 {prepare a valid statement} {*}{
@@ -2613,7 +2613,8 @@ test tdbc::odbc-19.1 {$connection configure - no args} {*}{
     -body {
 	::db configure
     }
-    -result {}
+    -match glob
+    -result {-isolation * -readonly * -timeout *}
 }
 
 test tdbc::odbc-19.2 {$connection configure - unknown arg} {*}{
@@ -2655,6 +2656,32 @@ test tdbc::odbc-19.6 {$connection configure - wrong # args} {*}{
     -returnCodes error
     -match glob
     -result "wrong # args*"
+}
+
+test tdbc::odbc-19.7 {$connection configure - -isolation} {*}{
+    -body {
+	list [::db configure -isolation serializable] \
+	    [::db configure -isolation]
+    }
+    -result {{} serializable}
+}
+
+test tdbc::odbc-19.8 {$connection configure - -readonly} {*}{
+    -body {
+	list [::db configure -readonly 1] \
+	    [::db configure -readonly] \
+	    [::db configure -readonly 0] \
+	    [::db configure -readonly]
+    }
+    -result {{} 1 {} 0}
+}
+
+test tdbc::odbc-19.9 {$connection configure - -timeout} {*}{
+    -body {
+	catch {::db configure -timeout 5000} result
+	list [::db configure -timeout 0] [::db configure -timeout]
+    }
+    -result {{} 0}
 }
 
 #-------------------------------------------------------------------------------
