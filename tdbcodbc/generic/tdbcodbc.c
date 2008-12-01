@@ -56,6 +56,7 @@ const char* LiteralValues[] = {
     "1",
     "exists",
     "::info",
+    "-encoding",
     "-isolation",
     "-readonly",
     "-timeout",
@@ -70,6 +71,7 @@ enum LiteralIndex {
     LIT_1,
     LIT_EXISTS,
     LIT_INFO,
+    LIT_ENCODING,
     LIT_ISOLATION,
     LIT_READONLY,
     LIT_TIMEOUT,
@@ -906,7 +908,6 @@ TranslateOdbcIsolationLevel(
     SQLINTEGER level, 
     Tcl_Obj* literals[]
 ) {
-    fprintf(stderr, "isolation level 0x%08x\n", level);
     if (level & SQL_TXN_SERIALIZABLE) {
 	return literals[LIT_SERIALIZABLE];
     }
@@ -1221,6 +1222,7 @@ ConfigureConnection(
     /* Configuration options */
 
     const static char* options[] = {
+	"-encoding",
 	"-isolation",
 	"-parent",
 	"-readonly",
@@ -1228,6 +1230,7 @@ ConfigureConnection(
 	NULL
     };
     enum optionType {
+	COPTION_ENCODING,
 	COPTION_ISOLATION,
 	COPTION_PARENT,
 	COPTION_READONLY,
@@ -1242,16 +1245,15 @@ ConfigureConnection(
     Tcl_Obj** literals = pidata->literals;
 				/* Literal pool */
     Tcl_Obj* retval;		/* Return value from this command */
+    Tcl_Encoding sysEncoding;	/* The system encoding */
+    Tcl_Encoding newEncoding;	/* The requested encoding */
+    const char* encName;	/* The name of the system encoding */
     int i;
     int j;
     SQLINTEGER mode;		/* Access mode of the database */
     SQLSMALLINT isol;		/* Isolation level */
     SQLINTEGER seconds;		/* Timeout value in seconds */
     SQLRETURN rc;		/* Return code from SQL operations */
-
-    /*
-     * TODO: Do something about encoding 
-     */
 
     if (connectFlagsPtr) {
 	*connectFlagsPtr = SQL_DRIVER_NOPROMPT;
@@ -1265,6 +1267,20 @@ ConfigureConnection(
 	/* return configuration options */
 
 	retval = Tcl_NewObj();
+
+	/* -encoding -- The ODBC encoding should be the system encoding */
+
+	sysEncoding = Tcl_GetEncoding(interp, NULL);
+	if (sysEncoding == NULL) {
+	    encName = "iso8859-1";
+	} else {
+	    encName = Tcl_GetEncodingName(sysEncoding);
+	}
+	Tcl_ListObjAppendElement(NULL, retval, literals[LIT_ENCODING]);
+	Tcl_ListObjAppendElement(NULL, retval, Tcl_NewStringObj(encName, -1));
+	if (sysEncoding != NULL) {
+	    Tcl_FreeEncoding(sysEncoding);
+	}
 
 	/* -isolation */
 
@@ -1324,6 +1340,19 @@ ConfigureConnection(
 	}
 
 	switch (indx) {
+
+	case COPTION_ENCODING:
+	    sysEncoding = Tcl_GetEncoding(interp, NULL);
+	    if (sysEncoding == NULL) {
+		encName = "iso8859-1";
+	    } else {
+		encName = Tcl_GetEncodingName(sysEncoding);
+	    }
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(encName, -1));
+	    if (sysEncoding != NULL) {
+		Tcl_FreeEncoding(sysEncoding);
+	    }
+	    break;
 
 	case COPTION_ISOLATION:
 	    rc = SQLGetConnectAttr(hDBC, SQL_ATTR_TXN_ISOLATION,
@@ -1387,6 +1416,30 @@ ConfigureConnection(
 	    return TCL_ERROR;
 	}
 	switch (indx) {
+
+	case COPTION_ENCODING:
+	    /* 
+	     * Encoding - report "not implemented" unless the encoding
+	     * would not be changed.
+	     */
+
+	    newEncoding = Tcl_GetEncoding(interp, Tcl_GetString(objv[i+1]));
+	    if (newEncoding == NULL) {
+		return TCL_ERROR;
+	    }
+	    sysEncoding = Tcl_GetEncoding(interp, NULL);
+	    Tcl_FreeEncoding(newEncoding);
+	    if (sysEncoding != NULL) {
+		Tcl_FreeEncoding(sysEncoding);
+	    }
+	    if (newEncoding != sysEncoding) {
+		Tcl_SetObjResult(interp,
+				 Tcl_NewStringObj("optional function "
+						  "not implemented", -1));
+		Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HYC00", "-1", NULL);
+		return TCL_ERROR;
+	    }
+	    break;
 
 	case COPTION_ISOLATION:
 	    /* Transaction isolation level */

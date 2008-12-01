@@ -1,5 +1,4 @@
-Configuration: encoding, timeout
-Test Configuration: isolation, readonly ...
+Configuration: encoding
 
 odbc datasources
 odbc drivers
@@ -13,6 +12,4 @@ FLOAT, REAL, DOUBLE, BINARY, WVARCHAR
 
 Direct param conversions
 Direct result conversions - any left?  (Yes, BINARY)
-
-WVARCHAR stuff
 

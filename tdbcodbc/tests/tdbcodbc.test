@@ -2609,13 +2609,15 @@ test tdbc::odbc-18.3 {$statement params - excess arg} {*}{
     -result {in numeric 10 0 in varchar 40}
 }
 
-test tdbc::odbc-19.1 {$connection configure - no args} {*}{
+test tdbc::odbc-19.1 {$connection configure - no args} \
     -body {
 	::db configure
-    }
-    -match glob
-    -result {-isolation * -readonly * -timeout *}
-}
+    } \
+    -match glob \
+    -result [list -encoding [encoding system] \
+		 -isolation * \
+		 -readonly 0 \
+		 -timeout 0]
 
 test tdbc::odbc-19.2 {$connection configure - unknown arg} {*}{
     -body {
@@ -2658,7 +2660,43 @@ test tdbc::odbc-19.6 {$connection configure - wrong # args} {*}{
     -result "wrong # args*"
 }
 
-test tdbc::odbc-19.7 {$connection configure - -isolation} {*}{
+test tdbc::odbc-19.7 {$connection configure - -encoding} {*}{
+    -body {
+	::db configure -encoding junk
+    }
+    -returnCodes error
+    -match glob
+    -result {unknown encoding *}
+}
+
+test tdbc::odbc-19.8 {$connection configure - -encoding} {*}{
+    -body {
+	list [catch {::db configure -encoding ebcdic} result] \
+	    [set result] \
+	    [set errorCode]
+    }
+    -match glob
+    -result {1 {optional function not implemented} {TDBC ODBC HYC00 *}}
+}
+
+test tdbc::odbc-19.9 {$connection configure - -encoding} \
+    -body {
+	list [::db configure -encoding [encoding system]] \
+	    [::db configure -encoding]
+    } \
+    -result [list {} [encoding system]]
+
+
+test tdbc::odbc-19.10 {$connection configure - -isolation} {*}{
+    -body {
+	::db configure -isolation junk
+    }
+    -returnCodes error
+    -match glob
+    -result {bad isolation level "junk"*}
+}
+
+test tdbc::odbc-19.11 {$connection configure - -isolation} {*}{
     -body {
 	list [::db configure -isolation serializable] \
 	    [::db configure -isolation]
@@ -2666,7 +2704,15 @@ test tdbc::odbc-19.7 {$connection configure - -isolation} {*}{
     -result {{} serializable}
 }
 
-test tdbc::odbc-19.8 {$connection configure - -readonly} {*}{
+test tdbc::odbc-19.12 {$connection configure - -readonly} {*}{
+    -body {
+	::db configure -readonly junk
+    }
+    -returnCodes error
+    -result {expected boolean value but got "junk"}
+}
+
+test tdbc::odbc-19.13 {$connection configure - -readonly} {*}{
     -body {
 	list [::db configure -readonly 1] \
 	    [::db configure -readonly] \
@@ -2676,7 +2722,15 @@ test tdbc::odbc-19.8 {$connection configure - -readonly} {*}{
     -result {{} 1 {} 0}
 }
 
-test tdbc::odbc-19.9 {$connection configure - -timeout} {*}{
+test tdbc::odbc-19.14 {$connection configure - -timeout} {*}{
+    -body {
+	::db configure -timeout junk
+    }
+    -returnCodes error
+    -result {expected integer but got "junk"}
+}
+
+test tdbc::odbc-19.15 {$connection configure - -timeout} {*}{
     -body {
 	catch {::db configure -timeout 5000} result
 	list [::db configure -timeout 0] [::db configure -timeout]
