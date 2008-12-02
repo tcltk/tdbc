@@ -5,9 +5,7 @@ odbc config_dsn and friends?
 db primarykeys?
 db indexes?
 
-Test conversion of BIT, NUMERIC, DECIMAL, TINYINT, SMALLINT, BIGINT,
-FLOAT, REAL, DOUBLE, BINARY
-
 Direct param conversions - BINARY
 Direct result conversions - BINARY
+Conversion tests - BINARY
 
