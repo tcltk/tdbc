@@ -1,7 +1,8 @@
 2008-12-01  Kevin B. Kenny  <kennykb@acm.org>
 
-	* generic/tdbcodbc.c (ConfigureConnection): Added '-encoding' and
-	'-timeout' options.
+	* generic/tdbcodbc.c: Added '-encoding' and -timeout' options.
+	Added direct transfer (rather than stringization) of parameters
+	of integer and floating point types.
 	* tests/tdbcodbc.test (tdbc::odbc-19.*): Added rudimentary
 	configuration tests.
 	

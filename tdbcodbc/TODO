@@ -6,8 +6,8 @@ db primarykeys?
 db indexes?
 
 Test conversion of BIT, NUMERIC, DECIMAL, TINYINT, SMALLINT, BIGINT,
-FLOAT, REAL, DOUBLE, BINARY, WVARCHAR
+FLOAT, REAL, DOUBLE, BINARY
 
-Direct param conversions
-Direct result conversions - any left?  (Yes, BINARY)
+Direct param conversions - BINARY
+Direct result conversions - BINARY
 

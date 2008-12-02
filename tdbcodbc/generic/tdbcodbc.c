@@ -3065,44 +3065,142 @@ ResultSetInitMethod(
 	}
 
 	/* 
-	 * TODO - Vector on the parameter type, to allow for efficient
-	 *        binding of numeric types and correctness of byte array
-	 *        types. (Also, we want more efficient handling of
-	 *	  UniChar if sizeof(Tcl_UniChar)==sizeof(SQLWCHAR)).
+	 * Choose the C->SQL data conversion based on the parameter type
 	 */
 
 	if (paramValObj != NULL) {
 
-	    if (cdata->flags & CONNECTION_FLAG_HAS_WVARCHAR) {
+	    switch (sdata->params[nBound].dataType) {
 
-		/* We prefer to transfer strings in Unicode if possible */
-
-		dataType = SQL_C_WCHAR;
-		rdata->bindStrings[nBound] = (SQLCHAR*)
-		    GetWCharStringFromObj(paramValObj, &paramLen);
-		rdata->bindStringLengths[nBound] = paramLen * sizeof(SQLWCHAR);
-
-	    } else {
-
+	    case SQL_NUMERIC:
+	    case SQL_DECIMAL:
+	
 		/* 
-		 * We need to convert the character string to system encoding
-		 * and store in rdata->bindStrings[nBound].
+		 * A generic 'numeric' type may fit in an int, wide,
+		 * or double, and gets converted specially if it does.
 		 */
-		dataType = SQL_C_CHAR;
-		paramVal = Tcl_GetStringFromObj(paramValObj, &paramLen);
-		Tcl_DStringInit(&paramExternal);
-		Tcl_UtfToExternalDString(NULL, paramVal, paramLen,
-					 &paramExternal);
-		paramExternalLen = Tcl_DStringLength(&paramExternal);
-		rdata->bindStrings[nBound] = (SQLCHAR*)
-		    ckalloc(paramExternalLen + 1);
-		memcpy(rdata->bindStrings[nBound],
-		       Tcl_DStringValue(&paramExternal),
-		       paramExternalLen + 1);
+	
+		if (sdata->params[nBound].scale == 0) {
+		    if (sdata->params[nBound].precision < 10) {
+			goto is_integer;
+		    } else if (sdata->params[nBound].precision < 19) {
+			goto is_wide;
+		    } else {
+			/*
+			 * It is tempting to convert wider integers as bignums,
+			 * but Tcl does not yet export its copy of libtommath
+			 * into the public API.
+			 */
+			goto is_string;
+		    }
+		} else if (sdata->params[nBound].precision <= 15) {
+		    goto is_float;
+		} else {
+		    goto is_string;
+		}
+
+	    case SQL_REAL:
+	    case SQL_DOUBLE:
+	    is_float:
+		
+		/* Pass floating point numbers through to SQL without
+		 * conversion */
+
+		rdata->bindStrings[nBound] =
+		    (SQLCHAR*) ckalloc(sizeof(double));
+		if (Tcl_GetDoubleFromObj(interp, paramValObj, 
+					 (double*)(rdata->bindStrings[nBound]))
+		    != TCL_OK) {
+		    ckfree((char*)(rdata->bindStrings[nBound]));
+		    goto is_string;
+		}
+		dataType = SQL_C_DOUBLE;
+		paramExternalLen = sizeof(double);
 		rdata->bindStringLengths[nBound] = paramExternalLen;
-		Tcl_DStringFree(&paramExternal);
+		break;
+
+	    case SQL_BIGINT:
+	    is_wide:
+
+		/* Pass 64-bit integers through to SQL without conversion */
+
+		rdata->bindStrings[nBound] =
+		    (SQLCHAR*) ckalloc(sizeof(SQLBIGINT));
+		if (Tcl_GetWideIntFromObj(interp, paramValObj, 
+					  (SQLBIGINT*)
+					  (rdata->bindStrings[nBound]))
+		    != TCL_OK) {
+		    ckfree((char*)(rdata->bindStrings[nBound]));
+		    goto is_string;
+		}
+		dataType = SQL_C_SBIGINT;
+		paramExternalLen = sizeof(SQLBIGINT);
+		rdata->bindStringLengths[nBound] = paramExternalLen;
+		break;
+
+	    case SQL_INTEGER:
+	    case SQL_SMALLINT:
+	    case SQL_TINYINT:
+	    case SQL_BIT:
+	    is_integer:
+
+		/* Pass integers through to SQL without conversion */
+
+		rdata->bindStrings[nBound] =
+		    (SQLCHAR*) ckalloc(sizeof(long));
+		if (Tcl_GetLongFromObj(interp, paramValObj, 
+				       (long*)(rdata->bindStrings[nBound]))
+		    != TCL_OK) {
+		    ckfree((char*)(rdata->bindStrings[nBound]));
+		    goto is_string;
+		}
+		dataType = SQL_C_LONG;
+		paramExternalLen = sizeof(long);
+		rdata->bindStringLengths[nBound] = paramExternalLen;
+		break;
+
+	    default:
+	    is_string:
+
+		/* Everything else is converted as a string */
+
+		if (cdata->flags & CONNECTION_FLAG_HAS_WVARCHAR) {
+		    
+		    /* We prefer to transfer strings in Unicode if possible */
+		    
+		    dataType = SQL_C_WCHAR;
+		    rdata->bindStrings[nBound] = (SQLCHAR*)
+			GetWCharStringFromObj(paramValObj, &paramLen);
+		    rdata->bindStringLengths[nBound] =
+			paramLen * sizeof(SQLWCHAR);
+		    
+		} else {
+		    
+		    /* 
+		     * We need to convert the character string to system 
+		     * encoding and store in rdata->bindStrings[nBound].
+		     */
+		    dataType = SQL_C_CHAR;
+		    paramVal = Tcl_GetStringFromObj(paramValObj, &paramLen);
+		    Tcl_DStringInit(&paramExternal);
+		    Tcl_UtfToExternalDString(NULL, paramVal, paramLen,
+					     &paramExternal);
+		    paramExternalLen = Tcl_DStringLength(&paramExternal);
+		    rdata->bindStrings[nBound] = (SQLCHAR*)
+			ckalloc(paramExternalLen + 1);
+		    memcpy(rdata->bindStrings[nBound],
+			   Tcl_DStringValue(&paramExternal),
+			   paramExternalLen + 1);
+		    rdata->bindStringLengths[nBound] = paramExternalLen;
+		    Tcl_DStringFree(&paramExternal);
+		}
+
 	    }
+		
 	} else {
+
+	    /* Parameter is NULL */
+
 	    dataType = SQL_C_CHAR;
 	    rdata->bindStrings[nBound] = NULL;
 	    paramExternalLen = paramLen = 0;
