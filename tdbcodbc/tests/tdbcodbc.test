@@ -2738,6 +2738,45 @@ test tdbc::odbc-19.15 {$connection configure - -timeout} {*}{
     -result {{} 0}
 }
 
+test tdbc::odbc-20.1 {direct value transfers} {*}{
+    -setup {
+	db allrows {
+	    create table typetest (
+		xint1 integer,
+		xsmall1 smallint,
+		xbit1 bit,
+		xdouble1 double,
+		xreal1 real
+	    )
+	}
+	set stmt [db prepare {
+	    insert into typetest(xint1, xsmall1, xbit1, xdouble1, xreal1)
+	    values (:i1, :s1, :b1, :d1, :r1)
+	}]
+	$stmt paramtype i1 integer
+	$stmt paramtype s1 smallint
+	$stmt paramtype b1 bit
+	$stmt paramtype d1 double
+	$stmt paramtype r1 real
+    }
+    -body {
+	set i1 0xbc614e
+	set s1 0x3039
+	set b1 1
+	set d1 3.1415926535897932
+	set r1 3.141592653
+	$stmt allrows
+	db allrows -as lists {select * from typetest}
+    }
+    -result {{12345678 12345 1 3.141592653589793 3.1415927410125732}}
+    -cleanup {
+	$stmt close
+	db allrows {
+	    drop table typetest
+	}
+    }
+}
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Get rid of the test database

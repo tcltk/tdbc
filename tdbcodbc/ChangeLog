@@ -4,7 +4,8 @@
 	Added direct transfer (rather than stringization) of parameters
 	of integer and floating point types.
 	* tests/tdbcodbc.test (tdbc::odbc-19.*): Added rudimentary
-	configuration tests.
+	configuration tests, and rudimentary tests of direct value
+	transfers C <-> SQL.
 	
 2008-11-30  Kevin B. Kenny  <kennykb@acm.org>
 
