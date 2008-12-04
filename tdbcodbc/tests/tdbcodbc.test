@@ -2741,17 +2741,17 @@ test tdbc::odbc-19.15 {$connection configure - -timeout} {*}{
 test tdbc::odbc-20.1 {direct value transfers} {*}{
     -setup {
 	db allrows {
-	    create table typetest (
-		xint1 integer,
-		xsmall1 smallint,
-		xbit1 bit,
-		xdouble1 double,
-		xreal1 real
+	    CREATE TABLE typetest (
+		xint1 INTEGER,
+		xsmall1 SMALLINT,
+		xbit1 BIT,
+		xdouble1 DOUBLE,
+		xreal1 REAL
 	    )
 	}
 	set stmt [db prepare {
-	    insert into typetest(xint1, xsmall1, xbit1, xdouble1, xreal1)
-	    values (:i1, :s1, :b1, :d1, :r1)
+	    INSERT INTO typetest(xint1, xsmall1, xbit1, xdouble1, xreal1)
+	    VALUES (:i1, :s1, :b1, :d1, :r1)
 	}]
 	$stmt paramtype i1 integer
 	$stmt paramtype s1 smallint
@@ -2772,8 +2772,46 @@ test tdbc::odbc-20.1 {direct value transfers} {*}{
     -cleanup {
 	$stmt close
 	db allrows {
-	    drop table typetest
+	    DROP TABLE typetest
 	}
+    }
+}
+
+test tdbc::odbc-21.2 {transfers of binary data} {
+    -setup {
+	db allrows {
+	    CREATE TABLE bintest (
+		xint1 INTEGER PRIMARY KEY,
+		xbin VARBINARY(256)
+	    )
+	}
+	set stmt1 [db prepare {
+	    INSERT INTO bintest (xint1, xbin)
+	    VALUES(:i1, :b1)
+	}]
+	$stmt1 paramtype i1 integer
+	$stmt1 paramtype b1 varbinary 256
+	set stmt2 [db prepare {
+	    SELECT xbin FROM bintest WHERE xint1 = :i1
+	}]
+	$stmt2 paramtype i1 integer
+    }
+    -body {
+	set listdata {}
+	for {set i 0} {$i < 256} {incr i} {
+	    lappend listdata $i
+	}
+	set b1 [binary format c* $listdata]
+	set i1 123
+	$stmt1 allrows
+	$stmt2 foreach -as lists row { set b2 [lindex $row 0] }
+	list [string length $b2] [string compare $b1 $b2]
+    }
+    -result {256 0}
+    -cleanup {
+	$stmt1 close
+	$stmt2 close
+	db allrows {DROP TABLE bintest}
     }
 }
 

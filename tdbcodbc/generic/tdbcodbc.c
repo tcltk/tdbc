@@ -2949,6 +2949,8 @@ ResultSetInitMethod(
     int paramExternalLen;	/* Length of the substituted parameter
 				 * after conversion */
     SQLRETURN rc;		/* Return code from ODBC calls */
+    unsigned char* byteArrayPtr; /* Pointer to a BINARY or VARBINARY
+				 * parameter, expressed as a byte array.*/
     int i;
 
     /* Check parameter count */
@@ -3163,6 +3165,26 @@ ResultSetInitMethod(
 		dataType = SQL_C_LONG;
 		paramExternalLen = sizeof(long);
 		rdata->bindStringLengths[nBound] = paramExternalLen;
+		break;
+
+	    case SQL_BINARY:
+	    case SQL_VARBINARY:
+	    case SQL_LONGVARBINARY:
+
+		/* 
+		 * Binary strings are shipped as byte arrays. It would
+		 * be nice to avoid an extra copy, but it's possible
+		 * for the byte array to shimmer away before ODBC has
+		 * a chance to work with it.
+		 */
+		byteArrayPtr = Tcl_GetByteArrayFromObj(paramValObj,
+						       &paramExternalLen);
+		dataType = SQL_C_BINARY;
+		rdata->bindStringLengths[nBound] = paramExternalLen;
+		rdata->bindStrings[nBound] =
+		    (SQLCHAR*) ckalloc(paramExternalLen);
+		memcpy(rdata->bindStrings[nBound], byteArrayPtr,
+		       paramExternalLen);
 		break;
 
 	    default:
@@ -3625,6 +3647,12 @@ GetCell(
 	dataType = SQL_C_WCHAR;
 	goto convertString;
 
+    case SQL_BINARY:
+    case SQL_VARBINARY:
+    case SQL_LONGVARBINARY:
+	dataType = SQL_C_BINARY;
+	goto convertString;
+
     default:
     convertUnknown:
 	if (cdata->flags & CONNECTION_FLAG_HAS_WVARCHAR) {
@@ -3668,16 +3696,21 @@ GetCell(
 	}
 	if (colLen >= 0) {
 	    Tcl_DStringInit(&colDS);
-	    if (dataType == SQL_C_CHAR) {
-		Tcl_ExternalToUtfDString(NULL, (char*) colPtr, (int)colLen,
-					 &colDS);
+	    if (dataType == SQL_C_BINARY) {
+		colObj = Tcl_NewByteArrayObj((const char*) colPtr,
+					     (int) colLen);
 	    } else {
-		DStringAppendWChars(&colDS, (SQLWCHAR*) colPtr,
-				    (int)(colLen / sizeof(SQLWCHAR)));
+		if (dataType == SQL_C_CHAR) {
+		    Tcl_ExternalToUtfDString(NULL, (char*) colPtr, (int)colLen,
+					     &colDS);
+		} else {
+		    DStringAppendWChars(&colDS, (SQLWCHAR*) colPtr,
+					(int)(colLen / sizeof(SQLWCHAR)));
+		}
+		colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
+					  Tcl_DStringLength(&colDS));
+		Tcl_DStringFree(&colDS);
 	    }
-	    colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
-				      Tcl_DStringLength(&colDS));
-	    Tcl_DStringFree(&colDS);
 	}
 	break;
 	

@@ -1,4 +1,10 @@
-2008-12-01  Kevin B. Kenny  <kennykb@acm.org>
+2008-12-04  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcodc.c (ResultSetInitMethod, GetCell):
+	* tests/tdbcodbc.test (tdbc::odbc-21.2): Added direct transfer of
+	BINARY, VARBINARY, LONGVARBINARY parameters and results.
+	
+2008-12-03  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbodbc.c:     Added "tdbc::odbc::datasources" and
 	* library/tdbcodbc.tcl:  "tdbc::odbc::drivers" for inspection of 
