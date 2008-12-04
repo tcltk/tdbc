@@ -3177,7 +3177,7 @@ ResultSetInitMethod(
 		    dataType = SQL_C_WCHAR;
 		    rdata->bindStrings[nBound] = (SQLCHAR*)
 			GetWCharStringFromObj(paramValObj, &paramLen);
-		    rdata->bindStringLengths[nBound] =
+		    rdata->bindStringLengths[nBound] = paramExternalLen = 
 			paramLen * sizeof(SQLWCHAR);
 		    
 		} else {
@@ -3535,12 +3535,12 @@ GetCell(
 		 * but Tcl does not yet export its copy of libtommath
 		 * into the public API.
 		 */
-		goto convertString;
+		goto convertUnknown;
 	    }
 	} else if (sdata->results[i].precision <= 15) {
 	    goto convertDouble;
 	} else {
-	    goto convertString;
+	    goto convertUnknown;
 	}
 	
     case SQL_BIGINT:
@@ -3588,7 +3588,7 @@ GetCell(
 	if (sdata->results[i].precision <= 53) {
 	    goto convertDouble;
 	} else {
-	    goto convertString;
+	    goto convertUnknown;
 	}
 	
     case SQL_REAL:
@@ -3626,6 +3626,7 @@ GetCell(
 	goto convertString;
 
     default:
+    convertUnknown:
 	if (cdata->flags & CONNECTION_FLAG_HAS_WVARCHAR) {
 	    dataType = SQL_C_WCHAR;
 	} else {
