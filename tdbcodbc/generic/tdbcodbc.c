@@ -3916,14 +3916,14 @@ DatasourcesObjCmd(
 				 description, descAllocLen, &descLen);
 	    direction = SQL_FETCH_NEXT;
 	    
-	    if (descLen > descLenNeeded) {
-
+	    if (rc == SQL_SUCCESS_WITH_INFO && descLen > descLenNeeded) {
+		    
 		/* The description buffer wasn't big enough. */
 		
 		descLenNeeded = 2 * descLen;
 		finished = 0;
 		break;
-
+		    
 	    } else if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO) {
 		
 		/* Got a data source; add key and value to the dictionary */
@@ -4051,7 +4051,7 @@ DriversObjCmd(
 			     attributes, attrAllocLen, &attrLen);
 	    direction = SQL_FETCH_NEXT;
 	    
-	    if (driverLen > driverLenNeeded) {
+	    if (rc == SQL_SUCCESS_WITH_INFO && driverLen > driverLenNeeded) {
 
 		/* The description buffer wasn't big enough. */
 		
@@ -4059,7 +4059,7 @@ DriversObjCmd(
 		finished = 0;
 		break;
 	    }
-	    if (attrLen > attrLenNeeded) {
+	    if (rc == SQL_SUCCESS_WITH_INFO && attrLen > attrLenNeeded) {
 
 		/* The attributes buffer wasn't big enough. */
 
