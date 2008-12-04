@@ -3697,7 +3697,7 @@ GetCell(
 	if (colLen >= 0) {
 	    Tcl_DStringInit(&colDS);
 	    if (dataType == SQL_C_BINARY) {
-		colObj = Tcl_NewByteArrayObj((const char*) colPtr,
+		colObj = Tcl_NewByteArrayObj((const unsigned char*) colPtr,
 					     (int) colLen);
 	    } else {
 		if (dataType == SQL_C_CHAR) {
