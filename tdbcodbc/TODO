@@ -1,5 +1,3 @@
-odbc config_dsn and friends?
-
 db primarykeys?
 db indexes?
 
@@ -8,3 +6,6 @@ Direct result conversions - BINARY
 Conversion tests - BINARY
 
 tdbc::odbc manpage
+
+odbc config_dsn and friends?
+
