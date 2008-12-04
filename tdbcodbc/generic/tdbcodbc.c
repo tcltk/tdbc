@@ -426,6 +426,10 @@ static int CloneResultSet(Tcl_Interp* interp, ClientData oldClientData,
 			  ClientData* newClientData);
 static void FreeBoundParameters(ResultSetData* rdata);
 static void DeletePerInterpData(PerInterpData* pidata);
+static int DatasourcesObjCmd(ClientData clientData, Tcl_Interp* interp,
+			      int objc, Tcl_Obj *const objv[]);
+static int DriversObjCmd(ClientData clientData, Tcl_Interp* interp,
+			 int objc, Tcl_Obj *const objv[]);
 
 /* Metadata type that holds connection data */
 
@@ -793,6 +797,7 @@ TransferSQLError(
 	DStringAppendWChars(&bufferDS, state, 5);
 	lineObj = Tcl_NewStringObj(Tcl_DStringValue(&bufferDS),
 				   Tcl_DStringLength(&bufferDS));
+	Tcl_DStringFree(&bufferDS);
 	Tcl_ListObjAppendElement(NULL, codeObj, lineObj);
 	Tcl_ListObjAppendElement(NULL, codeObj, Tcl_NewIntObj(nativeError));
 
@@ -803,6 +808,7 @@ TransferSQLError(
 	Tcl_AppendToObj(resultObj, sep, -1);
 	Tcl_AppendToObj(resultObj, Tcl_DStringValue(&bufferDS),
 			Tcl_DStringLength(&bufferDS));
+	Tcl_DStringFree(&bufferDS);
 	sep = "\n";
 	++i;
     }					       
@@ -3817,6 +3823,314 @@ FreeBoundParameters(
 /*
  *-----------------------------------------------------------------------------
  *
+ * Datasources_ObjCmd --
+ *
+ *	Enumerates the ODBC data sources.
+ *
+ * Usage:
+ *
+ *	tdbc::odbc::datasources ?-system | -user?
+ *
+ * Results:
+ *	Returns a dictionary whose keys are the names of data sources and
+ *	whose values are data source descriptions.
+ *
+ * The -system flag restricts the data sources to system data sources; 
+ * the -user flag to user data sources. If no flag is specified, both types
+ * are returned.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+DatasourcesObjCmd(
+    ClientData clientData,	/* Opaque pointer to per-interp data */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    PerInterpData* pidata = (PerInterpData*) clientData;
+    SQLSMALLINT initDirection = SQL_FETCH_FIRST;
+    SQLSMALLINT direction;
+    struct flag {
+	const char* name;
+	SQLSMALLINT value;
+    } flags[] = {
+	{ "-system", SQL_FETCH_FIRST_SYSTEM },
+	{ "-user", SQL_FETCH_FIRST_USER },
+	{ NULL, 0 }
+    };
+    int flagIndex;
+    SQLRETURN rc;		/* SQL result code */
+    SQLWCHAR serverName[SQL_MAX_DSN_LENGTH + 1];
+				/* Data source name */
+    SQLSMALLINT serverNameLen;	/* Length of the DSN */
+    SQLWCHAR *description;	/* Data source descroption */
+    SQLSMALLINT descLen;	/* Length of the description */
+    SQLSMALLINT descAllocLen;	/* Allocated size of the description */
+    SQLSMALLINT descLenNeeded;	/* Length needed for the description */
+    Tcl_Obj* retval;		/* Return value */
+    Tcl_DString nameDS;		/* Buffer for a name or description */
+    Tcl_Obj* nameObj;		/* Name or description as a Tcl object */
+    int finished;		/* Flag == 1 if a complete list of data
+				 * sources has been constructed */
+    int status = TCL_OK;	/* Status return from this call */
+
+    /* Get the argument */
+
+    if (objc > 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?-system|-user?");
+	return TCL_ERROR;
+    }
+    if (objc == 2) {
+	if (Tcl_GetIndexFromObjStruct(interp, objv[1], (const void*) flags,
+				      sizeof(struct flag),
+				      "option", 0, &flagIndex) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	initDirection = flags[flagIndex].value;
+    }
+
+    /* Allocate memory */
+
+    retval = Tcl_NewObj();
+    Tcl_IncrRefCount(retval);
+    descLenNeeded = 32;
+    finished = 0;
+
+    while (!finished) {
+
+	direction = initDirection;
+	finished = 1;
+	descAllocLen = descLenNeeded;
+	description = (SQLWCHAR*)
+	    ckalloc(sizeof(SQLWCHAR) * (descAllocLen + 1));
+	Tcl_SetListObj(retval, 0, NULL);
+
+	/* Enumerate the data sources */
+
+	while (1) {
+	    rc = SQLDataSourcesW(pidata->hEnv, direction, serverName,
+				 SQL_MAX_DSN_LENGTH + 1, &serverNameLen,
+				 description, descAllocLen, &descLen);
+	    direction = SQL_FETCH_NEXT;
+	    
+	    if (descLen > descLenNeeded) {
+
+		/* The description buffer wasn't big enough. */
+		
+		descLenNeeded = 2 * descLen;
+		finished = 0;
+		break;
+
+	    } else if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO) {
+		
+		/* Got a data source; add key and value to the dictionary */
+		
+		Tcl_DStringInit(&nameDS);
+		DStringAppendWChars(&nameDS, serverName, serverNameLen);
+		nameObj = Tcl_NewStringObj(Tcl_DStringValue(&nameDS),
+					   Tcl_DStringLength(&nameDS));
+		Tcl_ListObjAppendElement(NULL, retval, nameObj);
+		Tcl_DStringFree(&nameDS);
+		
+		Tcl_DStringInit(&nameDS);
+		DStringAppendWChars(&nameDS, description, descLen);
+		nameObj = Tcl_NewStringObj(Tcl_DStringValue(&nameDS),
+					   Tcl_DStringLength(&nameDS));
+		Tcl_ListObjAppendElement(NULL, retval, nameObj);
+		Tcl_DStringFree(&nameDS);
+		
+	    } else if (rc == SQL_NO_DATA) {
+
+		/* End of data sources */
+		
+		if (finished) {
+		    Tcl_SetObjResult(interp, retval);
+		    status = TCL_OK;
+		}
+		break;
+		
+	    } else {
+		
+		/* Anything else is an error */
+		
+		TransferSQLError(interp, SQL_HANDLE_ENV, pidata->hEnv, 
+				 "(retrieving data source names)");
+		status = TCL_ERROR;
+		finished = 1;
+		break;
+	    }
+	}
+
+	ckfree((char*) description);
+    }
+    Tcl_DecrRefCount(retval);
+
+    return status;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Drivers_ObjCmd --
+ *
+ *	Enumerates the ODBC drivers.
+ *
+ * Usage:
+ *
+ *	tdbc::odbc::drivers
+ *
+ * Results:
+ *	Returns a dictionary whose keys are the names of drivers and
+ *	whose values are lists of attributes
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+DriversObjCmd(
+    ClientData clientData,	/* Opaque pointer to per-interp data */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    PerInterpData* pidata = (PerInterpData*) clientData;
+    SQLSMALLINT direction;
+    SQLRETURN rc;		/* SQL result code */
+    SQLWCHAR *driver;		/* Driver name */
+    SQLSMALLINT driverLen;	/* Length of the driver name */
+    SQLSMALLINT driverAllocLen; /* Allocated size of the driver name */
+    SQLSMALLINT driverLenNeeded; /* Required size of the driver name */
+    SQLWCHAR *attributes;	/* Driver attributes */
+    SQLSMALLINT attrLen;	/* Length of the driver attributes */
+    SQLSMALLINT attrAllocLen;	/* Allocated size of the driver attributes */
+    SQLSMALLINT attrLenNeeded;	/* Length needed for the driver attributes */
+    Tcl_Obj* retval;		/* Return value */
+    Tcl_Obj* attrObj;		/* Tcl object to hold driver attribute list */
+    Tcl_DString nameDS;		/* Buffer for a name or attribute */
+    Tcl_Obj* nameObj;		/* Name or attribute as a Tcl object */
+    int finished;		/* Flag == 1 if a complete list of drivers
+				 * has been constructed */
+    int status = TCL_OK;	/* Status return from this call */
+    int i, j;
+
+    /* Get the argument */
+
+    if (objc > 1) {
+	Tcl_WrongNumArgs(interp, 1, objv, "");
+	return TCL_ERROR;
+    }
+
+    /* Allocate memory */
+
+    retval = Tcl_NewObj();
+    Tcl_IncrRefCount(retval);
+    driverLenNeeded = 32;
+    attrLenNeeded = 32;
+    finished = 0;
+
+    while (!finished) {
+
+	finished = 1;
+	driverAllocLen = driverLenNeeded;
+	driver = (SQLWCHAR*)
+	    ckalloc(sizeof(SQLWCHAR) * (driverAllocLen + 1));
+	attrAllocLen = attrLenNeeded;
+	attributes = (SQLWCHAR*)
+	    ckalloc(sizeof(SQLWCHAR) * (attrAllocLen + 1));
+	Tcl_SetListObj(retval, 0, NULL);
+	direction = SQL_FETCH_FIRST;
+
+	/* Enumerate the data sources */
+
+	while (1) {
+	    rc = SQLDriversW(pidata->hEnv, direction, driver,
+			     driverAllocLen, &driverLen,
+			     attributes, attrAllocLen, &attrLen);
+	    direction = SQL_FETCH_NEXT;
+	    
+	    if (driverLen > driverLenNeeded) {
+
+		/* The description buffer wasn't big enough. */
+		
+		driverLenNeeded = 2 * driverLen;
+		finished = 0;
+		break;
+	    }
+	    if (attrLen > attrLenNeeded) {
+
+		/* The attributes buffer wasn't big enough. */
+
+		attrLenNeeded = 2 * attrLen;
+		finished = 0;
+		break;
+	    }
+
+	    if (finished) {
+		if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO) {
+		    
+		    /* Got a data source; add key and value to the dictionary */
+		    
+		    Tcl_DStringInit(&nameDS);
+		    DStringAppendWChars(&nameDS, driver, driverLen);
+		    nameObj = Tcl_NewStringObj(Tcl_DStringValue(&nameDS),
+					       Tcl_DStringLength(&nameDS));
+		    Tcl_ListObjAppendElement(NULL, retval, nameObj);
+		    Tcl_DStringFree(&nameDS);
+		    
+		    /* 
+		     * Attributes are a set of U+0000-terminated
+		     * strings, ending with an extra U+0000
+		     */
+		    attrObj = Tcl_NewObj();
+		    for (i = 0; attributes[i] != 0; ) {
+			for (j = i; attributes[j] != 0; ++j) {
+			    /* do nothing */
+			}
+			Tcl_DStringInit(&nameDS);
+			DStringAppendWChars(&nameDS, attributes+i, j-i);
+			nameObj = Tcl_NewStringObj(Tcl_DStringValue(&nameDS),
+						   Tcl_DStringLength(&nameDS));
+			Tcl_ListObjAppendElement(NULL, attrObj, nameObj);
+			Tcl_DStringFree(&nameDS);
+			i = j + 1;
+		    }
+		    Tcl_ListObjAppendElement(NULL, retval, attrObj);
+		    
+		} else if (rc == SQL_NO_DATA) {
+		    
+		    /* End of data sources */
+		    
+		    if (finished) {
+			Tcl_SetObjResult(interp, retval);
+			status = TCL_OK;
+		    }
+		    break;
+		    
+		} else {
+		    
+		    /* Anything else is an error */
+		    
+		    TransferSQLError(interp, SQL_HANDLE_ENV, pidata->hEnv, 
+				     "(retrieving data source names)");
+		    status = TCL_ERROR;
+		    finished = 1;
+		    break;
+		}
+	    }
+	}
+	ckfree((char*) driver);
+	ckfree((char*) attributes);
+    }
+    Tcl_DecrRefCount(retval);
+
+    return status;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Tdbcodbc_Init --
  *
  *	Initializes the TDBC-ODBC bridge when this library is loaded.
@@ -4037,6 +4351,14 @@ Tdbcodbc_Init(
     Tcl_NewMethod(interp, curClass, nameObj, 1, &ResultSetNextrowMethodType,
 		  (ClientData) 0);
     Tcl_DecrRefCount(nameObj);
+
+    IncrPerInterpRefCount(pidata);
+    Tcl_CreateObjCommand(interp, "tdbc::odbc::datasources",
+			 DatasourcesObjCmd, (ClientData) pidata, DeleteCmd);
+    IncrPerInterpRefCount(pidata);
+    Tcl_CreateObjCommand(interp, "tdbc::odbc::drivers",
+			 DriversObjCmd, (ClientData) pidata, DeleteCmd);
+
 
     DismissHEnv();
     return TCL_OK;

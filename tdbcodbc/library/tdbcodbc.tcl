@@ -14,7 +14,7 @@ package require tdbc 0.2
 
 ::namespace eval ::tdbc::odbc {
 
-    namespace export connection
+    namespace export connection datasources drivers
 
     # Data types that are predefined in ODBC
 

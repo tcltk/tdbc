@@ -2777,6 +2777,54 @@ test tdbc::odbc-20.1 {direct value transfers} {*}{
     }
 }
 
+test tdbc::odbc-21.1 {datasources, wrong # args} {
+    -body {
+	tdbc::odbc::datasources two args
+    }
+    -returnCodes error
+    -result {wrong # args*}
+    -match glob
+}
+
+test tdbc::odbc-21.2 {datasources, bad arg} {
+    -body {
+	tdbc::odbc::datasources -rubbish
+    }
+    -returnCodes error
+    -result {bad option "-rubbish"*}
+    -match glob
+}
+
+test tdbc::odbc-21.3 {datasources, sys + user = all} {
+    -body {
+	set d1 [tdbc::odbc::datasources -user]
+	set d2 [tdbc::odbc::datasources -system]
+	set d3 [tdbc::odbc::datasources]
+	set d4 $d1
+	lappend d4 {*}$d2
+	list [expr {[llength $d1] % 2}] [expr {[llength $d2] % 2}] \
+	    [expr {[llength $d3] == [llength $d1] + [llength $d2]}] \
+	    [string equal $d4 $d3]
+    }
+    -result {0 0 1 1}
+}
+
+test tdbc::odbc-22.1 {drivers, wrong # args} {
+    -body {
+	tdbc::odbc::drivers rubbish
+    }
+    -returnCodes error
+    -result {wrong # args*}
+    -match glob
+}
+
+test tdbc::odbc-22.2 {drivers} {
+    -body {
+	expr {[llength [tdbc::odbc::drivers]] % 2}
+    }
+    -result 0
+}
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Get rid of the test database

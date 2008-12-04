@@ -1,5 +1,11 @@
 2008-12-01  Kevin B. Kenny  <kennykb@acm.org>
 
+	* generic/tdbodbc.c:     Added "tdbc::odbc::datasources" and
+	* library/tdbcodbc.tcl:  "tdbc::odbc::drivers" for inspection of 
+	* tests/tdbcodbc.test:   available databases.
+	
+2008-12-01  Kevin B. Kenny  <kennykb@acm.org>
+
 	* generic/tdbcodbc.c: Added '-encoding' and -timeout' options.
 	Added direct transfer (rather than stringization) of parameters
 	of integer and floating point types.
