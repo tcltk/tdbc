@@ -13,28 +13,34 @@
  *-----------------------------------------------------------------------------
  */
 
+#define USE_TK
+
 #include <tcl.h>
-
-#if defined(BUILD_tdbcodbc)
-#   define TDBCODBCAPI DLLEXPORT
-#else
-#   define TDBCODBCAPI DLLIMPORT
-#endif
-
-#include <tk.h>
 #include <tclOO.h>
 #include <tdbc.h>
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
+
+#ifdef USE_TK
+#include <tk.h>
 #include <tkPlatDecls.h>
+#endif
+
 #include <sql.h>
 #include <sqlucode.h>
+#ifndef NO_ODBCINST
+#include <odbcinst.h>
+#endif
+
 #include <stdio.h>
 #include <string.h>
 
 #define USE_TK
+
+/* Static data contained in this file */
 
 TCL_DECLARE_MUTEX(hEnvMutex);	/* Mutex protecting the environment handle
 				 * and its reference count */
@@ -43,6 +49,7 @@ static SQLHENV hEnv = SQL_NULL_HENV;
 				/* Handle to the global ODBC environment */
 
 static int hEnvRefCount = 0;	/* Reference count on the global environment */
+
 #ifdef USE_TK
 static int tkStubsInited = 0;	/* Flag == 1 if Tk stubs are initialized */
 #endif
@@ -316,9 +323,33 @@ const static OdbcConstant OdbcIsolationLevels[] = {
     { "readcommitted",		SQL_TXN_READ_COMMITTED },
     { "repeatableread",		SQL_TXN_REPEATABLE_READ },
     { "serializable",		SQL_TXN_SERIALIZABLE },
-    { NULL,			0 }};
+    { NULL,			0 }
+};
 	    
-
+const static OdbcConstant OdbcErrorCodeNames[] = {
+    { "GENERAL_ERR",			ODBC_ERROR_GENERAL_ERR },
+    { "INVALID_BUFF_LEN",		ODBC_ERROR_INVALID_BUFF_LEN },
+    { "INVALID_HWND",			ODBC_ERROR_INVALID_HWND },
+    { "INVALID_STR",			ODBC_ERROR_INVALID_STR },
+    { "INVALID_REQUEST_TYPE",		ODBC_ERROR_INVALID_REQUEST_TYPE },
+    { "COMPONENT_NOT_FOUND",		ODBC_ERROR_COMPONENT_NOT_FOUND },
+    { "INVALID_NAME",			ODBC_ERROR_INVALID_NAME },
+    { "INVALID_KEYWORD_VALUE",		ODBC_ERROR_INVALID_KEYWORD_VALUE },
+    { "INVALID_DSN",			ODBC_ERROR_INVALID_DSN },
+    { "INVALID_INF",			ODBC_ERROR_INVALID_INF },
+    { "REQUEST_FAILED",			ODBC_ERROR_REQUEST_FAILED },
+    { "LOAD_LIB_FAILED",		ODBC_ERROR_LOAD_LIB_FAILED },
+    { "INVALID_PARAM_SEQUENCE",		ODBC_ERROR_INVALID_PARAM_SEQUENCE },
+    { "INVALID_LOG_FILE",		ODBC_ERROR_INVALID_LOG_FILE },
+    { "USER_CANCELED",			ODBC_ERROR_USER_CANCELED },
+    { "USAGE_UPDATE_FAILED",		ODBC_ERROR_USAGE_UPDATE_FAILED },
+    { "CREATE_DSN_FAILED",		ODBC_ERROR_CREATE_DSN_FAILED },
+    { "WRITING_SYSINFO_FAILED",		ODBC_ERROR_WRITING_SYSINFO_FAILED },
+    { "REMOVE_DSN_FAILED",		ODBC_ERROR_REMOVE_DSN_FAILED },
+    { "OUT_OF_MEM",			ODBC_ERROR_OUT_OF_MEM },
+    { "OUTPUT_STRING_TRUNCATED",	ODBC_ERROR_OUTPUT_STRING_TRUNCATED },
+    { NULL,				0 }
+};
 
 /* Initialization script */
 
@@ -3886,7 +3917,7 @@ DatasourcesObjCmd(
     PerInterpData* pidata = (PerInterpData*) clientData;
     SQLSMALLINT initDirection = SQL_FETCH_FIRST;
     SQLSMALLINT direction;
-    struct flag {
+    const static struct flag {
 	const char* name;
 	SQLSMALLINT value;
     } flags[] = {
@@ -4165,6 +4196,158 @@ DriversObjCmd(
 /*
  *-----------------------------------------------------------------------------
  *
+ * Datasource_ObjCmd --
+ *
+ *	Command that does configuration of ODBC data sources
+ *
+ * Usage:
+ *	::tdbc::odbc::datasource subcommand driver ?keyword=value?...
+ *
+ * Parameters: 
+ *	subcommand - One of 'add', 'add_system', 'configure',
+ *		'configure_system', 'remove', or 'remove_system'
+ *	driver - Name of the ODBC driver to use in configuring the data source.
+ *	keyword=value - Keyword-value pairs as defined by the driver.
+ *
+ * Results:
+ *	Returns a standard Tcl result, which is empty if the operation
+ *	is successful.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+DatasourceObjCmd(
+    ClientData clientData,	/* Unused */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    const static struct flag {
+	const char* name;
+	WORD value;
+    } flags[] = {
+	{ "add",		ODBC_ADD_DSN },
+	{ "add_system",		ODBC_ADD_SYS_DSN },
+	{ "configure",		ODBC_CONFIG_DSN },
+	{ "configure_system",	ODBC_CONFIG_SYS_DSN },
+	{ "remove",		ODBC_REMOVE_DSN },
+	{ "remove_system", 	ODBC_REMOVE_SYS_DSN },
+	{ NULL,			0 }
+    };
+    int flagIndex;		/* Index of the subcommand */
+    WCHAR* driverName;		/* Name of the ODBC driver */
+    int driverNameLen;		/* Length of the driver name */
+    Tcl_Obj* attrObj;		/* NULL-delimited attribute values */
+    WCHAR* attributes;		/* NULL-delimited attribute values */
+    int attrLen;		/* Length of the attribute values */
+    const char* sep;		/* Separator for attribute values */
+    DWORD errorCode;		/* Error code */
+    WCHAR errorMessage[SQL_MAX_MESSAGE_LENGTH];
+				/* Error message from ODBC operations */
+    WORD errorMessageLen;	/* Length of the returned error message */
+    RETCODE errorMessageStatus;	/* Status of the error message formatting */
+    Tcl_DString retvalDS;	/* Return value */
+    Tcl_Obj* errorCodeObj;	/* Tcl error code */
+    int i, j;
+    BOOL ok;
+    int status = TCL_OK;
+    int finished = 0;
+   
+    if (objc < 4) {
+	Tcl_WrongNumArgs(interp, 1, objv,
+			 "operation driver ?keyword=value?...");
+	return TCL_ERROR;
+    }
+    if (Tcl_GetIndexFromObjStruct(interp, objv[1], flags, sizeof(struct flag),
+				  "operation", 0, &flagIndex) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    driverName = GetWCharStringFromObj(objv[2], &driverNameLen);
+
+    attrObj = Tcl_NewObj();
+    Tcl_IncrRefCount(attrObj);
+    sep = "";
+    for (i = 3; i < objc; ++i) {
+	Tcl_AppendToObj(attrObj, sep, -1);
+	Tcl_AppendObjToObj(attrObj, objv[i]);
+	sep = "\xc0\x80";
+    }
+    Tcl_AppendToObj(attrObj, "\xc0\x80", 2);
+    attributes = GetWCharStringFromObj(attrObj, &attrLen);
+    Tcl_DecrRefCount(attrObj);
+
+    ok = SQLConfigDataSourceW(NULL, flags[flagIndex].value,
+			      driverName, attributes);
+    ckfree((char*) attributes);
+    ckfree((char*) driverName);
+
+    if (!ok) {
+	status = TCL_ERROR;
+	i = 1;
+	sep = "";
+	Tcl_DStringInit(&retvalDS);
+	errorCodeObj = Tcl_NewStringObj("TDBC ODBC", -1);
+	Tcl_IncrRefCount(errorCodeObj);
+	finished = 0;
+	while (!finished) {
+	    errorMessageStatus =
+		SQLInstallerErrorW(i, &errorCode, errorMessage, 
+				   SQL_MAX_MESSAGE_LENGTH-1, &errorMessageLen);
+	    switch(errorMessageStatus) {
+	    case SQL_SUCCESS:
+		Tcl_DStringAppend(&retvalDS, sep, -1);
+		DStringAppendWChars(&retvalDS, errorMessage, errorMessageLen);
+		break;
+	    case SQL_NO_DATA:
+		break;
+	    default:
+		Tcl_DStringAppend(&retvalDS, sep, -1);
+		Tcl_DStringAppend(&retvalDS, "cannot retrieve error message",
+				  -1);
+		break;
+	    }
+	    switch(errorMessageStatus) {
+	    case SQL_SUCCESS:
+	    case SQL_SUCCESS_WITH_INFO:
+		for (j = 0; OdbcErrorCodeNames[j].name != NULL; ++j) {
+		    if (OdbcErrorCodeNames[j].value == errorCode) {
+			break;
+		    }
+		}
+		if (OdbcErrorCodeNames[j].name == NULL) {
+		    Tcl_ListObjAppendElement(NULL, errorCodeObj,
+					     Tcl_NewStringObj("?", -1));
+		} else {
+		    Tcl_ListObjAppendElement(NULL, errorCodeObj,
+			Tcl_NewStringObj(OdbcErrorCodeNames[j].name, -1));
+		}
+		Tcl_ListObjAppendElement(NULL, errorCodeObj,
+					 Tcl_NewIntObj(errorCode));
+
+	    case SQL_NO_DATA:
+	    case SQL_ERROR:
+		finished = 1;
+		break;
+	    }
+
+	    sep = "\n";
+	    ++i;
+	}
+	Tcl_SetObjResult(interp,
+			 Tcl_NewStringObj(Tcl_DStringValue(&retvalDS),
+					  Tcl_DStringLength(&retvalDS)));
+	Tcl_DStringFree(&retvalDS);
+	Tcl_SetObjErrorCode(interp, errorCodeObj);
+	Tcl_DecrRefCount(errorCodeObj);
+    }
+
+    return status;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Tdbcodbc_Init --
  *
  *	Initializes the TDBC-ODBC bridge when this library is loaded.
@@ -4176,7 +4359,7 @@ DriversObjCmd(
  *-----------------------------------------------------------------------------
  */
 
-extern TDBCODBCAPI int
+extern DLLEXPORT int
 Tdbcodbc_Init(
     Tcl_Interp* interp		/* Tcl interpreter */
 ) {
@@ -4393,6 +4576,8 @@ Tdbcodbc_Init(
     Tcl_CreateObjCommand(interp, "tdbc::odbc::drivers",
 			 DriversObjCmd, (ClientData) pidata, DeleteCmd);
 
+    Tcl_CreateObjCommand(interp, "tdbc::odbc::datasource",
+			 DatasourceObjCmd, NULL, NULL);
 
     DismissHEnv();
     return TCL_OK;

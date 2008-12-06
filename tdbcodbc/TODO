@@ -2,5 +2,3 @@ db primarykeys?
 db indexes?
 
 tdbc::odbc manpage
-
-odbc config_dsn and friends?
