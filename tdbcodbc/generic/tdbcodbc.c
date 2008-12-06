@@ -4246,6 +4246,7 @@ DatasourceObjCmd(
     char errorMessage[SQL_MAX_MESSAGE_LENGTH];
 				/* Error message from ODBC operations */
     Tcl_DString errorMessageDS;	/* Error message in UTF-8 */
+    char* p;
 #else
     WCHAR* driverName;		/* Name of the ODBC driver */
     WCHAR* attributes;		/* NULL-delimited attribute values */
@@ -4262,7 +4263,6 @@ DatasourceObjCmd(
     Tcl_DString retvalDS;	/* Return value */
     Tcl_Obj* errorCodeObj;	/* Tcl error code */
     int i, j;
-    char* p;
     BOOL ok;
     int status = TCL_OK;
     int finished = 0;

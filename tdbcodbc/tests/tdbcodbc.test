@@ -43,6 +43,9 @@ if {$tcl_platform(platform) eq {windows}} {
     tcltest::testConstraint sqlite 1
 }
 
+tcltest::testConstraint odbcinst \
+    [expr {[namespace which -command ::tdbc::odbc::datasource] ne {}}]
+
 #-------------------------------------------------------------------------------
 
 test tdbc::odbc-1.1 {create a connection, wrong # args} {*}{
@@ -2777,7 +2780,7 @@ test tdbc::odbc-20.1 {direct value transfers} {*}{
     }
 }
 
-test tdbc::odbc-21.2 {transfers of binary data} {
+test tdbc::odbc-21.2 {transfers of binary data} {*}{
     -setup {
 	db allrows {
 	    CREATE TABLE bintest (
@@ -2815,7 +2818,7 @@ test tdbc::odbc-21.2 {transfers of binary data} {
     }
 }
 
-test tdbc::odbc-21.1 {datasources, wrong # args} {
+test tdbc::odbc-22.1 {datasources, wrong # args} {*}{
     -body {
 	tdbc::odbc::datasources two args
     }
@@ -2824,7 +2827,7 @@ test tdbc::odbc-21.1 {datasources, wrong # args} {
     -match glob
 }
 
-test tdbc::odbc-21.2 {datasources, bad arg} {
+test tdbc::odbc-22.2 {datasources, bad arg} {*}{
     -body {
 	tdbc::odbc::datasources -rubbish
     }
@@ -2833,7 +2836,7 @@ test tdbc::odbc-21.2 {datasources, bad arg} {
     -match glob
 }
 
-test tdbc::odbc-21.3 {datasources, sys + user = all} {
+test tdbc::odbc-22.3 {datasources, sys + user = all} {*}{
     -body {
 	set d1 [tdbc::odbc::datasources -user]
 	set d2 [tdbc::odbc::datasources -system]
@@ -2847,7 +2850,7 @@ test tdbc::odbc-21.3 {datasources, sys + user = all} {
     -result {0 0 1 1}
 }
 
-test tdbc::odbc-22.1 {drivers, wrong # args} {
+test tdbc::odbc-23.1 {drivers, wrong # args} {*}{
     -body {
 	tdbc::odbc::drivers rubbish
     }
@@ -2856,11 +2859,60 @@ test tdbc::odbc-22.1 {drivers, wrong # args} {
     -match glob
 }
 
-test tdbc::odbc-22.2 {drivers} {
+test tdbc::odbc-23.2 {drivers} {*}{
     -body {
 	expr {[llength [tdbc::odbc::drivers]] % 2}
     }
     -result 0
+}
+
+test tdbc::odbc-24.1 {datasource - wrong # args} {*}{
+    -constraints {odbcinst}
+    -body {
+	tdbc::odbc::datasource
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+}
+
+test tdbc::odbc-24.2 {datasource - bad operation} {*}{
+    -constraints {odbcinst}
+    -body {
+	tdbc::odbc::datasource rubbish rubbish rubbish=rubbish
+    }
+    -returnCodes error
+    -match glob
+    -result {bad operation "rubbish"*}
+}
+
+test tdbc::odbc-24.3 {datasource - bad driver} {*}{
+    -constraints {odbcinst}
+    -body {
+	list [catch {
+	    tdbc::odbc::datasource add rubbish rubbish=rubbish
+	} result] \
+	    $::errorCode
+    }
+    -match glob
+    -result {1 {TDBC ODBC COMPONENT_NOT_FOUND *}}
+}
+
+test tdbc::odbc-24.4 {datasource - add/remove} {*}{
+    -constraints {odbcinst win}
+    -body {
+	list \
+	    [tdbc::odbc::datasource add \
+		 {Microsoft Access Driver (*.mdb)} \
+		 DSN=TdbcOdbcTestDB \
+		 DBQ=$testDBQ] \
+	    [dict exists [tdbc::odbc::datasources] TdbcOdbcTestDB] \
+	    [tdbc::odbc::datasource remove \
+		 {Microsoft Access Driver (*.mdb)} \
+		 DSN=TdbcOdbcTestDB] \
+	    [dict exists [tdbc::odbc::datasources] TdbcOdbcTestDB]
+    }
+    -result {{} 1 {} 0}
 }
 
 #-------------------------------------------------------------------------------
