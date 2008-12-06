@@ -143,7 +143,11 @@ AC_CHECK_LIB([odbccp32],[strlen],[
 ], [
    AC_CHECK_LIB([odbccp],[strlen],[
         eval "ODBCINST_LIB_SPEC=\"-lodbccp\""
-    ],[],[$PKG_LIBS])
+    ],[
+       AC_CHECK_LIB([odbcinst],[strlen],[
+            eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
+        ],[],[$PKG_LIBS])
+    ],[$PKG_LIBS])
 ],[$PKG_LIBS])
 if test x"${HAVE_ODBCINST}" != x ; then
     TDBCODBC_SAVED_LIBS="${LIBS}"
@@ -165,8 +169,8 @@ int main(int argc, char* argv[]) {
         AC_MSG_RESULT(no)
         AC_DEFINE(NO_UNICODE_ODBCINST)
     ])
+    LIBS="${TDBCODBC_SAVED_LIBS}"
 fi
-TDBCODBC_SAVED_LIBS="${LIBS}"
 TEA_ADD_LIBS([${ODBCINST_LIB_SPEC}])
 
 #-----------------------------------------------------------------------

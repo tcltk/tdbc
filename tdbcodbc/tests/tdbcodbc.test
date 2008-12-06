@@ -2895,7 +2895,7 @@ test tdbc::odbc-24.3 {datasource - bad driver} {*}{
 	    $::errorCode
     }
     -match glob
-    -result {1 {TDBC ODBC COMPONENT_NOT_FOUND *}}
+    -result {1 {TDBC ODBC *}}
 }
 
 test tdbc::odbc-24.4 {datasource - add/remove} {*}{
