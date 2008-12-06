@@ -1,3 +1,16 @@
+2008-12-06  Kevin B. Kenny <kennykb@acm.org>:
+
+	* configure.in:
+	* generic/tdbcodbc.c: Added the autoconf stuff to support finding
+	                      the odbcinst libraries at configuration time.
+	* configure: Autoconf 2.61
+
+2008-12-05  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcodbc.c (DatasourceObjCmd):
+	Added the tdbc::odbc::datasource command for adding, configuring
+	and removing data sources.
+	
 2008-12-04  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcodc.c (ResultSetInitMethod, GetCell):

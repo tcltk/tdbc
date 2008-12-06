@@ -31,7 +31,7 @@
 
 #include <sql.h>
 #include <sqlucode.h>
-#ifndef NO_ODBCINST
+#ifndef NO_ODBCINST_H
 #include <odbcinst.h>
 #endif
 
@@ -4236,24 +4236,39 @@ DatasourceObjCmd(
 	{ NULL,			0 }
     };
     int flagIndex;		/* Index of the subcommand */
+#ifdef NO_UNICODE_ODBCINST
+    Tcl_DString driverNameDS;
+    Tcl_DString attributesDS;
+    char* driverName;		/* Name of the ODBC driver in system
+				 * encoding */
+    char* attributes;		/* Attributes of the data source in
+				 * system encoding */
+    char errorMessage[SQL_MAX_MESSAGE_LENGTH];
+				/* Error message from ODBC operations */
+    Tcl_DString errorMessageDS;	/* Error message in UTF-8 */
+#else
     WCHAR* driverName;		/* Name of the ODBC driver */
+    WCHAR* attributes;		/* NULL-delimited attribute values */
+    WCHAR errorMessage[SQL_MAX_MESSAGE_LENGTH];
+				/* Error message from ODBC operations */
+#endif
     int driverNameLen;		/* Length of the driver name */
     Tcl_Obj* attrObj;		/* NULL-delimited attribute values */
-    WCHAR* attributes;		/* NULL-delimited attribute values */
     int attrLen;		/* Length of the attribute values */
     const char* sep;		/* Separator for attribute values */
     DWORD errorCode;		/* Error code */
-    WCHAR errorMessage[SQL_MAX_MESSAGE_LENGTH];
-				/* Error message from ODBC operations */
     WORD errorMessageLen;	/* Length of the returned error message */
     RETCODE errorMessageStatus;	/* Status of the error message formatting */
     Tcl_DString retvalDS;	/* Return value */
     Tcl_Obj* errorCodeObj;	/* Tcl error code */
     int i, j;
+    char* p;
     BOOL ok;
     int status = TCL_OK;
     int finished = 0;
    
+    /* Check args */
+
     if (objc < 4) {
 	Tcl_WrongNumArgs(interp, 1, objv,
 			 "operation driver ?keyword=value?...");
@@ -4263,7 +4278,23 @@ DatasourceObjCmd(
 				  "operation", 0, &flagIndex) != TCL_OK) {
 	return TCL_ERROR;
     }
+
+    /* Convert driver name to the appropriate encoding */
+
+#ifdef NO_UNICODE_ODBCINST
+    Tcl_DStringInit(&driverNameDS);
+    p = Tcl_GetStringFromObj(objv[2], &driverNameLen);
+    Tcl_UtfToExternalDString(NULL, p, driverNameLen, &driverNameDS);
+    driverName = Tcl_DStringValue(&driverNameDS);
+    driverNameLen = Tcl_DStringLength(&driverNameDS);
+#else
     driverName = GetWCharStringFromObj(objv[2], &driverNameLen);
+#endif
+
+    /* 
+     * Convert driver attributes to the appropriate encoding, separated
+     * by NUL bytes.
+     */
 
     attrObj = Tcl_NewObj();
     Tcl_IncrRefCount(attrObj);
@@ -4274,13 +4305,34 @@ DatasourceObjCmd(
 	sep = "\xc0\x80";
     }
     Tcl_AppendToObj(attrObj, "\xc0\x80", 2);
+#ifdef NO_UNICODE_ODBCINST
+    Tcl_DStringInit(&attributesDS);
+    p = Tcl_GetStringFromObj(attrObj, &attrLen);
+    Tcl_UtfToExternalDString(NULL, p, attrLen, &attributesDS);
+    attributes = Tcl_DStringValue(&attributesDS);
+    attrLen = Tcl_DStringLength(&attributesDS);
+#else
     attributes = GetWCharStringFromObj(attrObj, &attrLen);
+#endif
     Tcl_DecrRefCount(attrObj);
 
+    /*
+     * Configure the data source
+     */
+
+#ifdef NO_UNICODE_ODBCINST
+    ok = SQLConfigDataSource(NULL, flags[flagIndex].value,
+			      driverName, attributes);
+    Tcl_DStringFree(&attributesDS);
+    Tcl_DStringFree(&driverNameDS);
+#else
     ok = SQLConfigDataSourceW(NULL, flags[flagIndex].value,
 			      driverName, attributes);
     ckfree((char*) attributes);
     ckfree((char*) driverName);
+#endif
+
+    /* Check the ODBC status return */
 
     if (!ok) {
 	status = TCL_ERROR;
@@ -4291,13 +4343,29 @@ DatasourceObjCmd(
 	Tcl_IncrRefCount(errorCodeObj);
 	finished = 0;
 	while (!finished) {
+#ifdef NO_UNICODE_ODBCINST
+	    errorMessageStatus =
+		SQLInstallerError(i, &errorCode, errorMessage,
+				  SQL_MAX_MESSAGE_LENGTH-1, &errorMessageLen);
+#else
 	    errorMessageStatus =
 		SQLInstallerErrorW(i, &errorCode, errorMessage, 
 				   SQL_MAX_MESSAGE_LENGTH-1, &errorMessageLen);
+#endif
 	    switch(errorMessageStatus) {
 	    case SQL_SUCCESS:
 		Tcl_DStringAppend(&retvalDS, sep, -1);
+#ifdef NO_UNICODE_ODBCINST
+		Tcl_DStringInit(&errorMessageDS);
+		Tcl_ExternalToUtfDString(NULL, errorMessage, errorMessageLen,
+					 &errorMessageDS);
+		Tcl_DStringAppend(&retvalDS,
+				  Tcl_DStringValue(&errorMessageDS),
+				  Tcl_DStringLength(&errorMessageDS));
+		Tcl_DStringFree(&errorMessageDS);
+#else
 		DStringAppendWChars(&retvalDS, errorMessage, errorMessageLen);
+#endif
 		break;
 	    case SQL_NO_DATA:
 		break;

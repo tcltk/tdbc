@@ -93,20 +93,51 @@ AC_CHECK_SIZEOF([long])
 AC_DEFINE([DONT_TD_VOID],[1])
 
 #----------------------------------------------------------------------
-# Locate the ODBC libraries.  At present, require a -with option unless
-# they are in /usr/include and /usr/lib
+# Locate ODBC include files, and set ODBC_INCLUDE_SPEC accordingly
 #----------------------------------------------------------------------
 
-AC_CHECK_LIB([odbc32],[strcmp],[
+TDBCODBC_SAVED_CPPFLAGS="${CPPFLAGS}"
+AC_ARG_WITH(odbc-includedir,
+    AC_HELP_STRING([--with-odbc-includedir],
+                   [directory where ODBC header files reside]),
+    with_odbcincludedir=${withval})
+if test x"${with_odbcincludedir}" != x ; then
+    CPPFLAGS="${CPPFLAGS} -I\"${odbc_includedir}\""
+    ODBC_INCLUDE_SPEC=-I\"${odbc_includedir}\"
+fi
+AC_CHECK_HEADER([sql.h], , AC_MSG_ERROR("cannot find a working sql.h"))
+AC_CHECK_HEADER([odbcinst.h], , AC_DEFINE(NO_ODBCINST),[
+#include <sql.h>
+])
+CPPFLAGS="${TDBCODBC_SAVED_CPPLFAGS}"
+TEA_ADD_INCLUDES([${ODBC_INCLUDE_SPEC}])
+
+#----------------------------------------------------------------------
+# Locate the ODBC libraries. Right now, these must be on the default
+# path.
+#----------------------------------------------------------------------
+
+AC_CHECK_LIB([odbc32],[SQLDriverConnectW],[
     eval "ODBC_LIB_SPEC=\"-lodbc32\""
 ], [
-    AC_CHECK_LIB([odbc],[strcmp],[
+    AC_CHECK_LIB([odbc],[SQLDriverConnectW],[
         eval "ODBC_LIB_SPEC=\"-lodbc\""
     ], [
         AC_MSG_ERROR([Cannot find an ODBC library])
     ],[$PKG_LIBS])
 ],[$PKG_LIBS])
-AC_SUBST(ODBC_LIB_SPEC)
+TEA_ADD_LIBS([${ODBC_LIB_SPEC}])
+AC_CHECK_LIB([odbcinst],[SQLConfigDataSourceW],[
+    eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
+],[
+    AC_CHECK_LIB([odbcinst],[SQLConfigDataSource],[
+        eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
+	AC_DEFINE(NO_UNICODE_ODBCINST)
+    ],[
+        AC_DEFINE(NO_ODBCINST)
+    ],[$PKG_LIBS])
+],[$PKG_LIBS])
+TEA_ADD_LIBS([${ODBCINST_LIB_SPEC}])
 
 #-----------------------------------------------------------------------
 # Specify the C source files to compile in TEA_ADD_SOURCES,
@@ -126,8 +157,8 @@ if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
   fi
 fi
 TEA_ADD_CFLAGS([${TCLOO_CFLAGS}])
-TEA_ADD_INCLUDES([${TDBC_INCLUDE_SPEC} ${ODBC_INCLUDE_SPEC}])
-TEA_ADD_LIBS([${TDBC_STUB_LIB_SPEC} ${ODBC_LIB_SPEC}])
+TEA_ADD_INCLUDES([${TDBC_INCLUDE_SPEC}])
+TEA_ADD_LIBS([${TDBC_STUB_LIB_SPEC}])
 TEA_ADD_CFLAGS([${TDBC_CFLAGS}])
 TEA_ADD_STUB_SOURCES()
 TEA_ADD_TCL_SOURCES([library/tdbcodbc.tcl])

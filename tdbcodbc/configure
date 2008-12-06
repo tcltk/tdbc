@@ -717,7 +717,6 @@ RANLIB
 GREP
 EGREP
 MATH_LIBS
-ODBC_LIB_SPEC
 PKG_SOURCES
 PKG_OBJECTS
 CLEANFILES
@@ -1347,6 +1346,7 @@ Optional Packages:
   --with-tk               directory containing tk configuration (tkConfig.sh)
   --with-tcloo              directory containing tcloo configuration (tclooConfig.sh)
   --with-tdbc              directory containing tdbc configuration (tdbcConfig.sh)
+  --with-odbc-includedir  directory where ODBC header files reside
   --with-tclinclude       directory containing the public Tcl header files
   --with-celib=DIR        use Windows/CE support library from DIR
 
@@ -8093,13 +8093,227 @@ _ACEOF
 
 
 #----------------------------------------------------------------------
-# Locate the ODBC libraries.  At present, require a -with option unless
-# they are in /usr/include and /usr/lib
+# Locate ODBC include files, and set ODBC_INCLUDE_SPEC accordingly
 #----------------------------------------------------------------------
 
-{ echo "$as_me:$LINENO: checking for strcmp in -lodbc32" >&5
-echo $ECHO_N "checking for strcmp in -lodbc32... $ECHO_C" >&6; }
-if test "${ac_cv_lib_odbc32_strcmp+set}" = set; then
+TDBCODBC_SAVED_CPPFLAGS="${CPPFLAGS}"
+
+# Check whether --with-odbc-includedir was given.
+if test "${with_odbc_includedir+set}" = set; then
+  withval=$with_odbc_includedir; with_odbcincludedir=${withval}
+fi
+
+if test x"${with_odbcincludedir}" != x ; then
+    CPPFLAGS="${CPPFLAGS} -I\"${odbc_includedir}\""
+    ODBC_INCLUDE_SPEC=-I\"${odbc_includedir}\"
+fi
+if test "${ac_cv_header_sql_h+set}" = set; then
+  { echo "$as_me:$LINENO: checking for sql.h" >&5
+echo $ECHO_N "checking for sql.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_sql_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_sql_h" >&5
+echo "${ECHO_T}$ac_cv_header_sql_h" >&6; }
+else
+  # Is the header compilable?
+{ echo "$as_me:$LINENO: checking sql.h usability" >&5
+echo $ECHO_N "checking sql.h usability... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <sql.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ echo "$as_me:$LINENO: checking sql.h presence" >&5
+echo $ECHO_N "checking sql.h presence... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <sql.h>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: sql.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: sql.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: sql.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: sql.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: sql.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: sql.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: sql.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: sql.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: sql.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: sql.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: sql.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: sql.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: sql.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: sql.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: sql.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: sql.h: in the future, the compiler will take precedence" >&2;}
+
+    ;;
+esac
+{ echo "$as_me:$LINENO: checking for sql.h" >&5
+echo $ECHO_N "checking for sql.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_sql_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_sql_h=$ac_header_preproc
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_sql_h" >&5
+echo "${ECHO_T}$ac_cv_header_sql_h" >&6; }
+
+fi
+if test $ac_cv_header_sql_h = yes; then
+  :
+else
+  { { echo "$as_me:$LINENO: error: \"cannot find a working sql.h\"" >&5
+echo "$as_me: error: \"cannot find a working sql.h\"" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+{ echo "$as_me:$LINENO: checking for odbcinst.h" >&5
+echo $ECHO_N "checking for odbcinst.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_odbcinst_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+#include <sql.h>
+
+
+#include <odbcinst.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_cv_header_odbcinst_h=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_header_odbcinst_h=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_odbcinst_h" >&5
+echo "${ECHO_T}$ac_cv_header_odbcinst_h" >&6; }
+if test $ac_cv_header_odbcinst_h = yes; then
+  :
+else
+  cat >>confdefs.h <<\_ACEOF
+#define NO_ODBCINST 1
+_ACEOF
+
+fi
+
+
+CPPFLAGS="${TDBCODBC_SAVED_CPPLFAGS}"
+
+    vars="${ODBC_INCLUDE_SPEC}"
+    for i in $vars; do
+	PKG_INCLUDES="$PKG_INCLUDES $i"
+    done
+
+
+
+#----------------------------------------------------------------------
+# Locate the ODBC libraries. Right now, these must be on the default
+# path.
+#----------------------------------------------------------------------
+
+{ echo "$as_me:$LINENO: checking for SQLDriverConnectW in -lodbc32" >&5
+echo $ECHO_N "checking for SQLDriverConnectW in -lodbc32... $ECHO_C" >&6; }
+if test "${ac_cv_lib_odbc32_SQLDriverConnectW+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -8117,11 +8331,11 @@ cat >>conftest.$ac_ext <<_ACEOF
 #ifdef __cplusplus
 extern "C"
 #endif
-char strcmp ();
+char SQLDriverConnectW ();
 int
 main ()
 {
-return strcmp ();
+return SQLDriverConnectW ();
   ;
   return 0;
 }
@@ -8144,29 +8358,29 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_odbc32_strcmp=yes
+  ac_cv_lib_odbc32_SQLDriverConnectW=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_lib_odbc32_strcmp=no
+	ac_cv_lib_odbc32_SQLDriverConnectW=no
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbc32_strcmp" >&5
-echo "${ECHO_T}$ac_cv_lib_odbc32_strcmp" >&6; }
-if test $ac_cv_lib_odbc32_strcmp = yes; then
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbc32_SQLDriverConnectW" >&5
+echo "${ECHO_T}$ac_cv_lib_odbc32_SQLDriverConnectW" >&6; }
+if test $ac_cv_lib_odbc32_SQLDriverConnectW = yes; then
 
     eval "ODBC_LIB_SPEC=\"-lodbc32\""
 
 else
 
-    { echo "$as_me:$LINENO: checking for strcmp in -lodbc" >&5
-echo $ECHO_N "checking for strcmp in -lodbc... $ECHO_C" >&6; }
-if test "${ac_cv_lib_odbc_strcmp+set}" = set; then
+    { echo "$as_me:$LINENO: checking for SQLDriverConnectW in -lodbc" >&5
+echo $ECHO_N "checking for SQLDriverConnectW in -lodbc... $ECHO_C" >&6; }
+if test "${ac_cv_lib_odbc_SQLDriverConnectW+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -8184,11 +8398,11 @@ cat >>conftest.$ac_ext <<_ACEOF
 #ifdef __cplusplus
 extern "C"
 #endif
-char strcmp ();
+char SQLDriverConnectW ();
 int
 main ()
 {
-return strcmp ();
+return SQLDriverConnectW ();
   ;
   return 0;
 }
@@ -8211,21 +8425,21 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_odbc_strcmp=yes
+  ac_cv_lib_odbc_SQLDriverConnectW=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_lib_odbc_strcmp=no
+	ac_cv_lib_odbc_SQLDriverConnectW=no
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbc_strcmp" >&5
-echo "${ECHO_T}$ac_cv_lib_odbc_strcmp" >&6; }
-if test $ac_cv_lib_odbc_strcmp = yes; then
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbc_SQLDriverConnectW" >&5
+echo "${ECHO_T}$ac_cv_lib_odbc_SQLDriverConnectW" >&6; }
+if test $ac_cv_lib_odbc_SQLDriverConnectW = yes; then
 
         eval "ODBC_LIB_SPEC=\"-lodbc\""
 
@@ -8239,6 +8453,175 @@ fi
 
 
 fi
+
+
+    vars="${ODBC_LIB_SPEC}"
+    for i in $vars; do
+	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
+	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
+	    i=`echo "$i" | sed -e 's/^\([^-].*\)\.lib$/-l\1/i'`
+	fi
+	PKG_LIBS="$PKG_LIBS $i"
+    done
+
+
+{ echo "$as_me:$LINENO: checking for SQLConfigDataSourceW in -lodbcinst" >&5
+echo $ECHO_N "checking for SQLConfigDataSourceW in -lodbcinst... $ECHO_C" >&6; }
+if test "${ac_cv_lib_odbcinst_SQLConfigDataSourceW+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lodbcinst $PKG_LIBS $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char SQLConfigDataSourceW ();
+int
+main ()
+{
+return SQLConfigDataSourceW ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_odbcinst_SQLConfigDataSourceW=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_odbcinst_SQLConfigDataSourceW=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbcinst_SQLConfigDataSourceW" >&5
+echo "${ECHO_T}$ac_cv_lib_odbcinst_SQLConfigDataSourceW" >&6; }
+if test $ac_cv_lib_odbcinst_SQLConfigDataSourceW = yes; then
+
+    eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
+
+else
+
+    { echo "$as_me:$LINENO: checking for SQLConfigDataSource in -lodbcinst" >&5
+echo $ECHO_N "checking for SQLConfigDataSource in -lodbcinst... $ECHO_C" >&6; }
+if test "${ac_cv_lib_odbcinst_SQLConfigDataSource+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lodbcinst $PKG_LIBS $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char SQLConfigDataSource ();
+int
+main ()
+{
+return SQLConfigDataSource ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_odbcinst_SQLConfigDataSource=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_odbcinst_SQLConfigDataSource=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbcinst_SQLConfigDataSource" >&5
+echo "${ECHO_T}$ac_cv_lib_odbcinst_SQLConfigDataSource" >&6; }
+if test $ac_cv_lib_odbcinst_SQLConfigDataSource = yes; then
+
+        eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
+	cat >>confdefs.h <<\_ACEOF
+#define NO_UNICODE_ODBCINST 1
+_ACEOF
+
+
+else
+
+        cat >>confdefs.h <<\_ACEOF
+#define NO_ODBCINST 1
+_ACEOF
+
+
+fi
+
+
+fi
+
+
+    vars="${ODBCINST_LIB_SPEC}"
+    for i in $vars; do
+	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
+	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
+	    i=`echo "$i" | sed -e 's/^\([^-].*\)\.lib$/-l\1/i'`
+	fi
+	PKG_LIBS="$PKG_LIBS $i"
+    done
 
 
 
@@ -8327,14 +8710,14 @@ fi
 
 
 
-    vars="${TDBC_INCLUDE_SPEC} ${ODBC_INCLUDE_SPEC}"
+    vars="${TDBC_INCLUDE_SPEC}"
     for i in $vars; do
 	PKG_INCLUDES="$PKG_INCLUDES $i"
     done
 
 
 
-    vars="${TDBC_STUB_LIB_SPEC} ${ODBC_LIB_SPEC}"
+    vars="${TDBC_STUB_LIB_SPEC}"
     for i in $vars; do
 	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
 	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
@@ -13196,7 +13579,6 @@ RANLIB!$RANLIB$ac_delim
 GREP!$GREP$ac_delim
 EGREP!$EGREP$ac_delim
 MATH_LIBS!$MATH_LIBS$ac_delim
-ODBC_LIB_SPEC!$ODBC_LIB_SPEC$ac_delim
 PKG_SOURCES!$PKG_SOURCES$ac_delim
 PKG_OBJECTS!$PKG_OBJECTS$ac_delim
 CLEANFILES!$CLEANFILES$ac_delim
@@ -13230,7 +13612,7 @@ CONFIGURE_OUTPUTS!$CONFIGURE_OUTPUTS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 39; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 38; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
