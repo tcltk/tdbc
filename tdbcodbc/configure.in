@@ -112,7 +112,7 @@ AC_CHECK_HEADER([sql.h], , AC_MSG_ERROR("cannot find a working sql.h"), [
 #undef WIN32_LEAN_AND_MEAN
 #endif
 ])
-AC_CHECK_HEADER([odbcinst.h], , AC_DEFINE(NO_ODBCINST), [
+AC_CHECK_HEADER([odbcinst.h], HAVE_ODBCINST=1, AC_DEFINE(NO_ODBCINST), [
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -138,8 +138,14 @@ AC_CHECK_LIB([odbc32],[strlen],[
     ],[$PKG_LIBS])
 ],[$PKG_LIBS])
 TEA_ADD_LIBS([${ODBC_LIB_SPEC}])
-AC_CHECK_LIB([odbcinst],[strlen],[
-    eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
+AC_CHECK_LIB([odbccp32],[strlen],[
+    eval "ODBCINST_LIB_SPEC=\"-lodbccp32\""
+], [
+   AC_CHECK_LIB([odbccp],[strlen],[
+        eval "ODBCINST_LIB_SPEC=\"-lodbccp\""
+    ],[],[$PKG_LIBS])
+],[$PKG_LIBS])
+if test x"${HAVE_ODBCINST}" != x ; then
     TDBCODBC_SAVED_LIBS="${LIBS}"
     LIBS="${ODBCINST_LIB_SPEC} ${ODBC_LIB_SPEC} ${LIBS}"
     AC_MSG_CHECKING([for Unicode interface to odbcinst])
@@ -159,7 +165,7 @@ int main(int argc, char* argv[]) {
         AC_MSG_RESULT(no)
         AC_DEFINE(NO_UNICODE_ODBCINST)
     ])
-],[],[$PKG_LIBS])
+fi
 TDBCODBC_SAVED_LIBS="${LIBS}"
 TEA_ADD_LIBS([${ODBCINST_LIB_SPEC}])
 
