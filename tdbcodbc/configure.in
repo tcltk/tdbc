@@ -128,26 +128,39 @@ TEA_ADD_INCLUDES([${ODBC_INCLUDE_SPEC}])
 # path.
 #----------------------------------------------------------------------
 
-AC_CHECK_LIB([odbc32],[SQLDriverConnectW],[
+AC_CHECK_LIB([odbc32],[strlen],[
     eval "ODBC_LIB_SPEC=\"-lodbc32\""
 ], [
-    AC_CHECK_LIB([odbc],[SQLDriverConnectW],[
+    AC_CHECK_LIB([odbc],[strlen],[
         eval "ODBC_LIB_SPEC=\"-lodbc\""
     ], [
         AC_MSG_ERROR([Cannot find an ODBC library])
     ],[$PKG_LIBS])
 ],[$PKG_LIBS])
 TEA_ADD_LIBS([${ODBC_LIB_SPEC}])
-AC_CHECK_LIB([odbcinst],[SQLConfigDataSourceW],[
+AC_CHECK_LIB([odbcinst],[strlen],[
     eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
-],[
-    AC_CHECK_LIB([odbcinst],[SQLConfigDataSource],[
-        eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
-	AC_DEFINE(NO_UNICODE_ODBCINST)
-    ],[
-        AC_DEFINE(NO_ODBCINST)
-    ],[$PKG_LIBS])
-],[$PKG_LIBS])
+    TDBCODBC_SAVED_LIBS="${LIBS}"
+    LIBS="${ODBCINST_LIB_SPEC} ${ODBC_LIB_SPEC} ${LIBS}"
+    AC_MSG_CHECKING([for Unicode interface to odbcinst])
+    AC_LINK_IFELSE([
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+#endif
+#include <sql.h>
+#include <odbcinst.h>
+int main(int argc, char* argv[]) {
+    SQLConfigDataSourceW(NULL, 0, (WCHAR*)NULL, (WCHAR*)NULL);
+    return 0;
+}
+    ],[AC_MSG_RESULT([yes])],[
+        AC_MSG_RESULT(no)
+        AC_DEFINE(NO_UNICODE_ODBCINST)
+    ])
+],[],[$PKG_LIBS])
+TDBCODBC_SAVED_LIBS="${LIBS}"
 TEA_ADD_LIBS([${ODBCINST_LIB_SPEC}])
 
 #-----------------------------------------------------------------------

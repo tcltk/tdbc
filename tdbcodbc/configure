@@ -8241,9 +8241,9 @@ CPPFLAGS="${TDBCODBC_SAVED_CPPLFAGS}"
 # path.
 #----------------------------------------------------------------------
 
-{ echo "$as_me:$LINENO: checking for SQLDriverConnectW in -lodbc32" >&5
-echo $ECHO_N "checking for SQLDriverConnectW in -lodbc32... $ECHO_C" >&6; }
-if test "${ac_cv_lib_odbc32_SQLDriverConnectW+set}" = set; then
+{ echo "$as_me:$LINENO: checking for strlen in -lodbc32" >&5
+echo $ECHO_N "checking for strlen in -lodbc32... $ECHO_C" >&6; }
+if test "${ac_cv_lib_odbc32_strlen+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -8261,11 +8261,11 @@ cat >>conftest.$ac_ext <<_ACEOF
 #ifdef __cplusplus
 extern "C"
 #endif
-char SQLDriverConnectW ();
+char strlen ();
 int
 main ()
 {
-return SQLDriverConnectW ();
+return strlen ();
   ;
   return 0;
 }
@@ -8288,29 +8288,29 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_odbc32_SQLDriverConnectW=yes
+  ac_cv_lib_odbc32_strlen=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_lib_odbc32_SQLDriverConnectW=no
+	ac_cv_lib_odbc32_strlen=no
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbc32_SQLDriverConnectW" >&5
-echo "${ECHO_T}$ac_cv_lib_odbc32_SQLDriverConnectW" >&6; }
-if test $ac_cv_lib_odbc32_SQLDriverConnectW = yes; then
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbc32_strlen" >&5
+echo "${ECHO_T}$ac_cv_lib_odbc32_strlen" >&6; }
+if test $ac_cv_lib_odbc32_strlen = yes; then
 
     eval "ODBC_LIB_SPEC=\"-lodbc32\""
 
 else
 
-    { echo "$as_me:$LINENO: checking for SQLDriverConnectW in -lodbc" >&5
-echo $ECHO_N "checking for SQLDriverConnectW in -lodbc... $ECHO_C" >&6; }
-if test "${ac_cv_lib_odbc_SQLDriverConnectW+set}" = set; then
+    { echo "$as_me:$LINENO: checking for strlen in -lodbc" >&5
+echo $ECHO_N "checking for strlen in -lodbc... $ECHO_C" >&6; }
+if test "${ac_cv_lib_odbc_strlen+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -8328,11 +8328,11 @@ cat >>conftest.$ac_ext <<_ACEOF
 #ifdef __cplusplus
 extern "C"
 #endif
-char SQLDriverConnectW ();
+char strlen ();
 int
 main ()
 {
-return SQLDriverConnectW ();
+return strlen ();
   ;
   return 0;
 }
@@ -8355,21 +8355,21 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_odbc_SQLDriverConnectW=yes
+  ac_cv_lib_odbc_strlen=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_lib_odbc_SQLDriverConnectW=no
+	ac_cv_lib_odbc_strlen=no
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbc_SQLDriverConnectW" >&5
-echo "${ECHO_T}$ac_cv_lib_odbc_SQLDriverConnectW" >&6; }
-if test $ac_cv_lib_odbc_SQLDriverConnectW = yes; then
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbc_strlen" >&5
+echo "${ECHO_T}$ac_cv_lib_odbc_strlen" >&6; }
+if test $ac_cv_lib_odbc_strlen = yes; then
 
         eval "ODBC_LIB_SPEC=\"-lodbc\""
 
@@ -8395,9 +8395,9 @@ fi
     done
 
 
-{ echo "$as_me:$LINENO: checking for SQLConfigDataSourceW in -lodbcinst" >&5
-echo $ECHO_N "checking for SQLConfigDataSourceW in -lodbcinst... $ECHO_C" >&6; }
-if test "${ac_cv_lib_odbcinst_SQLConfigDataSourceW+set}" = set; then
+{ echo "$as_me:$LINENO: checking for strlen in -lodbcinst" >&5
+echo $ECHO_N "checking for strlen in -lodbcinst... $ECHO_C" >&6; }
+if test "${ac_cv_lib_odbcinst_strlen+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -8415,11 +8415,11 @@ cat >>conftest.$ac_ext <<_ACEOF
 #ifdef __cplusplus
 extern "C"
 #endif
-char SQLConfigDataSourceW ();
+char strlen ();
 int
 main ()
 {
-return SQLConfigDataSourceW ();
+return strlen ();
   ;
   return 0;
 }
@@ -8442,54 +8442,41 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_odbcinst_SQLConfigDataSourceW=yes
+  ac_cv_lib_odbcinst_strlen=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_lib_odbcinst_SQLConfigDataSourceW=no
+	ac_cv_lib_odbcinst_strlen=no
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbcinst_SQLConfigDataSourceW" >&5
-echo "${ECHO_T}$ac_cv_lib_odbcinst_SQLConfigDataSourceW" >&6; }
-if test $ac_cv_lib_odbcinst_SQLConfigDataSourceW = yes; then
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbcinst_strlen" >&5
+echo "${ECHO_T}$ac_cv_lib_odbcinst_strlen" >&6; }
+if test $ac_cv_lib_odbcinst_strlen = yes; then
 
     eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
+    TDBCODBC_SAVED_LIBS="${LIBS}"
+    LIBS="${ODBCINST_LIB_SPEC} ${ODBC_LIB_SPEC} ${LIBS}"
+    { echo "$as_me:$LINENO: checking for Unicode interface to odbcinst" >&5
+echo $ECHO_N "checking for Unicode interface to odbcinst... $ECHO_C" >&6; }
+    cat >conftest.$ac_ext <<_ACEOF
 
-else
-
-    { echo "$as_me:$LINENO: checking for SQLConfigDataSource in -lodbcinst" >&5
-echo $ECHO_N "checking for SQLConfigDataSource in -lodbcinst... $ECHO_C" >&6; }
-if test "${ac_cv_lib_odbcinst_SQLConfigDataSource+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lodbcinst $PKG_LIBS $LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
 #endif
-char SQLConfigDataSource ();
-int
-main ()
-{
-return SQLConfigDataSource ();
-  ;
-  return 0;
+#include <sql.h>
+#include <odbcinst.h>
+int main(int argc, char* argv) {
+    SQLConfigDataSourceW(NULL, 0, (WCHAR*)NULL, (WCHAR*)NULL);
+    return 0;
 }
+
 _ACEOF
 rm -f conftest.$ac_objext conftest$ac_exeext
 if { (ac_try="$ac_link"
@@ -8509,40 +8496,28 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_odbcinst_SQLConfigDataSource=yes
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_lib_odbcinst_SQLConfigDataSource=no
-fi
 
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbcinst_SQLConfigDataSource" >&5
-echo "${ECHO_T}$ac_cv_lib_odbcinst_SQLConfigDataSource" >&6; }
-if test $ac_cv_lib_odbcinst_SQLConfigDataSource = yes; then
-
-        eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
-	cat >>confdefs.h <<\_ACEOF
+        { echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+        cat >>confdefs.h <<\_ACEOF
 #define NO_UNICODE_ODBCINST 1
 _ACEOF
 
 
-else
+fi
 
-        cat >>confdefs.h <<\_ACEOF
-#define NO_ODBCINST 1
-_ACEOF
-
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
 
 fi
 
-
-fi
-
+TDBCODBC_SAVED_LIBS="${LIBS}"
 
     vars="${ODBCINST_LIB_SPEC}"
     for i in $vars; do
