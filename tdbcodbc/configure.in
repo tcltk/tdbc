@@ -105,8 +105,19 @@ if test x"${with_odbcincludedir}" != x ; then
     CPPFLAGS="${CPPFLAGS} -I\"${odbc_includedir}\""
     ODBC_INCLUDE_SPEC=-I\"${odbc_includedir}\"
 fi
-AC_CHECK_HEADER([sql.h], , AC_MSG_ERROR("cannot find a working sql.h"))
-AC_CHECK_HEADER([odbcinst.h], , AC_DEFINE(NO_ODBCINST),[
+AC_CHECK_HEADER([sql.h], , AC_MSG_ERROR("cannot find a working sql.h"), [
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+#endif
+])
+AC_CHECK_HEADER([odbcinst.h], , AC_DEFINE(NO_ODBCINST), [
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+#endif
 #include <sql.h>
 ])
 CPPFLAGS="${TDBCODBC_SAVED_CPPLFAGS}"
