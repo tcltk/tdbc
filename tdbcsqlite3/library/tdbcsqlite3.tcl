@@ -10,9 +10,10 @@
 #
 #------------------------------------------------------------------------------
 
-package require Tdbc
+package require tdbc
 package require sqlite3
-package provide Tdbcsqlite3 0.1a0
+
+package provide tdbc::sqlite3 1.0b1
 
 namespace eval tdbc::sqlite3 {
     namespace export connection
@@ -135,8 +136,6 @@ namespace eval tdbc::sqlite3 {
     #method transaction {script} {
     #	uplevel 1 [list {*}[namespace code db] transaction $script]
     #}
-
-    # TEMP
 
     method prepare {sqlCode} {
 	set result [next $sqlCode]

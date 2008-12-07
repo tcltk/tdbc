@@ -1,4 +1,12 @@
-2008-12-06  Kevin B. Kenny <kennykb@acm.org>:
+2008-12-07  Kevin B. Kenny  <kennykb@acm.org>
+	
+	* configure.in:
+	* generic/tdbcodbc.c:
+	* library/tdbcodbc.tcl: Advanced version to 1.0b1 in preparation for
+	release, and cleaned up a little bit of dependency management.
+	* configure: Autoconf 2.61
+
+2008-12-06  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in:
 	* generic/tdbcodbc.c: Added the autoconf stuff to support finding

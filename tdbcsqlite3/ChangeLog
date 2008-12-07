@@ -1,3 +1,18 @@
+2008-12-07  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in:
+	* aclocal.m4:
+	* configure.in:
+	* library/tdbcsqlite3.tcl:
+	* license.terms:
+	* pkgIndex.tcl.in:
+	* tclconfig/*:
+	* tests/all.tcl: 
+	* tests/tdbcsqlite3.test:
+	Added infrastructure needed to make tdbc::sqlite3
+	a TEA-compliant module.  Advanced revision number to 1.0b1 in
+	preparation for release.
+	
 2008-06-11  Kevin B. Kenny  <kennykb@acm.org>
 	
 	* library/tdbcsqlite3.tcl: Split [$resultset nextrow] into two 

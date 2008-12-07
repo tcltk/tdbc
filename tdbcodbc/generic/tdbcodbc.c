@@ -355,7 +355,7 @@ const static OdbcConstant OdbcErrorCodeNames[] = {
 
 static const char initScript[] =
     "namespace eval ::tdbc::odbc {}\n"
-    "tcl_findLibrary tdbc::odbc " PACKAGE_VERSION " " PACKAGE_VERSION
+    "tcl_findLibrary tdbcodbc " PACKAGE_VERSION " " PACKAGE_VERSION
     " tdbcodbc.tcl TDBCODBC_LIBRARY ::tdbc::odbc::Library";
 
 /* Prototypes for static functions appearing in this file */

@@ -11,7 +11,7 @@
 #------------------------------------------------------------------------------
 
 lappend auto_path .
-package require Tdbcsqlite3
+package require tdbc::sqlite3
 if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest 2
     namespace import -force ::tcltest::*

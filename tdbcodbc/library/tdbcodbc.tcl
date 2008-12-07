@@ -10,7 +10,7 @@
 #
 #------------------------------------------------------------------------------
 
-package require tdbc 0.2
+package require tdbc
 
 ::namespace eval ::tdbc::odbc {
 
