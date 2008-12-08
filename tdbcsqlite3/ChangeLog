@@ -1,6 +1,9 @@
 2008-12-08  Kevin B. Kenny  <kennykb@acm.org>
 
 	* doc/tdbcsqlite3.n: Added a man page for the driver.
+	* library/tdbcsqlite3.tcl (configure):         Added a configurator for
+	* tests/tdbcsqlite3.test (tdbc::sqlite3-19.*): SQLite3 connections and
+	rudimentary test cases for connection configuration.
 	
 2008-12-07  Kevin B. Kenny  <kennykb@acm.org>
 

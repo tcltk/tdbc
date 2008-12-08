@@ -55,7 +55,7 @@ tdbc::sqlite3 \- TDBC driver for the SQLite3 database manager
 .SH "SYNOPSIS"
 package require \fBtdbc::sqlite3 1.0\fR
 .sp
-\fBtdbc::sqlite3::connection create\fR \fIdb\fR ?\fI-option value...\fR? \fIfileName\fR
+\fBtdbc::sqlite3::connection create\fR \fIdb\fR \fIfileName\fR ?\fI-option value...\fR?
 .BE
 .SH "DESCRIPTION"
 .PP
@@ -71,6 +71,25 @@ the database. The side effect of \fBtdbc::sqlite3::connection
 create\fR is to create a new database connection.. See
 \fBtdbc::connection(n)\fR for the details of how to use the connection
 to manipulate a database.
+.SH "CONFIGURATION OPTIONS"
+.PP
+The standard configuration options \fB-encoding\fR, \fB-isolation\fR,
+\fB-readonly\fR and \fB-timeout\fR are all recognized, both on
+\fBtdbc::sqlite3::connection create\fR and on the \fBconfigure\fR
+method of the resulting connection.
+.PP
+Since the encoding of a SQLite3 database is always well known, the
+\fB-encoding\fR option accepts only \fButf-8\fR as an encoding and
+always returns \fButf-8\fR for an encoding. The actual encoding may be
+set using a SQLite3 \fBPRAGMA\fR statement when creating a new
+database.
+.PP
+Only the isolation levels \fBreaduncommitted\fR and \fBserializable\fR
+are implemented. Other isolation levels are promoted to
+\fBserializable\fR.
+.PP
+The \fB-readonly\fR flag is not implemented. \fB-readonly 0\fR is
+accepted silently, while \fB-readonly 1\fR reports an error.
 .SH "SEE ALSO"
 tdbc(n), tdbc_connection(n),  tdbc_resultSet(n), tdbc_statement(n)
 .SH "KEYWORDS"

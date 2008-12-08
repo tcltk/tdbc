@@ -2508,6 +2508,105 @@ test tdbcsqlite3-18.3 {$statement params - excess arg} {*}{
     -result {in Tcl_Obj 0 0 in Tcl_Obj 0}
 }
 
+test tdbc::sqlite3-19.1 {$connection configure - no args} \
+    -body {
+	::db configure
+    } \
+    -match glob \
+    -result [list -encoding utf-8 \
+		 -isolation serializable \
+		 -readonly 0 \
+		 -timeout 0]
+
+test tdbc::sqlite3-19.2 {$connection configure - unknown arg} {*}{
+    -body {
+	::db configure -junk
+    }
+    -returnCodes error
+    -match glob
+    -result "bad option *"
+}
+
+test tdbc::sqlite3-19.4 {$connection configure - set unknown arg} {*}{
+    -body {
+	::db configure -junk morejunk
+    }
+    -returnCodes error
+    -match glob
+    -result "bad option *"
+}
+
+test tdbc::sqlite3-19.6 {$connection configure - wrong # args} {*}{
+    -body {
+	::db configure -parent . -junk
+    }
+    -returnCodes error
+    -match glob
+    -result "wrong # args*"
+}
+
+test tdbc::sqlite3-19.7 {$connection configure - -encoding} {*}{
+    -body {
+	::db configure -encoding junk
+    }
+    -returnCodes error
+    -match glob
+    -result {-encoding not supported*}
+}
+
+test tdbc::sqlite3-19.9 {$connection configure - -encoding} \
+    -body {
+	list [::db configure -encoding utf-8] \
+	    [::db configure -encoding]
+    } \
+    -result [list {} utf-8]
+
+
+test tdbc::sqlite3-19.10 {$connection configure - -isolation} {*}{
+    -body {
+	::db configure -isolation junk
+    }
+    -returnCodes error
+    -match glob
+    -result {bad isolation level "junk"*}
+}
+
+test tdbc::sqlite3-19.11 {$connection configure - -isolation} {*}{
+    -body {
+	list [::db configure -isolation readuncommitted] \
+	    [::db configure -isolation] \
+	    [::db configure -isolation readcommitted] \
+	    [::db configure -isolation]
+    }
+    -result {{} readuncommitted {} serializable}
+}
+
+test tdbc::sqlite3-19.12 {$connection configure - -readonly} {*}{
+    -body {
+	::db configure -readonly junk
+    }
+    -returnCodes error
+    -result {expected boolean value but got "junk"}
+}
+
+test tdbc::sqlite3-19.14 {$connection configure - -timeout} {*}{
+    -body {
+	::db configure -timeout junk
+    }
+    -returnCodes error
+    -result {expected integer but got "junk"}
+}
+
+test tdbc::sqlite3-19.15 {$connection configure - -timeout} {*}{
+    -body {
+	catch {::db configure -timeout 5000} result
+	list [::db configure -timeout 0] [::db configure -timeout]
+    }
+    -result {{} 0}
+}
+
+
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Get rid of the test database

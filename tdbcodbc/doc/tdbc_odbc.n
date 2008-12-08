@@ -55,7 +55,7 @@ tdbc::odbc \- TDBC-ODBC bridge
 .SH "SYNOPSIS"
 package require \fBtdbc::odbc 1.0\fR
 .sp
-\fBtdbc::odbc::connection create\fR \fIdb\fR ?\fI-option value...\fR? \fIconnectionString\fR
+\fBtdbc::odbc::connection create\fR \fIdb\fR  \fIconnectionString\fR ?\fI-option value...\fR?
 .sp
 \fBtdbc::odbc::datasources\fR ?\fB-system\fR|\fB-user\fR?
 .sp

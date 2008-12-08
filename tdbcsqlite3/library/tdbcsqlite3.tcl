@@ -33,12 +33,137 @@ namespace eval tdbc::sqlite3 {
 
     # The constructor accepts a database name and opens the database.
 
-    constructor databaseName {
+    constructor {databaseName args} {
 	my variable statementClass
+	my variable timeout
 	set statementClass ::tdbc::sqlite3::statement
+	set timeout 0
+	if {[llength $args] % 2 != 0} {
+	    set cmd [lrange [info level 0] 0 end-[llength $args]]
+	    return -code error "wrong # args, should be\
+                                \"$cmd ?-option value?...\""
+	}
 	next
 	sqlite3 [namespace current]::db $databaseName
+	if {[llength $args] > 0} {
+	    my configure {*}$args
+	}
 	db nullvalue \ufffd
+    }
+
+    # The 'configure' method queries and sets options to the database
+
+    method configure args {
+	my variable timeout
+	if {[llength $args] == 0} {
+
+	    # Query all configuration options
+
+	    set result {-encoding utf-8}
+	    lappend result -isolation
+	    if {[db onecolumn {PRAGMA read_uncommitted}]} {
+		lappend result readuncommitted
+	    } else {
+		lappend result serializable
+	    }
+	    lappend result -readonly 0 
+	    lappend result -timeout $timeout
+	    return $result
+
+	} elseif {[llength $args] == 1} {
+
+	    # Query a single option
+
+	    set option [lindex $args 0]
+	    switch -exact -- $option {
+		-e - -en - -enc - -enco - -encod - -encodi - -encodin - 
+		-encoding {
+		    return utf-8
+		}
+		-i - -is - -iso - -isol - -isola - -isolat - -isolati -
+		-isolatio - -isolation {
+		    if {[db onecolumn {PRAGMA read_uncommitted}]} {
+			return readuncommitted
+		    } else {
+			return serializable
+		    }
+		}
+		-r - -re - -rea - -read - -reado - -readon - -readonl -
+		-readonly {
+		    return 0
+		}
+		-t - -ti - -tim - -time - -timeo - -timeou - -timeout {
+		    return $timeout
+		}
+		default {
+		    return -code error "bad option \"$option\": must be\
+                                        -encoding, -isolation, -readonly\
+                                        or -timeout"
+		}
+	    }
+
+	} elseif {[llength $args] % 2 != 0} {
+	    set cmd [lrange [info level 0] 0 end-[llength $args]]
+	    return -code error "wrong # args, should be\
+                                \"$cmd ?-option value?...\""
+	}
+	foreach {option value} $args {
+	    switch -exact -- $option {
+		-e - -en - -enc - -enco - -encod - -encodi - -encodin - 
+		-encoding {
+		    if {$value ne {utf-8}} {
+			return -code error "-encoding not supported.\
+					    SQLite3 is always Unicode."
+		    }
+		}
+		-i - -is - -iso - -isol - -isola - -isolat - -isolati -
+		-isolatio - -isolation {
+		    switch -exact -- $value {
+			readu - readun - readunc - readunco - readuncom -
+			readuncomm - readuncommi - readuncommit - 
+			readuncommitt - readuncommitte - readuncommitted {
+			    db eval {PRAGMA read_uncommitted = 1}
+			}
+			readc - readco - readcom - readcomm - readcommi -
+			readcommit - readcommitt - readcommitte -
+			readcommitted -
+			rep - repe - repea - repeat - repeata - repeatab -
+			repeatabl - repeatable - repeatabler - repeatablere -
+			repeatablerea - repeatablread -
+			s - se - ser - seri - seria - serial - seriali -
+			serializ - serializa - serializab - serializabl -
+			serializable -
+			reado - readon - readonl - readonly {
+			    db eval {PRAGMA read_uncommitted = 0}
+			}
+			default {
+			    return -code error "bad isolation level \"$value\":\
+                                should be readuncommitted, readcommitted,\
+                                repeatableread, serializable, or readonly"
+			}
+		    }
+		}
+		-r - -re - -rea - -read - -reado - -readon - -readonl -
+		-readonly {
+		    if {$value} {
+			return -code error "SQLite3's Tcl API does not support\
+					    read-only access"
+		    }
+		}
+		-t - -ti - -tim - -time - -timeo - -timeou - -timeout {
+		    if {![string is integer $value]} {
+			return -code error "expected integer but got \"$value\""
+		    }
+		    db timeout [set timeout $value]
+		}
+		default {
+		    return -code error "bad option \"$option\": must be\
+                                        -encoding, -isolation, -readonly\
+                                        or -timeout"
+		}
+	    }
+	}
+	return
     }
 
     # The 'tables' method introspects on the tables in the database.
