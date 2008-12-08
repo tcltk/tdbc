@@ -1,3 +1,7 @@
+2008-12-08  Kevin B. Kenny  <kennykb@acm.org>
+
+	* doc/tdbc_odbc.n: Added man page for the driver.
+	
 2008-12-07  Kevin B. Kenny  <kennykb@acm.org>
 	
 	* configure.in:
