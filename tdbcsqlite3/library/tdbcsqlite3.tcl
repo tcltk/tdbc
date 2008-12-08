@@ -103,10 +103,16 @@ namespace eval tdbc::sqlite3 {
 	    }
 
 	} elseif {[llength $args] % 2 != 0} {
+
+	    # Syntax error
+
 	    set cmd [lrange [info level 0] 0 end-[llength $args]]
 	    return -code error "wrong # args, should be\
                                 \"$cmd ?-option value?...\""
 	}
+
+	# Set one or more options
+
 	foreach {option value} $args {
 	    switch -exact -- $option {
 		-e - -en - -enc - -enco - -encod - -encodi - -encodin - 
@@ -154,7 +160,8 @@ namespace eval tdbc::sqlite3 {
 		    if {![string is integer $value]} {
 			return -code error "expected integer but got \"$value\""
 		    }
-		    db timeout [set timeout $value]
+		    db timeout $value
+		    set timeout $value
 		}
 		default {
 		    return -code error "bad option \"$option\": must be\
