@@ -53,7 +53,7 @@
 .SH "NAME"
 tdbc::odbc \- TDBC-ODBC bridge
 .SH "SYNOPSIS"
-package require \fBtdbcodbc 1.0\fR
+package require \fBtdbc::odbc 1.0\fR
 .sp
 \fBtdbc::odbc::connection create\fR \fIdb\fR ?\fI-option value...\fR? \fIconnectionString\fR
 .sp
@@ -197,7 +197,7 @@ program calls \fBtdbc::odbc::connection create\fR.
 .SH "SEE ALSO"
 tdbc(n), tdbc_connection(n),  tdbc_resultSet(n), tdbc_statement(n)
 .SH "KEYWORDS"
-TDBC, SQL, database, connectivity, connection, resultset, statement
+TDBC, SQL, ODBC, database, connectivity, connection
 .SH "COPYRIGHT"
 Copyright (c) 2008 by Kevin B. Kenny.
 .\" Local Variables:
