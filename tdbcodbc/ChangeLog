@@ -1,7 +1,7 @@
 2008-12-18  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure: Autoconf 2.59, to conform with Tcl (mandir changes
-	between 2.59 and 2.61).
+	between 2.59 and 2.61). Signed manifest.
 	
 2008-12-08  Kevin B. Kenny  <kennykb@acm.org>
 
