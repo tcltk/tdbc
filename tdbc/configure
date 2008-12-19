@@ -10522,6 +10522,7 @@ _ACEOF
 
 
 
+    ADD_MANIFEST=":"
     if test "$GCC" != yes \
 	    -a ${TEA_PLATFORM} == "windows" \
 	    -a "${SHARED_BUILD}" = "1"; then
@@ -10571,11 +10572,11 @@ test -n "$MT" || MT="none"
 	if test "$MT" != none; then
 
 	    ADD_MANIFEST="${MT} -nologo -manifest \$@.manifest -outputresource:\$@\;2"
-
 	    CLEANFILES="$CLEANFILES ${PKG_LIB_FILE}.manifest"
 fi
 
 fi
+
 
 
 #--------------------------------------------------------------------
