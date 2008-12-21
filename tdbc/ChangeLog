@@ -1,3 +1,10 @@
+2008-12-21  Kevin B. Kenny  <kennykb@acm.org>
+
+	* win/makefile.vc:	Added files for a MSVC build system.
+	* win/rules.vc:		Thanks to Pat Thoyts <patthoyts@users.sf.net>
+	* win/versions.vc:	for developing these files.n
+	* win/tdbc.rc:		
+
 2008-12-20  Kevin B. Kenny  <kennykb@acm.org>
 
 	sign manifest
