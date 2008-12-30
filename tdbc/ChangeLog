@@ -1,11 +1,15 @@
 2008-12-30  Kevin B. Kenny  <kennykb@acm.org>
 
-	* README:		  Advanced version to 1.0b3
+	* README:		  Advanced version to 1.0b4
 	* configure.in:
 	* generic/tdbc.h:	
-	
+
 	* configure:		  autoconf-2.59
 
+	* Makefile.in:		Changes to 'make dist' to include all files
+				explicitly - avoids distributing Emacs backups,
+				cores, etc.  D'oh!
+	
 	* Makefile.in:
 	* README:
 	* configure.in:
