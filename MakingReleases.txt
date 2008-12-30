@@ -1,0 +1,36 @@
+To advance the version number:
+
+(1) Edit the following files.
+
+    tdbc/generic/tdbc.h - TDBC_VERSION and TDBC_PATCHLEVEL
+    tdbc/configure.in - AC_INIT()
+    tdbc/README
+    tdbc/configure - Regenerate
+    tdbc/ChangeLog
+
+    tdbcodbc/configure.in - AC_INIT()
+    tdbcodbc/README
+    tdbcodbc/configure - Regenerate
+    tdbcodbc/ChangeLog
+
+    tdbcmysql/configure.in - AC_INIT()
+    tdbcmysql/README
+    tdbcmysql/configure - Regenerate
+    tdbcmysql/ChangeLog
+
+    tdbcsqlite3/library/tdbcsqlite3.tcl - [package provide]
+    tdbcsqlite3/configure.in - AC_INIT()
+    tdbcsqlite3/README
+    tdbcsqlite3/configure - Regenerate
+    tdbcsqlite3/ChangeLog
+
+(2) Commit to fossil. Tag the release. Sync.
+
+(3) make dist
+
+(4) Import the distribution into Tcl's repository on the vendor branch:
+
+    cd /tmp/dist/tdbc1.0b2
+    cvs -d:ext:kennykb@tcl.cvs.sf.net:/cvsroot/tcl -z9 \
+	import -ko tdbc tdbc tdbc-1-0b2
+
