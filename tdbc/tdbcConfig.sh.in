@@ -8,7 +8,7 @@
 #
 # The information in this file is specific to a single platform.
 #
-# RCS: @(#) $Id: tdbcConfig.sh.in,v 1.4 2007/10/03 12:40:05 dkf Exp $
+# RCS: @(#) $Id$
 
 TDBC_LIB_SPEC="@TDBC_LIB_SPEC@"
 TDBC_STUB_LIB_SPEC="@TDBC_STUB_LIB_SPEC@"

@@ -12,7 +12,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: Makefile.in,v 1.64 2007/10/23 22:08:06 hobbs Exp $
+# RCS: @(#) $Id$
 
 #========================================================================
 # Add additional lines to handle any additional AC_SUBST cases that
@@ -298,8 +298,7 @@ pkgIndex.tcl: Makefile
 # You may need to tweak this target to make it work correctly.
 #========================================================================
 
-#COMPRESS	= tar cvf $(PKG_DIR).tar $(PKG_DIR); compress $(PKG_DIR).tar
-COMPRESS	= gtar zcvf $(PKG_DIR).tar.gz $(PKG_DIR)
+COMPRESS	= tar zcvf $(PKG_DIR).tar.gz $(PKG_DIR)
 DIST_ROOT	= /tmp/dist
 DIST_DIR	= $(DIST_ROOT)/$(PKG_DIR)
 
@@ -322,11 +321,12 @@ dist: dist-clean
 
 	mkdir $(DIST_DIR)/tclconfig
 	cp $(srcdir)/tclconfig/install-sh $(srcdir)/tclconfig/tcl.m4 \
+		$(srcdir)/tclconfig/ChangeLog $(srcdir)/tclconfig/README.txt \
 		$(DIST_DIR)/tclconfig/
 	chmod 664 $(DIST_DIR)/tclconfig/tcl.m4
 	chmod +x $(DIST_DIR)/tclconfig/install-sh
 
-	list='demos doc generic library mac tests unix win'; \
+	list='demos doc generic library mac tests tools unix win'; \
 	for p in $$list; do \
 	    if test -d $(srcdir)/$$p ; then \
 		mkdir $(DIST_DIR)/$$p; \
