@@ -5,6 +5,10 @@
 	                          linux-x64.
 	* generic/tdbcTokenize.c: Added explicit casts to the 'ctype' macros
 	                          to guard against possible signed characters.
+	* README:		  Advanced version to 1.0b2.
+	* configure.in:
+	* generic/tdbc.h:
+	* configure:		  autoconf-2.59
 	
 2008-12-21  Kevin B. Kenny  <kennykb@acm.org>
 
