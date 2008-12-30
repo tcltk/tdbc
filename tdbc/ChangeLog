@@ -1,3 +1,11 @@
+2008-12-30  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcStubInit.c: Added MODULE_SCOPE to the tdbcStubs 
+	                          declaration to correct a linkera error on
+	                          linux-x64.
+	* generic/tdbcTokenize.c: Added explicit casts to the 'ctype' macros
+	                          to guard against possible signed characters.
+	
 2008-12-21  Kevin B. Kenny  <kennykb@acm.org>
 
 	* win/makefile.vc:	Added files for a MSVC build system.
