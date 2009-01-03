@@ -1,0 +1,18 @@
+TEST STATUS: Currently: 157 pass, 1 skip, 3 fail
+
+--
+
+Issues:
+
+$statement paramtype - stubbed out
+Duplicate column names in result set - need to test.
+$statement params - not implemented
+Section 19 tests - need to revise for MySQL and code coverage
+
+mysql-18.3 fails - params stubbed out
+mysql-20.1 fails - wtf?
+mysql-21.2 fails - need varbinary handling
+
+man page needs to be written - it's cloned from tdbcodbc
+README needs to be written - it's cloned from tdbcodbc
+Makefile needs to be updated, at the very least to handle `make dist`

@@ -1,0 +1,3 @@
+2009-01-02  Kevin B. Kenny  <kennykb@acm.org>
+
+	Initial baseline of a TDBC driver for MySQL.
