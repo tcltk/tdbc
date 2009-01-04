@@ -1,5 +1,10 @@
 2009-01-04  Kevin B. Kenny  <kennykb@acm.org>
 
+	* README:
+	* Makefile.in:
+	* doc/tdbc_mysql.n: Updated so that files are no longer clones
+	of the 'tdbcodbc' package. Added installation and distribution code.
+	* configure.in: Advanced version to 1.0b5
 	* generic/tdbcmysql.c: Added code to track the declared data types
 	of parameters and the actual data types of results. Added code to
 	do direct binary conversions of integers, floating point numbers,
@@ -8,6 +13,7 @@
 	* tests/tdbcmysql.test: Revised test cases to include all the
 	MySQL data types handled in this driver. Added a test case that
 	column names are correctly disambiguated.
+	* configure: autoconf 2.59
 	
 2009-01-02  Kevin B. Kenny  <kennykb@acm.org>
 

@@ -4,9 +4,4 @@ TEST STATUS: Currently: 162 pass, 0 skip, 0 fail (YES!)
 
 Issues:
 
-Duplicate column names in result set - need to test.
-
-man page needs to be written - it's cloned from tdbcodbc
 README needs to be written - it's cloned from tdbcodbc
-Makefile needs to be updated, at the very least to handle `make dist`
-but also to test `make install` and x-platform build

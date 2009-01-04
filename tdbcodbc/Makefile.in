@@ -200,10 +200,6 @@ libraries:
 #========================================================================
 
 doc:
-	@echo "If you have documentation to create, place the commands to"
-	@echo "build the docs in the 'doc:' target.  For example:"
-	@echo "        xml2nroff sample.xml > sample.n"
-	@echo "        xml2html sample.xml > sample.html"
 
 install: all install-binaries install-libraries install-doc
 
@@ -302,7 +298,7 @@ pkgIndex.tcl: Makefile
 #========================================================================
 
 #COMPRESS	= tar cvf $(PKG_DIR).tar $(PKG_DIR); compress $(PKG_DIR).tar
-COMPRESS	= gtar zcvf $(PKG_DIR).tar.gz $(PKG_DIR)
+COMPRESS	= tar zcvf $(PKG_DIR).tar.gz $(PKG_DIR)
 DIST_ROOT	= /tmp/dist
 DIST_DIR	= $(DIST_ROOT)/$(PKG_DIR)
 
@@ -329,13 +325,18 @@ dist: dist-clean
 	chmod 664 $(DIST_DIR)/tclconfig/tcl.m4
 	chmod +x $(DIST_DIR)/tclconfig/install-sh
 
-	list='demos doc generic library mac tests unix win'; \
-	for p in $$list; do \
-	    if test -d $(srcdir)/$$p ; then \
-		mkdir $(DIST_DIR)/$$p; \
-		cp -p $(srcdir)/$$p/*.* $(DIST_DIR)/$$p/; \
-	    fi; \
-	done
+	mkdir $(DIST_DIR)/doc
+	cp -p $(srcdir)/doc/tdbc_odbc.n $(DIST_DIR)/doc/
+
+	mkdir $(DIST_DIR)/generic
+	cp -p $(srcdir)/generic/tdbcodbc.c $(DIST_DIR)/generic/
+
+	mkdir $(DIST_DIR)/library
+	cp -p $(srcdir)/library/tdbcodbc.tcl $(DIST_DIR)/library/
+
+	mkdir $(DIST_DIR)/tests
+	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/tdbcodbc.test \
+		$(DIST_DIR)/tests/
 
 	(cd $(DIST_ROOT); $(COMPRESS);)
 

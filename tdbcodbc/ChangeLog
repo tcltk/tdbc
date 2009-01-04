@@ -1,5 +1,6 @@
 2008-12-30  Kevin B. Kenny  <kennykb@acm.org>
 
+	* makefile.in: Changes to make 'make dist' work.
 	* README:	Advanced version to 1.0b4
 	* configure.in:
 	* configure:	autoconf 2.59

@@ -197,7 +197,7 @@ depend:
 #========================================================================
 
 #COMPRESS	= tar cvf $(PKG_DIR).tar $(PKG_DIR); compress $(PKG_DIR).tar
-COMPRESS	= gtar zcvf $(PKG_DIR).tar.gz $(PKG_DIR)
+COMPRESS	= tar zcvf $(PKG_DIR).tar.gz $(PKG_DIR)
 DIST_ROOT	= /tmp/dist
 DIST_DIR	= $(DIST_ROOT)/$(PKG_DIR)
 
@@ -224,13 +224,15 @@ dist: dist-clean
 	chmod 664 $(DIST_DIR)/tclconfig/tcl.m4
 	chmod +x $(DIST_DIR)/tclconfig/install-sh
 
-	list='demos doc generic library mac tests unix win'; \
-	for p in $$list; do \
-	    if test -d $(srcdir)/$$p ; then \
-		mkdir $(DIST_DIR)/$$p; \
-		cp -p $(srcdir)/$$p/*.* $(DIST_DIR)/$$p/; \
-	    fi; \
-	done
+	mkdir $(DIST_DIR)/doc
+	cp -p $(srcdir)/doc/tdbc_sqlite3.n $(DIST_DIR)/doc/
+
+	mkdir $(DIST_DIR)/library
+	cp -p $(srcdir)/library/tdbcsqlite3.tcl $(DIST_DIR)/library/
+
+	mkdir $(DIST_DIR)/tests
+	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/tdbcsqlite3.test \
+		$(DIST_DIR)/tests/
 
 	(cd $(DIST_ROOT); $(COMPRESS);)
 
