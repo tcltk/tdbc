@@ -1,3 +1,12 @@
+2009-01-04  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcmysql.c: Added code to track the declared data types
+	of parameters and the actual data types of results. Added code to
+	do direct binary conversions of integers, floating point numbers,
+	and bit strings. Added checks for binary data on results.
+	* tests/tdbcmysql.test: Revised test cases to include all the
+	MySQL data types handled in this driver.
+	
 2009-01-02  Kevin B. Kenny  <kennykb@acm.org>
 
 	Initial baseline of a TDBC driver for MySQL.

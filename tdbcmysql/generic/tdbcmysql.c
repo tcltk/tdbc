@@ -37,10 +37,14 @@ const char* LiteralValues[] = {
     "",
     "0",
     "1",
+    "direction",
     "exists",
+    "in",
     "info",
+    "inout",
     "name",
     "nullable",
+    "out",
     "precision",
     "scale",
     "type",
@@ -50,10 +54,14 @@ enum LiteralIndex {
     LIT_EMPTY,
     LIT_0,
     LIT_1,
+    LIT_DIRECTION,
     LIT_EXISTS,
+    LIT_IN,
     LIT_INFO,
+    LIT_INOUT,
     LIT_NAME,
     LIT_NULLABLE,
+    LIT_OUT,
     LIT_PRECISION,
     LIT_SCALE,
     LIT_TYPE,
@@ -139,6 +147,7 @@ typedef struct StatementData {
     Tcl_Obj* subVars;	        /* List of variables to be substituted, in the
 				 * order in which they appear in the 
 				 * statement */
+    struct ParamData *params;	/* Data types and attributes of parameters */
     Tcl_Obj* nativeSql;		/* Native SQL statement to pass into
 				 * MySQL */
     MYSQL_STMT* stmtPtr;	/* MySQL statement handle */
@@ -161,6 +170,26 @@ typedef struct StatementData {
 /* Flags in the 'StatementData->flags' word */
 
 #define STMT_FLAG_BUSY		0x1	/* Statement handle is in use */
+
+/*
+ * Structure describing the data types of substituted parameters in
+ * a SQL statement.
+ */
+
+typedef struct ParamData {
+    int flags;			/* Flags regarding the parameters - see below */
+    int dataType;		/* Data type */
+    int precision;		/* Size of the expected data */
+    int scale;			/* Digits after decimal point of the
+				 * expected data */
+} ParamData;
+
+#define PARAM_KNOWN	1<<0	/* Something is known about the parameter */
+#define PARAM_IN 	1<<1	/* Parameter is an input parameter */
+#define PARAM_OUT 	1<<2	/* Parameter is an output parameter */
+				/* (Both bits are set if parameter is
+				 * an INOUT parameter) */
+#define PARAM_BINARY	1<<3	/* Parameter is binary */
 
 /*
  * Structure describing a MySQL result set.  The object that the Tcl
@@ -192,36 +221,47 @@ typedef struct ResultSetData {
 
 /* Table of MySQL type names */
 
-struct {
+#define IS_BINARY	(1<<16)	/* Flag to OR in if a param is binary */
+typedef struct MysqlDataType {
     const char* name;		/* Type name */
     int num;			/* Type number */
-} dataTypes[] = {
-    { "numeric",	MYSQL_TYPE_DECIMAL },
-    { "decimal",	MYSQL_TYPE_DECIMAL },
+} MysqlDataType;
+static const MysqlDataType dataTypes[] = {
     { "tinyint",	MYSQL_TYPE_TINY },
     { "smallint",	MYSQL_TYPE_SHORT },
     { "integer",	MYSQL_TYPE_LONG },
+    { "float",		MYSQL_TYPE_FLOAT },
     { "real",		MYSQL_TYPE_FLOAT },
     { "double",		MYSQL_TYPE_DOUBLE },
     { "NULL",		MYSQL_TYPE_NULL },
     { "timestamp",	MYSQL_TYPE_TIMESTAMP },
     { "bigint",		MYSQL_TYPE_LONGLONG },
     { "mediumint",	MYSQL_TYPE_INT24 },
+    { "date",		MYSQL_TYPE_NEWDATE },
     { "date",		MYSQL_TYPE_DATE },
     { "time",		MYSQL_TYPE_TIME },
-    { "timestamp",	MYSQL_TYPE_DATETIME },
+    { "datetime",	MYSQL_TYPE_DATETIME },
     { "year",		MYSQL_TYPE_YEAR },
-    { "date",		MYSQL_TYPE_NEWDATE },
-    { "varchar",	MYSQL_TYPE_VARCHAR },
-    { "bit",		MYSQL_TYPE_BIT },
+    { "bit",		MYSQL_TYPE_BIT | IS_BINARY },
     { "numeric",	MYSQL_TYPE_NEWDECIMAL },
+    { "decimal",	MYSQL_TYPE_NEWDECIMAL },
+    { "numeric",	MYSQL_TYPE_DECIMAL },
+    { "decimal",	MYSQL_TYPE_DECIMAL },
     { "enum",		MYSQL_TYPE_ENUM },
     { "set",		MYSQL_TYPE_SET },
-    { "tinyblob",	MYSQL_TYPE_TINY_BLOB },
-    { "mediumblob",	MYSQL_TYPE_MEDIUM_BLOB },
-    { "longblob",	MYSQL_TYPE_LONG_BLOB },
-    { "blob",		MYSQL_TYPE_BLOB },
+    { "tinytext",	MYSQL_TYPE_TINY_BLOB },
+    { "tinyblob",	MYSQL_TYPE_TINY_BLOB | IS_BINARY },
+    { "mediumtext",	MYSQL_TYPE_MEDIUM_BLOB },
+    { "mediumblob",	MYSQL_TYPE_MEDIUM_BLOB | IS_BINARY },
+    { "longtext",	MYSQL_TYPE_LONG_BLOB },
+    { "longblob",	MYSQL_TYPE_LONG_BLOB | IS_BINARY },
+    { "text",		MYSQL_TYPE_BLOB },
+    { "blob",		MYSQL_TYPE_BLOB | IS_BINARY },
+    { "varbinary",	MYSQL_TYPE_VAR_STRING | IS_BINARY },
     { "varchar",	MYSQL_TYPE_VAR_STRING },
+    { "varbinary",	MYSQL_TYPE_VARCHAR | IS_BINARY },
+    { "varchar",	MYSQL_TYPE_VARCHAR },
+    { "binary",		MYSQL_TYPE_STRING | IS_BINARY },
     { "char",		MYSQL_TYPE_STRING },
     { "geometry",	MYSQL_TYPE_GEOMETRY },
     { NULL, 		0 }
@@ -732,7 +772,6 @@ QueryConnectionOption (
     unsigned long* lengths;	/* Character lengths of the fields */
     Tcl_Obj* retval;		/* Return value */
 
-    fprintf(stderr, "Querying %s\n", ConnOptions[optionNum].name);
     if (mysql_query(cdata->mysqlPtr, ConnOptions[optionNum].query)) {
 	TransferMysqlError(interp, cdata->mysqlPtr);
 	return NULL;
@@ -1777,6 +1816,7 @@ NewStatement(
     IncrConnectionRefCount(cdata);
     sdata->subVars = Tcl_NewObj();
     Tcl_IncrRefCount(sdata->subVars);
+    sdata->params = NULL;
     sdata->nativeSql = NULL;
     sdata->stmtPtr = NULL;
     sdata->metadataPtr = NULL;
@@ -1914,6 +1954,7 @@ StatementInitMethod(
     Tcl_Obj* nativeSql;		/* SQL statement mapped to native form */
     char* tokenStr;		/* Token string */
     int tokenLen;		/* Length of a token */
+    int nParams;		/* Number of parameters of the statement */
     int i;
 
     /* Find the connection object, and get its data. */
@@ -2006,7 +2047,14 @@ StatementInitMethod(
     sdata->columnNames = ResultDescToTcl(sdata->metadataPtr, 0);
     Tcl_IncrRefCount(sdata->columnNames);
 
-    /* TODO - Need to set up dope vector for parameters */
+    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
+    sdata->params = (ParamData*) ckalloc(nParams * sizeof(ParamData));
+    for (i = 0; i < nParams; ++i) {
+	sdata->params[i].flags = PARAM_IN;
+	sdata->params[i].dataType = MYSQL_TYPE_VARCHAR;
+	sdata->params[i].precision = 0;
+	sdata->params[i].scale = 0;
+    }
 
     /* Attach the current statement data as metadata to the current object */
 
@@ -2057,14 +2105,59 @@ StatementParamsMethod(
     StatementData* sdata	/* The current statement */
 	= (StatementData*) Tcl_ObjectGetMetadata(thisObject,
 						 &statementDataType);
+    ConnectionData* cdata = sdata->cdata;
+    PerInterpData* pidata = cdata->pidata; /* Per-interp data */
+    Tcl_Obj** literals = pidata->literals; /* Literal pool */
+    int nParams;		/* Number of parameters to the statement */
+    Tcl_Obj* paramName;		/* Name of a parameter */
+    Tcl_Obj* paramDesc;		/* Description of one parameter */
+    Tcl_Obj* dataTypeName;	/* Name of a parameter's data type */
+    Tcl_Obj* retVal;		/* Return value from this command */
+    Tcl_HashEntry* typeHashEntry;
+    int i;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 2, objv, "");
 	return TCL_ERROR;
     }
 
-    /* TODO - Lots more stuff */
-
+    retVal = Tcl_NewObj();
+    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
+    for (i = 0; i < nParams; ++i) {
+	paramDesc = Tcl_NewObj();
+	Tcl_ListObjIndex(NULL, sdata->subVars, i, &paramName);
+	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_NAME], paramName);
+	switch (sdata->params[i].flags & (PARAM_IN | PARAM_OUT)) {
+	case PARAM_IN:
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_DIRECTION], 
+			   literals[LIT_IN]);
+	    break;
+	case PARAM_OUT:
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_DIRECTION], 
+			   literals[LIT_OUT]);
+	    break;
+	case PARAM_IN | PARAM_OUT:
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_DIRECTION], 
+			   literals[LIT_INOUT]);
+	    break;
+	default:
+	    break;
+	}
+	typeHashEntry =
+	    Tcl_FindHashEntry(&(pidata->typeNumHash),
+			      (const char*) (sdata->params[i].dataType));
+	if (typeHashEntry != NULL) {
+	    dataTypeName = (Tcl_Obj*) Tcl_GetHashValue(typeHashEntry);
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_TYPE], dataTypeName);
+	}
+	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_PRECISION],
+		       Tcl_NewIntObj(sdata->params[i].precision));
+	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_SCALE],
+		       Tcl_NewIntObj(sdata->params[i].scale));
+	Tcl_DictObjPut(NULL, retVal, paramName, paramDesc);
+    }
+	
+    Tcl_SetObjResult(interp, retVal);
     return TCL_OK;
 }
 
@@ -2100,12 +2193,15 @@ StatementParamtypeMethod(
     StatementData* sdata	/* The current statement */
 	= (StatementData*) Tcl_ObjectGetMetadata(thisObject,
 						 &statementDataType);
-    const char* directions[] = {
-	"in", "out", "inout", NULL
+    struct {
+	const char* name;
+	int flags;
+    } directions[] = {
+	{ "in", 	PARAM_IN },
+	{ "out",	PARAM_OUT },
+	{ "inout",	PARAM_IN | PARAM_OUT },
+	{ NULL,		0 }
     };
-    enum dir {
-	DIR_IN, DIR_OUT, DIR_INOUT
-    };			     /* Direction of parameter transmission */
     int direction;
     int typeNum;		/* Data type number of a parameter */
     int precision;		/* Data precision */
@@ -2126,12 +2222,13 @@ StatementParamtypeMethod(
     if (objc < 4) {
 	goto wrongNumArgs;
     }
-
+    
     i = 3;
-    if (Tcl_GetIndexFromObj(interp, objv[i], directions, "direction",
-			    TCL_EXACT, &direction) != TCL_OK) {
+    if (Tcl_GetIndexFromObjStruct(interp, objv[i], directions, 
+				  sizeof(directions[0]), "direction",
+				  TCL_EXACT, &direction) != TCL_OK) {
+	direction = PARAM_IN;
 	Tcl_ResetResult(interp);
-	direction = DIR_IN;
     } else {
 	++i;
     }
@@ -2170,16 +2267,10 @@ StatementParamtypeMethod(
 	targetName = Tcl_GetString(targetNameObj);
 	if (!strcmp(paramName, targetName)) {
 	    ++matchCount;
-#if 0
-	    /* TODO - do something */
-	    sdata->params[i].flags = dir;
-	    sdata->params[i].dataType = odbcType;
+	    sdata->params[i].flags = direction;
+	    sdata->params[i].dataType = dataTypes[typeNum].num;
 	    sdata->params[i].precision = precision;
 	    sdata->params[i].scale = scale;
-	    sdata->params[i].nullable = 1;
-				/* TODO - Update TIP so that user
-				 * can specify nullable? */
-#endif
 	}
     }
     if (matchCount == 0) {
@@ -2201,92 +2292,6 @@ StatementParamtypeMethod(
 
     return TCL_OK;
 
-    return TCL_OK;
-#if 0
-    /* TODO */
-    int matchCount = 0;		/* The number of variables in the given
-				 * statement that match the given one */
-    int nParams;		/* Number of parameters to the statement */
-    const char* paramName;	/* Name of the parameter being set */
-    Tcl_Obj* targetNameObj;	/* Name of the ith parameter in the statement */
-    const char* targetName;	/* Name of a candidate parameter in the
-				 * statement */
-    Tcl_Obj* errorObj;		/* Error message */
-    int i;
-    SQLSMALLINT dir = PARAM_IN | PARAM_KNOWN;
-				/* Direction of parameter transmssion */
-    SQLSMALLINT odbcType = SQL_VARCHAR;
-				/* ODBC type of the parameter */
-    int precision = 0;		/* Length of the parameter */
-    int scale = 0;		/* Precision of the parameter */
-
-    i = 3;
-    if (LookupOdbcConstant(NULL, OdbcParamDirections, "direction", objv[i],
-			   &dir) == TCL_OK) {
-	++i;
-    }
-    if (i >= objc) {
-	goto wrongNumArgs;
-    }
-    if (LookupOdbcType(interp, objv[i], &odbcType) == TCL_OK) {
-	++i;
-    } else {
-	return TCL_ERROR;
-    }
-    if (i < objc) {
-	if (Tcl_GetIntFromObj(interp, objv[i], &precision) == TCL_OK) {
-	    ++i;
-	} else {
-	    return TCL_ERROR;
-	}
-    }
-    if (i < objc) {
-	if (Tcl_GetIntFromObj(interp, objv[i], &scale) == TCL_OK) {
-	    ++i;
-	} else {
-	    return TCL_ERROR;
-	}
-    }
-    if (i != objc) {
-	goto wrongNumArgs;
-    }
-
-    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
-    paramName = Tcl_GetString(objv[2]);
-    for (i = 0; i < nParams; ++i) {
-	Tcl_ListObjIndex(NULL, sdata->subVars, i, &targetNameObj);
-	targetName = Tcl_GetString(targetNameObj);
-	if (!strcmp(paramName, targetName)) {
-	    ++matchCount;
-
-	    sdata->params[i].flags = dir;
-	    sdata->params[i].dataType = odbcType;
-	    sdata->params[i].precision = precision;
-	    sdata->params[i].scale = scale;
-	    sdata->params[i].nullable = 1;
-				/* TODO - Update TIP so that user
-				 * can specify nullable? */
-	}
-    }
-    if (matchCount == 0) {
-	errorObj = Tcl_NewStringObj("unknown parameter \"", -1);
-	Tcl_AppendToObj(errorObj, paramName, -1);
-	Tcl_AppendToObj(errorObj, "\": must be ", -1);
-	for (i = 0; i < nParams; ++i) {
-	    Tcl_ListObjIndex(NULL, sdata->subVars, i, &targetNameObj);
-	    Tcl_AppendObjToObj(errorObj, targetNameObj);
-	    if (i < nParams-2) {
-		Tcl_AppendToObj(errorObj, ", ", -1);
-	    } else if (i == nParams-2) {
-		Tcl_AppendToObj(errorObj, " or ", -1);
-	    }
-	}
-	Tcl_SetObjResult(interp, errorObj);
-	return TCL_ERROR;
-    }
-
-    return TCL_OK;
-#endif
  wrongNumArgs:
     Tcl_WrongNumArgs(interp, 2, objv,
 		     "name ?direction? type ?precision ?scale??");
@@ -2327,6 +2332,9 @@ DeleteStatement(
     }
     if (sdata->nativeSql != NULL) {
 	Tcl_DecrRefCount(sdata->nativeSql);
+    }
+    if (sdata->params != NULL) {
+	ckfree((char*)sdata->params);
     }
     Tcl_DecrRefCount(sdata->subVars);
     DecrConnectionRefCount(sdata->cdata);
@@ -2405,6 +2413,9 @@ ResultSetInitMethod(
     Tcl_Obj* paramNameObj;	/* Name of the current parameter */
     const char* paramName;	/* Name of the current parameter */
     Tcl_Obj* paramValObj;	/* Value of the current parameter */
+    const char* paramValStr;	/* String value of the current parameter */
+    char* bufPtr;		/* Pointer to the parameter buffer */
+    int len;			/* Length of a bound parameter */
 
     /* Check parameter count */
 
@@ -2481,6 +2492,9 @@ ResultSetInitMethod(
     rdata->paramLengths = (unsigned long*) ckalloc(nParams
 						   * sizeof(unsigned long));
     memset(rdata->paramBindings, 0, nParams * sizeof(MYSQL_BIND));
+    for (nBound = 0; nBound < nParams; ++nBound) {
+	rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_NULL;
+    }
 
     /* Bind the substituted parameters */
 
@@ -2531,32 +2545,105 @@ ResultSetInitMethod(
 
 	/* 
 	 * At this point, paramValObj contains the parameter to bind.
-	 * TODO: Handle binding according to parameter type.
-	 * Right now, bind everything as a string.
-	 * It is not clear from the documentation what the required
-	 * lifetime of the parameter bindings is.  Maintain a list
-	 * of the parameter values, so as to make sure that they are
-	 * preserved.
+	 * Convert the parameters to the appropriate data types for
+	 * MySQL's prepared statement interface, and bind them.
 	 */
 
 	if (paramValObj != NULL) {
-	    int len;
-	    Tcl_ListObjAppendElement(NULL, rdata->paramValues, paramValObj);
-	    rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_STRING;
-	    rdata->paramBindings[nBound].buffer =
-		Tcl_GetStringFromObj(paramValObj, &len);
-	    rdata->paramLengths[nBound] = len;
-	    rdata->paramBindings[nBound].buffer_length = len;
-	    rdata->paramBindings[nBound].length =
-		&(rdata->paramLengths[nBound]);
+	    switch (sdata->params[nBound].dataType & 0xffff) {
+
+	    case MYSQL_TYPE_NEWDECIMAL:
+	    case MYSQL_TYPE_DECIMAL:
+		if (sdata->params[nBound].scale == 0) {
+		    if (sdata->params[nBound].precision < 10) {
+			goto smallinteger;
+		    } else if (sdata->params[nBound].precision < 19) {
+			goto biginteger;
+		    } else {
+			goto charstring;
+		    }
+		} else if (sdata->params[nBound].precision < 17) {
+		    goto real;
+		} else {
+		    goto charstring;
+		}
+
+	    case MYSQL_TYPE_FLOAT:
+	    case MYSQL_TYPE_DOUBLE:
+	    real:
+		rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_DOUBLE;
+		rdata->paramBindings[nBound].buffer = bufPtr
+		    = ckalloc(sizeof(double));
+		rdata->paramLengths[nBound] = sizeof(double);
+		rdata->paramBindings[nBound].buffer_length = sizeof(double);
+		rdata->paramBindings[nBound].length =
+		    &(rdata->paramLengths[nBound]);
+		if (Tcl_GetDoubleFromObj(interp, paramValObj,
+					 (double*) bufPtr) != TCL_OK) {
+		    return TCL_ERROR;
+		}
+		break;
+
+	    case MYSQL_TYPE_BIT:
+	    case MYSQL_TYPE_LONGLONG:
+	    biginteger:
+		rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_LONGLONG;
+		rdata->paramBindings[nBound].buffer = bufPtr
+		    = ckalloc(sizeof(Tcl_WideInt));
+		rdata->paramLengths[nBound] = sizeof(Tcl_WideInt);
+		rdata->paramBindings[nBound].buffer_length
+		    = sizeof(Tcl_WideInt);
+		rdata->paramBindings[nBound].length =
+		    &(rdata->paramLengths[nBound]);
+		if (Tcl_GetWideIntFromObj(interp, paramValObj,
+					  (Tcl_WideInt*) bufPtr) != TCL_OK) {
+		    return TCL_ERROR;
+		}
+		break;
+
+	    case MYSQL_TYPE_TINY:
+	    case MYSQL_TYPE_SHORT:
+	    case MYSQL_TYPE_INT24:
+	    case MYSQL_TYPE_LONG:
+	    smallinteger:
+		rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_LONG;
+		rdata->paramBindings[nBound].buffer = bufPtr
+		    = ckalloc(sizeof(long));
+		rdata->paramLengths[nBound] = sizeof(int);
+		rdata->paramBindings[nBound].buffer_length = sizeof(long);
+		rdata->paramBindings[nBound].length =
+		    &(rdata->paramLengths[nBound]);
+		if (Tcl_GetLongFromObj(interp, paramValObj,
+				       (long*) bufPtr) != TCL_OK) {
+		    return TCL_ERROR;
+		}
+		break;
+
+	    default:
+	    charstring:
+		Tcl_ListObjAppendElement(NULL, rdata->paramValues, paramValObj);
+		if (sdata->params[nBound].dataType & IS_BINARY) {
+		    rdata->paramBindings[nBound].buffer_type
+			= MYSQL_TYPE_BLOB;
+		    paramValStr = (char*)
+			Tcl_GetByteArrayFromObj(paramValObj, &len);
+		} else {
+		    rdata->paramBindings[nBound].buffer_type
+			= MYSQL_TYPE_STRING;
+		    paramValStr = Tcl_GetStringFromObj(paramValObj, &len);
+		}		    
+		rdata->paramBindings[nBound].buffer = ckalloc(len+1);
+		memcpy(rdata->paramBindings[nBound].buffer, paramValStr, len);
+		rdata->paramLengths[nBound] = len;
+		rdata->paramBindings[nBound].buffer_length = len;
+		rdata->paramBindings[nBound].length =
+		    &(rdata->paramLengths[nBound]);
+		break; 
+
+	    }
 	} else {
 	    rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_NULL;
 	}
-
-	/* TODO - Type-dependent bindings
-	 * Choose the C->SQL data conversion based on the parameter type
-	 */
-
     }
 
     /* Execute the statement */
@@ -2694,8 +2781,10 @@ ResultSetNextrowMethod(
     my_bool* resultNulls;	/* Indicators that the results are null */
     my_bool* resultErrors;	/* Indicators that the results could not be
 				 * retrieved. */
+    unsigned char byte;		/* One byte extracted from a bit field */
+    Tcl_WideInt bitVal;		/* Value of a bit field */
     int mysqlStatus;		/* Status return from MySQL */
-    int i;
+    int i, j;
 
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 2, objv, "varName");
@@ -2714,9 +2803,13 @@ ResultSetNextrowMethod(
     resultRow = Tcl_NewObj();
     Tcl_IncrRefCount(resultRow);
 
+
+    /* TODO - Data-type-dependent bindings */
+
     /* Make an array of bindings to hold the row, with all the bindings
      * zero-length until we know the sizes. */
 
+    MYSQL_FIELD* fields = mysql_fetch_fields(sdata->metadataPtr);
     resultBindings = (MYSQL_BIND*) ckalloc(nColumns * sizeof(MYSQL_BIND));
     resultLengths = (unsigned long *)
 	ckalloc(nColumns * sizeof(unsigned long));
@@ -2724,9 +2817,47 @@ ResultSetNextrowMethod(
     resultErrors = (my_bool*) ckalloc(nColumns * sizeof(my_bool));
     memset(resultBindings, 0, nColumns * sizeof(MYSQL_BIND));
     for (i = 0; i < nColumns; ++i) {
-	resultBindings[i].buffer = NULL;
-	resultBindings[i].buffer_length = 0;
-	resultLengths[i] = 0;
+	switch (fields[i].type) {
+
+	case MYSQL_TYPE_FLOAT:
+	case MYSQL_TYPE_DOUBLE:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_DOUBLE;
+	    resultBindings[i].buffer = ckalloc(sizeof(double));
+	    resultBindings[i].buffer_length = sizeof(double);
+	    resultLengths[i] = sizeof(double);
+	    break;
+
+	case MYSQL_TYPE_BIT:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_BIT;
+	    resultBindings[i].buffer = ckalloc(fields[i].length);
+	    resultBindings[i].buffer_length = fields[i].length;
+	    resultLengths[i] = fields[i].length;
+	    break;
+
+	case MYSQL_TYPE_LONGLONG:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_LONGLONG;
+	    resultBindings[i].buffer = ckalloc(sizeof(Tcl_WideInt));
+	    resultBindings[i].buffer_length = sizeof(Tcl_WideInt);
+	    resultLengths[i] = sizeof(Tcl_WideInt);
+	    break;
+
+	case MYSQL_TYPE_TINY:
+	case MYSQL_TYPE_SHORT:
+	case MYSQL_TYPE_INT24:
+	case MYSQL_TYPE_LONG:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_LONG;
+	    resultBindings[i].buffer = ckalloc(sizeof(long));
+	    resultBindings[i].buffer_length = sizeof(long);
+	    resultLengths[i] = sizeof(long);
+	    break;
+
+	default:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_STRING;
+	    resultBindings[i].buffer = NULL;
+	    resultBindings[i].buffer_length = 0;
+	    resultLengths[i] = 0;
+	    break;
+	}
 	resultBindings[i].length = resultLengths + i;
 	resultNulls[i] = 0;
 	resultBindings[i].is_null = resultNulls + i;
@@ -2753,15 +2884,52 @@ ResultSetNextrowMethod(
     for (i = 0; i < nColumns; ++i) {
 	colObj = NULL;
 	if (!resultNulls[i]) {
-	    /* TODO - There is an avoidable memory copy here. */
-	    resultBindings[i].buffer = ckalloc(resultLengths[i] + 1);
-	    resultBindings[i].buffer_length = resultLengths[i] + 1;
-	    if (mysql_stmt_fetch_column(rdata->stmtPtr, resultBindings + i,
-					i, 0)) {
-		goto cleanup;
+	    if (resultLengths[i] > resultBindings[i].buffer_length) {
+		if (resultBindings[i].buffer != NULL) {
+		    ckfree(resultBindings[i].buffer);
+		}
+		resultBindings[i].buffer = ckalloc(resultLengths[i] + 1);
+		resultBindings[i].buffer_length = resultLengths[i] + 1;
+		if (mysql_stmt_fetch_column(rdata->stmtPtr, resultBindings + i,
+					    i, 0)) {
+		    goto cleanup;
+		}
 	    }
-	    colObj = Tcl_NewStringObj(resultBindings[i].buffer,
-				      resultLengths[i]);
+	    switch (resultBindings[i].buffer_type) {
+
+	    case MYSQL_TYPE_BIT:
+		bitVal = 0;
+		for (j = 0; j < resultLengths[i]; ++j) {
+		    byte = ((unsigned char*) resultBindings[i].buffer)
+			[resultLengths[i]-1-j];
+		    bitVal |= (byte << (8*j));
+		}
+		colObj = Tcl_NewWideIntObj(bitVal);
+		break;
+
+	    case MYSQL_TYPE_DOUBLE:
+		colObj = Tcl_NewDoubleObj(*(double*)(resultBindings[i].buffer));
+		break;
+
+	    case MYSQL_TYPE_LONG:
+		colObj = Tcl_NewLongObj(*(long*)(resultBindings[i].buffer));
+		break;
+
+	    case MYSQL_TYPE_LONGLONG:
+		colObj = Tcl_NewWideIntObj
+		    (*(Tcl_WideInt*)(resultBindings[i].buffer));
+		break;
+
+	    default:
+		if (fields[i].charsetnr == 63) {
+		    colObj = Tcl_NewByteArrayObj(resultBindings[i].buffer,
+						 resultLengths[i]);
+		} else {
+		    colObj = Tcl_NewStringObj(resultBindings[i].buffer,
+					      resultLengths[i]);
+		}
+		break;
+	    }
 	}
 
 	if (lists) {
@@ -2878,10 +3046,18 @@ DeleteResultSet(
     ResultSetData* rdata	/* Metadata for the result set */
 ) {
     StatementData* sdata = rdata->sdata;
+    int i;
+    int nParams;
+    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
     if (rdata->paramLengths != NULL) {
 	ckfree((char*)(rdata->paramLengths));
     }
     if (rdata->paramBindings != NULL) {
+	for (i = 0; i < nParams; ++i) {
+	    if (rdata->paramBindings[i].buffer_type != MYSQL_TYPE_NULL) {
+		ckfree((char*) rdata->paramBindings[i].buffer);
+	    }
+	}
 	ckfree((char*)(rdata->paramBindings));
     }
     if (rdata->paramValues != NULL) {
@@ -2992,7 +3168,7 @@ Tdbcmysql_Init(
 	int new;
 	Tcl_HashEntry* entry =
 	    Tcl_CreateHashEntry(&(pidata->typeNumHash), 
-				(const char*) (dataTypes[i].num),
+				(const char*) (int) (dataTypes[i].num),
 				&new);
 	Tcl_Obj* nameObj = Tcl_NewStringObj(dataTypes[i].name, -1);
 	Tcl_IncrRefCount(nameObj);
