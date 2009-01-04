@@ -1889,6 +1889,10 @@ AllocAndPrepareStatement(
  * Results:
  *	Returns a Tcl object holding the result description
  *
+ * If any column names are duplicated, they are disambiguated by
+ * appending '#n' where n increments once for each occurrence of the
+ * column name.
+ *
  *-----------------------------------------------------------------------------
  */
 
@@ -1898,16 +1902,36 @@ ResultDescToTcl(
     int flags			/* Flags governing the conversion */
 ) {
     Tcl_Obj* retval = Tcl_NewObj();
+    Tcl_HashTable names;	/* Hash table to resolve name collisions */
+    Tcl_InitHashTable(&names, TCL_STRING_KEYS);
     if (result != NULL) {
 	unsigned int fieldCount = mysql_num_fields(result);
 	MYSQL_FIELD* fields = mysql_fetch_fields(result);
 	unsigned int i;
+	char numbuf[16];
 	for (i = 0; i < fieldCount; ++i) {
-	    Tcl_ListObjAppendElement(NULL, retval,
-				     Tcl_NewStringObj(fields[i].name,
-						      fields[i].name_length));
+	    Tcl_Obj* nameObj = Tcl_NewStringObj(fields[i].name,
+						fields[i].name_length);
+	    Tcl_IncrRefCount(nameObj);
+	    int new;
+	    Tcl_HashEntry* entry =
+		Tcl_CreateHashEntry(&names, fields[i].name, &new);
+	    int count = 1;
+	    while (!new) {
+		count = (int) Tcl_GetHashValue(entry);
+		++count;
+		Tcl_SetHashValue(entry, (ClientData) count);
+		sprintf(numbuf, "#%d", count);
+		Tcl_AppendToObj(nameObj, numbuf, -1);
+		entry = Tcl_CreateHashEntry(&names, Tcl_GetString(nameObj),
+					    &new);
+	    }
+	    Tcl_SetHashValue(entry, (ClientData) count);
+	    Tcl_ListObjAppendElement(NULL, retval, nameObj);
+	    Tcl_DecrRefCount(nameObj);
 	}
     }
+    Tcl_DeleteHashTable(&names);
     return retval;
 }
 

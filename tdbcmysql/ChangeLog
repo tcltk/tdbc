@@ -4,8 +4,10 @@
 	of parameters and the actual data types of results. Added code to
 	do direct binary conversions of integers, floating point numbers,
 	and bit strings. Added checks for binary data on results.
+	Added disambiguation of duplicated colmn names.
 	* tests/tdbcmysql.test: Revised test cases to include all the
-	MySQL data types handled in this driver.
+	MySQL data types handled in this driver. Added a test case that
+	column names are correctly disambiguated.
 	
 2009-01-02  Kevin B. Kenny  <kennykb@acm.org>
 

@@ -2981,6 +2981,24 @@ test tdbc::mysql-21.2 {transfers of binary data} {*}{
     }
 }
 
+test tdbc::mysql-22.1 {duplicate column name} {*}{
+    -body {
+	set stmt [::db prepare {
+	    SELECT a.idnum, b.idnum 
+	    FROM people a, people b
+	    WHERE a.name = 'hud rockstone' 
+	    AND b.info = a.info
+	}]
+	set rs [$stmt execute]
+	$rs columns
+    }
+    -result {idnum idnum#2}
+    -cleanup {
+	$rs close
+	$stmt close
+    }
+}
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Get rid of the test database
@@ -2993,4 +3011,3 @@ return
 # Local Variables:
 # mode: tcl
 # End:
-p
