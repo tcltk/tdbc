@@ -834,7 +834,7 @@ ConfigureConnection(
     const char* stringOpts[INDX_MAX];
 				/* String-valued options */
     unsigned long mysqlFlags=0;	/* Connection flags */
-    int sslFlag;		/* Flag==1 if SSL configuration is needed */
+    int sslFlag = 0;		/* Flag==1 if SSL configuration is needed */
     int optionIndex;		/* Index of the current option in ConnOptions */
     int optionValue;		/* Integer value of the current option */
     unsigned short port = 0;	/* Server port number */
