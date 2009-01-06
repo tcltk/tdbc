@@ -73,7 +73,7 @@ pkgdatadir	= $(datadir)/$(PKG_DIR)
 pkglibdir	= $(libdir)/$(PKG_DIR)
 pkgincludedir	= $(includedir)/$(PKG_DIR)
 tmdir		= $(libdir)/tcl$(TCL_MAJOR_VERSION)/$(TCL_VERSION)
-pkgslash	= `echo $(PACKAGE_NAME) | sed s-::-/-`
+pkgslash	= `echo $(PACKAGE_NAME) | sed s=tdbc=tdbc/=`
 pkgtmdir	= $(tmdir)/tdbc
 pkgtmfile	= $(tmdir)/$(pkgslash)-$(PACKAGE_VERSION).tm
 
