@@ -20,7 +20,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef _WIN32
 #include <my_global.h>
+#endif
 #include <mysql.h>
 
 /* Static data contained in this file */
@@ -831,7 +833,7 @@ ConfigureConnection(
 
     const char* stringOpts[INDX_MAX];
 				/* String-valued options */
-    unsigned long mysqlFlags;	/* Connection flags */
+    unsigned long mysqlFlags=0;	/* Connection flags */
     int sslFlag;		/* Flag==1 if SSL configuration is needed */
     int optionIndex;		/* Index of the current option in ConnOptions */
     int optionValue;		/* Integer value of the current option */
