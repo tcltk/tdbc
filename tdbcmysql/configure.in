@@ -140,6 +140,10 @@ fi
 CLEANFILES="$CLEANFILES pkgIndex.tcl"
 AC_SUBST(CLEANFILES)
 
+if test "${TEA_PLATFORM}" = "windows" ; then
+    AC_DEFINE(_WIN32)
+fi
+
 #--------------------------------------------------------------------
 # Choose which headers you need.  Extension authors should try very
 # hard to only rely on the Tcl public header files.  Internal headers
@@ -200,9 +204,18 @@ AC_ARG_WITH(mysql-includedir,
     with_mysqlincludedir=${withval})
 if test x"${with_mysqlincludedir}" != x ; then
     CPPFLAGS="${CPPFLAGS} -I${with_mysqlincludedir}"
+    if test "${TEA_PLATFORM}" = "windows" ; then
+        CPPFLAGS="${CPPFLAGS} -D_WIN32"
+    fi
     MYSQL_INCLUDE_SPEC="-I${with_mysqlincludedir}"
 fi
-AC_CHECK_HEADER(mysql.h, , AC_MSG_ERROR("cannot find a working mysql.h"))
+AC_CHECK_HEADERS([my_global.h])
+AC_CHECK_HEADER(mysql.h, , AC_MSG_ERROR("cannot find a working mysql.h"), [
+#include <stdio.h>
+#ifdef HAVE_MY_GLOBAL_H
+#include <my_global.h>
+#endif
+])
 CPPFLAGS="${TDBCMYSQL_SAVED_CPPLFAGS}"
 TEA_ADD_INCLUDES([${MYSQL_INCLUDE_SPEC}])
 
@@ -210,20 +223,30 @@ TEA_ADD_INCLUDES([${MYSQL_INCLUDE_SPEC}])
 # Locate the MySQL libraries.
 #----------------------------------------------------------------------
 
-TDBCMYSQL_SAVED_LDFLAGS="${LDFLAGS}"
 AC_ARG_WITH(mysql-libdir,
   AC_HELP_STRING([--with-mysql-libdir],
                  [directory where MySQL library files reside]),
   with_mysqllibdir=${withval})
 if test x"${with_mysqllibdir}" != x ; then
   LDFLAGS="${LDFLAGS} -L${with_mysqllibdir}"
-  MYSQL_LIB_SPEC="-L${with_mysqllibdir} -lmysqlclient_r"
+  MYSQL_LIB_SPEC="-L${with_mysqllibdir}"
 else
-  MYSQL_LIB_SPEC="-lmysqlclient_r"
+  MYSQL_LIB_SPEC=""
 fi
-AC_CHECK_LIB(mysqlclient_r, mysql_server_init, , [
-  AC_MSG_ERROR("cannot find a working mysqlclient library")
-])
+if test "${TEA_PLATFORM}" = "windows" ; then
+      MYSQL_LIB_SPEC="-lmysql"
+else
+    TDBCMYSQL_SAVED_LDFLAGS="${LDFLAGS}"
+    AC_CHECK_LIB(mysqlclient_r, mysql_reconnect, [
+        MYSQL_LIB_SPEC="${MYSQL_LIB_SPEC} -lmysqlclient_r"
+    ], [
+        AC_CHECK_LIB(mysql_client, mysql_reconnect, [
+            MYSQL_LIB_SPEC="${MYSQL_LIB_SPEC} -lmysql_client"
+        ], [
+            AC_MSG_ERROR("cannot find a working mysqlclient library")
+        ])
+    ])
+fi
 LDFLAGS="${TDBCMSYQL_SAVED_LDFLAGS}"
 TEA_ADD_LIBS([${MYSQL_LIB_SPEC}])
 
