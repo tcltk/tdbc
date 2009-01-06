@@ -17,10 +17,11 @@
 #include <tclOO.h>
 #include <tdbc.h>
 
-#include <mysql.h>
-
 #include <stdio.h>
 #include <string.h>
+
+#include <my_global.h>
+#include <mysql.h>
 
 /* Static data contained in this file */
 
