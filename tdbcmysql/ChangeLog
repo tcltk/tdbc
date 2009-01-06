@@ -1,7 +1,9 @@
 2009-01-05  Kevin B. Kenny  <kennykb@acm.org>
 
+	* README: Added a few more hints for building on Windows.
 	* configure.in: Changes to make tdbcmysql build on Windows.
 	* generic/tdbcmysql.c: Changed to #include <my_global.h> on Windows.
+	Advanced release to 1.0b6
 	* configure: autoconf 2.59
 	
 2009-01-04  Kevin B. Kenny  <kennykb@acm.org>

@@ -1,6 +1,6 @@
 README: tdbcmysql
 
-    This is the 1.0b5 source distribution of the driver for Tcl
+    This is the 1.0b6 source distribution of the driver for Tcl
     Database Connectivity (TDBC) to access MySQL databases.. TDBC and
     its drivers are available from a Fossil version control repository
     at http://tdbc.tcl.tk/
@@ -38,6 +38,32 @@ accepts the following two options:
 
 	Specifies PATH as the path to the directory that contains
 	the MySQL link libraries.
+
+Building on Windows is tested only with msys/mingw, and only with
+the version of MySQL present in XAMPP (https://sourceforge.net/projects/xampp)
+You need the 'xampp-win32-devel' package as well as the 'xampp-win32'
+package.
+
+In order to build the code under msys/mingw, you need to rebuild the
+import library for use by mingw. (This also requires the 'reimp' 
+utility from mingw-utils.) The recipe for this step is:
+
+    reimp -d drive:/path/to/xampp/lib/mysql/libmysql.lib
+    dlltool -k -d libmysql.def -l libmysql.a
+    cp libmysql.a drive:/path/to/mingw/lib
+
+It is also convenient to make sure that the MySQL headers are available
+without the --with option:
+
+   cp -r drive:/path/to/xampp/include/mysql/* drive:/path/to/mingw/include/
+
+Then an ordinary 'configure' and 'make' should function to build the
+load module.
+
+NOTE THAT ON WINDOWS, THE 'libmysql.dll' LIBRARY MUST BE ON THE PATH
+AT RUNTIME.  Probably the easiest way to ensure this happens is to
+put it either in the Windows 'system32' directory or the directory
+containing the tdbcmysqlX.Y.dll.
 
 3. Documentation
 
