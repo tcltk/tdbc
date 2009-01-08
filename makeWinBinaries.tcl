@@ -7,6 +7,7 @@ set pathlist [glob -types d \
 		  -directory $instdir \
 		  -tails 1 \
 		  {tdbc[a-z]*}]
+lappend pathlist sqlite33.6.4
 lappend pathlist tcl8/8.6/tdbc
 
 set distdir /tmp/dist/tdbc${ver}-drivers
