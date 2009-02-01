@@ -1025,7 +1025,8 @@ GetHEnv(
 		Tcl_SetObjResult(interp,
 				 Tcl_NewStringObj("Could not allocate the "
 						  "ODBC SQL environment.", -1));
-		Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY001", "-1", NULL);
+		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR",
+				 "HY001", "ODBC", "-1", NULL);
 	    }
 	}
     }
@@ -1428,7 +1429,8 @@ ConfigureConnection(
 			     Tcl_NewStringObj("-parent option cannot "
 					      "be used after connection "
 					      "is established", -1));
-	    Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY010", "-1", NULL);
+	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY010",
+			     "ODBC", "-1", NULL);
 	    return TCL_ERROR;
 
 	case COPTION_READONLY:
@@ -1493,7 +1495,8 @@ ConfigureConnection(
 		Tcl_SetObjResult(interp,
 				 Tcl_NewStringObj("optional function "
 						  "not implemented", -1));
-		Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HYC00", "-1", NULL);
+		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HYC00",
+				 "ODBC", "-1", NULL);
 		return TCL_ERROR;
 	    }
 	    break;
@@ -1527,7 +1530,8 @@ ConfigureConnection(
 				 Tcl_NewStringObj("-parent option cannot "
 						  "be used after connection "
 						  "is established", -1));
-		Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY010", "-1", NULL);
+		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY010",
+				 "ODBC", "-1", NULL);
 		return TCL_ERROR;
 	    }
 
@@ -1539,7 +1543,8 @@ ConfigureConnection(
 				 Tcl_NewStringObj("cannot use -parent "
 						  "option because Tk is not "
 						  "loaded", -1));
-		Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY000", "-1", NULL);
+		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
+				 "ODBC", "-1", NULL);
 		return TCL_ERROR;
 	    }
 	    Tcl_MutexLock(&hEnvMutex);
@@ -1575,7 +1580,8 @@ ConfigureConnection(
 			     Tcl_NewStringObj("cannot use -parent option "
 					      "because tdbc::odbc was built "
 					      "without Tk", -1));
-	    Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY000", "-1", NULL);
+	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
+			     "OBDC", "-1", NULL);
 	    return TCL_ERROR;
 #endif /* USE_TK */
 	    
@@ -1792,7 +1798,8 @@ ConnectionBeginTransactionMethod(
     if (cdata->flags & CONNECTION_FLAG_XCN_ACTIVE) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("ODBC does not support "
 						  "nested transactions", -1));
-	Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HYC00", "-1", NULL);
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HYC00",
+			 "ODBC", "-1", NULL);
 	return TCL_ERROR;
     }
     cdata->flags |= CONNECTION_FLAG_XCN_ACTIVE;
@@ -1909,7 +1916,8 @@ ConnectionEndXcnMethod(
     if (!(cdata->flags & CONNECTION_FLAG_XCN_ACTIVE)) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("no transaction is in "
 						  "progress", -1));
-	Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY010", "-1", NULL);
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY010",
+			 "ODBC", "-1", NULL);
 	return TCL_ERROR;
     }
 
@@ -2323,7 +2331,8 @@ StatementInitMethod(
 					      "native SQL syntax. You need "
 					      "to replace them with ones "
 					      "in ':variableName' form.", -1));
-	    Tcl_SetErrorCode(interp, "TDBC", "ODBC", "HY000", "-1");
+	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
+			     "ODBC", "-1", NULL);
 	    goto freeNativeSql;
 	}
 
