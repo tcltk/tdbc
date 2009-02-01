@@ -13,7 +13,7 @@
 package require tdbc
 package require sqlite3
 
-package provide tdbc::sqlite3 1.0b6
+package provide tdbc::sqlite3 1.0b7
 
 namespace eval tdbc::sqlite3 {
     namespace export connection
@@ -41,7 +41,8 @@ namespace eval tdbc::sqlite3 {
 	if {[llength $args] % 2 != 0} {
 	    set cmd [lrange [info level 0] 0 end-[llength $args]]
 	    return -code error "wrong # args, should be\
-                                \"$cmd ?-option value?...\""
+                                \"$cmd ?-option value?...\"" \
+		-errorcode {TDBC GENERAL_ERROR HY000 SQLITE3 WRONGNUMARGS}
 	}
 	next
 	sqlite3 [namespace current]::db $databaseName
@@ -98,7 +99,10 @@ namespace eval tdbc::sqlite3 {
 		default {
 		    return -code error "bad option \"$option\": must be\
                                         -encoding, -isolation, -readonly\
-                                        or -timeout"
+                                        or -timeout" \
+			-errorcode [list TDBC GENERAL_ERROR HY000 SQLITE3 \
+					BADOPTION $option]
+		    
 		}
 	    }
 
@@ -108,7 +112,8 @@ namespace eval tdbc::sqlite3 {
 
 	    set cmd [lrange [info level 0] 0 end-[llength $args]]
 	    return -code error "wrong # args, should be\
-                                \"$cmd ?-option value?...\""
+                                \"$cmd ?-option value?...\"" \
+		-errorcode [list TDBC GENERAL_ERROR HY000 SQLITE3 WRONGNUMARGS]
 	}
 
 	# Set one or more options
@@ -119,7 +124,9 @@ namespace eval tdbc::sqlite3 {
 		-encoding {
 		    if {$value ne {utf-8}} {
 			return -code error "-encoding not supported.\
-					    SQLite3 is always Unicode."
+					    SQLite3 is always Unicode." \
+			    -errorcode [list TDBC FEATURE_NOT_SUPPORTED 0A000 \
+					    SQLITE3 ENCODING]
 		    }
 		}
 		-i - -is - -iso - -isol - -isola - -isolat - -isolati -
@@ -145,7 +152,9 @@ namespace eval tdbc::sqlite3 {
 			default {
 			    return -code error "bad isolation level \"$value\":\
                                 should be readuncommitted, readcommitted,\
-                                repeatableread, serializable, or readonly"
+                                repeatableread, serializable, or readonly" \
+				-errorcode [list TDBC GENERAL_ERROR HY000 \
+						SQLITE3 BADISOLATION $value]
 			}
 		    }
 		}
@@ -153,12 +162,16 @@ namespace eval tdbc::sqlite3 {
 		-readonly {
 		    if {$value} {
 			return -code error "SQLite3's Tcl API does not support\
-					    read-only access"
+					    read-only access" \
+			    -errorcode [list TDBC FEATURE_NOT_SUPPORTED 0A000 \
+					    SQLITE3 READONLY]
 		    }
 		}
 		-t - -ti - -tim - -time - -timeo - -timeou - -timeout {
 		    if {![string is integer $value]} {
-			return -code error "expected integer but got \"$value\""
+			return -code error "expected integer but got \"$value\"" \
+			    -errorcode [list TDBC DATA_EXCEPTION 22018 \
+					    SQLITE3 $value]
 		    }
 		    db timeout $value
 		    set timeout $value
@@ -166,7 +179,10 @@ namespace eval tdbc::sqlite3 {
 		default {
 		    return -code error "bad option \"$option\": must be\
                                         -encoding, -isolation, -readonly\
-                                        or -timeout"
+                                        or -timeout" \
+			-errorcode [list TDBC GENERAL_ERROR HY000 \
+					SQLITE3 BADOPTION $value]
+
 		}
 	    }
 	}
@@ -237,7 +253,9 @@ namespace eval tdbc::sqlite3 {
     # server.
 
     method preparecall {call} {
-	return -code error {SQLite3 does not support stored procedures}
+	return -code error {SQLite3 does not support stored procedures} \
+	    -errorcode [list TDBC FEATURE_NOT_SUPPORTED 0A000 \
+			    SQLITE3 PREPARECALL]
     }
 
     # The 'begintransaction' method launches a database transaction
@@ -380,7 +398,9 @@ namespace eval tdbc::sqlite3 {
 	    my RunQuery
 	} else {
 	    return -code error "wrong # args: should be\
-               [lrange [info level 0] 0 1] statement ?dictionary?"
+               [lrange [info level 0] 0 1] statement ?dictionary?" \
+		-errorcode [list TDBC GENERAL_ERROR HY000 SQLITE3 WRONGNUMARGS]
+
 	}
 	my variable RowCount
 	set RowCount [$db changes]

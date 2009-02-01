@@ -1,3 +1,15 @@
+2009-01-31  Kevin B. Kenny  <kennykb@acm.org>
+
+	* README:
+	* configure.in: Advanced version to 1.0b7.
+	* configure: Regenerated.
+	* generic/tdbcmysql.c: Revised errorCode generation to be
+	more [try]-friendly. Changed include to <mysql/mysql.h> so that
+	the include path isn't necessary.
+	* tests/tdbcmysql.test: Added test flags so that a nonstandard port
+	or socket can be specified. Changed errorCode-dependent tests to
+	look for the new form of errorCode.
+	
 2009-01-05  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README: Added a few more hints for building on Windows.

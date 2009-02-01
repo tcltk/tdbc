@@ -21,9 +21,9 @@
 #include <string.h>
 
 #ifdef _WIN32
-#include <my_global.h>
+#include <mysql/my_global.h>
 #endif
-#include <mysql.h>
+#include <mysql/mysql.h>
 
 /* Static data contained in this file */
 
@@ -703,11 +703,14 @@ TransferMysqlError(
     Tcl_Interp* interp,		/* Tcl interpreter */
     MYSQL* mysqlPtr		/* MySQL connection handle */
 ) {
+    const char* sqlstate = mysql_sqlstate(mysqlPtr);
     Tcl_Obj* errorCode = Tcl_NewObj();
     Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("TDBC", -1));
-    Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("MYSQL", -1));
     Tcl_ListObjAppendElement(NULL, errorCode,
-			     Tcl_NewStringObj(mysql_sqlstate(mysqlPtr), -1));
+			     Tcl_NewStringObj(Tdbc_MapSqlState(sqlstate), -1));
+    Tcl_ListObjAppendElement(NULL, errorCode,
+			     Tcl_NewStringObj(sqlstate, -1));
+    Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("MYSQL", -1));
     Tcl_ListObjAppendElement(NULL, errorCode,
 			     Tcl_NewIntObj(mysql_errno(mysqlPtr)));
     Tcl_SetObjErrorCode(interp, errorCode);
@@ -736,12 +739,14 @@ TransferMysqlStmtError(
     Tcl_Interp* interp,		/* Tcl interpreter */
     MYSQL_STMT* stmtPtr		/* MySQL statment handle */
 ) {
+    const char* sqlstate = mysql_stmt_sqlstate(stmtPtr);
     Tcl_Obj* errorCode = Tcl_NewObj();
     Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("TDBC", -1));
-    Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("MYSQL", -1));
     Tcl_ListObjAppendElement(NULL, errorCode,
-			     Tcl_NewStringObj(mysql_stmt_sqlstate(stmtPtr),
-					      -1));
+			     Tcl_NewStringObj(Tdbc_MapSqlState(sqlstate), -1));
+    Tcl_ListObjAppendElement(NULL, errorCode,
+			     Tcl_NewStringObj(sqlstate, -1));
+    Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("MYSQL", -1));
     Tcl_ListObjAppendElement(NULL, errorCode,
 			     Tcl_NewIntObj(mysql_stmt_errno(stmtPtr)));
     Tcl_SetObjErrorCode(interp, errorCode);
@@ -907,7 +912,8 @@ ConfigureConnection(
 	    Tcl_AppendObjToObj(msg, objv[i]);
 	    Tcl_AppendToObj(msg, "\" option cannot be changed dynamically", -1);
 	    Tcl_SetObjResult(interp, msg);
-	    Tcl_SetErrorCode(interp, "TDBC", "MYSQL", "HY000", "-1", NULL);
+	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000", 
+			     "MYSQL", "-1", NULL);
 	    return TCL_ERROR;
 	}
 
@@ -933,7 +939,8 @@ ConfigureConnection(
 				 Tcl_NewStringObj("Only UTF-8 transfer "
 						  "encoding is supported.\n",
 						  -1));
-		Tcl_SetErrorCode(interp, "TDBC", "MYSQL", "HY000", "-1", NULL);
+		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
+				 "MYSQL", "-1", NULL);
 		return TCL_ERROR;
 	    }
 	    break;
@@ -952,7 +959,8 @@ ConfigureConnection(
 		Tcl_SetObjResult(interp, Tcl_NewStringObj("port number must "
 							  "be in range "
 							  "[0..65535]", -1));
-		Tcl_SetErrorCode(interp, "TDBC", "MYSQL", "HY000", "-1", NULL);
+		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
+				 "MYSQL", "-1", NULL);
 		return TCL_ERROR;
 	    }
 	    port = optionValue;
@@ -966,7 +974,8 @@ ConfigureConnection(
 		Tcl_SetObjResult(interp,
 				 Tcl_NewStringObj("MySQL does not support "
 						  "readonly connections", -1));
-		Tcl_SetErrorCode(interp, "TDBC", "MYSQL", "HY000", "-1", NULL);
+		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
+				 "MYSQL", "-1", NULL);
 		return TCL_ERROR;
 	    }
 	    break;
@@ -989,7 +998,8 @@ ConfigureConnection(
 	if (cdata->mysqlPtr == NULL) {
 	    Tcl_SetObjResult(interp,
 			     Tcl_NewStringObj("mysql_init() failed.", -1));
-	    Tcl_SetErrorCode(interp, "TDBC", "MYSQL", "HY001", "NULL", NULL);
+	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY001", 
+			     "MYSQL", "NULL", NULL);
 	    return TCL_ERROR;
 	}
 
@@ -1172,7 +1182,8 @@ ConnectionBegintransactionMethod(
     if (cdata->flags & CONN_FLAG_IN_XCN) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("MySQL does not support "
 						  "nested transactions", -1));
-	Tcl_SetErrorCode(interp, "TDBC", "MYSQL", "HYC00", "-1", NULL);
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HYC00",
+			 "MYSQL", "-1", NULL);
 	return TCL_ERROR;
     }
     cdata->flags |= CONN_FLAG_IN_XCN;
@@ -1338,7 +1349,8 @@ ConnectionCommitMethod(
     if (!(cdata->flags & CONN_FLAG_IN_XCN)) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("no transaction is in "
 						  "progress", -1));
-	Tcl_SetErrorCode(interp, "TDBC", "MYSQL", "HY010", "-1", NULL);
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY010",
+			 "MYSQL", "-1", NULL);
 	return TCL_ERROR;
     }
 
@@ -1492,7 +1504,8 @@ ConnectionRollbackMethod(
     if (!(cdata->flags & CONN_FLAG_IN_XCN)) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("no transaction is in "
 						  "progress", -1));
-	Tcl_SetErrorCode(interp, "TDBC", "MYSQL", "HY010", "-1", NULL);
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY010",
+			 "MYSQL", "-1", NULL);
 	return TCL_ERROR;
     }
 

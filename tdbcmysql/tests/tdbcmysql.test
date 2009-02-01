@@ -34,6 +34,12 @@ if {[info exists env(TEST_DB)]} {
 } else {
     lappend connFlags -db tdbc_test
 }
+if {[info exists env(TEST_SOCKET)]} {
+    lappend connFlags -socket $env(TEST_SOCKET)
+}
+if {[info exists env(TEST_PORT)]} {
+    lappend connFlags -port $env(TEST_PORT)
+}
 
 #------------------------------------------------------------------------------
 
@@ -112,7 +118,7 @@ test tdbc::mysql-1.9 {create a connection, failure} {*}{
 	list $status $result $::errorCode
     }
     -match glob
-    -result {1 {Unknown MySQL server host*} {TDBC MYSQL HY000 *}}
+    -result {1 {Unknown MySQL server host*} {TDBC GENERAL_ERROR HY000 MYSQL *}}
 }
 
 test tdbc::mysql-1.10 {create a connection, successful} {*}{
@@ -177,7 +183,7 @@ test tdbc::mysql-3.1 {prepare an invalid statement} {*}{
 	list $status $result $::errorCode
     }
     -match glob
-    -result {1 {*SQL syntax*} {TDBC MYSQL 42000 *}}
+    -result {1 {*SQL syntax*} {TDBC SYNTAX_ERROR* 42000 MYSQL *}}
 }
 
 test tdbc::mysql-3.2 {prepare a valid statement} {*}{
@@ -555,7 +561,7 @@ test tdbc::mysql-4.10 {failed execution} {*}{
 	rename $stmt {}
     }
     -match glob
-    -result {1 {TDBC MYSQL * *}}
+    -result {1 {TDBC CONSTRAINT_VIOLATION 23* MYSQL *}}
 }
 
 test tdbc::mysql-5.1 {paramtype - too few args} {*}{
@@ -2206,7 +2212,7 @@ test tdbc::mysql-14.4 {commit - not in transaction} {*}{
 	list [catch {::db commit} result] $result $::errorCode
     }
     -match glob
-    -result {1 {no transaction is in progress} {TDBC MYSQL HY010 *}}
+    -result {1 {no transaction is in progress} {TDBC GENERAL_ERROR HY010 MYSQL *}}
 }
 
 test tdbc::mysql-14.5 {rollback - not in transaction} {*}{
@@ -2214,7 +2220,7 @@ test tdbc::mysql-14.5 {rollback - not in transaction} {*}{
 	list [catch {::db rollback} result] $result $::errorCode
     }
     -match glob
-    -result {1 {no transaction is in progress} {TDBC MYSQL HY010 *}}
+    -result {1 {no transaction is in progress} {TDBC GENERAL_ERROR HY010 MYSQL *}}
 }
 
 test tdbc::mysql-14.6 {empty transaction} {*}{
@@ -2292,7 +2298,7 @@ test tdbc::mysql-14.10 {nested transactions} {*}{
 	catch {::db rollback}
     }
     -match glob
-    -result {1 {MySQL does not support nested transactions} {TDBC MYSQL HYC00 *}}
+    -result {1 {MySQL does not support nested transactions} {TDBC GENERAL_ERROR HYC00 MYSQL *}}
 }
 
 #------------------------------------------------------------------------------
@@ -2686,7 +2692,7 @@ test tdbc::mysql-19.5 {$connection configure - set inappropriate arg} {*}{
 	list [catch {::db configure -encoding ebcdic} result] \
 	    $result $::errorCode
     }
-    -result {1 {"-encoding" option cannot be changed dynamically} {TDBC MYSQL HY000 -1}}
+    -result {1 {"-encoding" option cannot be changed dynamically} {TDBC GENERAL_ERROR HY000 MYSQL -1}}
 }
 
 test tdbc::mysql-19.6 {$connection configure - wrong # args} {*}{
@@ -2774,7 +2780,9 @@ test tdbc::mysql-19.16 {$connection configure - -db} {*}{
 test tdbc::mysql-19.17 {$connection configure - -user} \
     -body {
 	set flags $::connFlags
-	dict unset flags host
+	dict unset flags -host
+	catch [dict unset flags -port]
+	catch [dict unset flags -socket]
 	set flags2 $flags
 	dict set flags -db information_schema
 	list [::db configure {*}$flags] [::db configure -db] \

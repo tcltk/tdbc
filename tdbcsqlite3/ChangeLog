@@ -1,3 +1,12 @@
+2008-01-31  Kevin B. Kenny  <kennykb@acm.org>
+
+	* README:			Advanced version number to 1.0b7
+	* configure.in:
+	* configure:			autoconf-2.59
+	* library/tdbcsqlite3.tcl:	Changed ::errorCode returns to
+					follow TDBC [try]-friendly convention
+					TDBC errorClass sqlState driver detail
+	
 2008-01-05  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:			Advanced version number to 1.0b6

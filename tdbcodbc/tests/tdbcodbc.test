@@ -74,7 +74,7 @@ test tdbc::odbc-1.3 {create a connection, failure} {*}{
 	list $status $::errorCode
     }
     -match glob
-    -result {1 {TDBC ODBC IM002 *}}
+    -result {1 {TDBC DRIVER_ERROR IM002 ODBC *}}
 }
 
 test tdbc::odbc-1.4 {create a connection, successful} {*}{
@@ -501,7 +501,7 @@ test tdbc::odbc-4.10 {failed execution} {*}{
 	rename $stmt {}
     }
     -match glob
-    -result {1 {TDBC ODBC * *}}
+    -result {1 {TDBC * ODBC *}}
 }
 
 test tdbc::odbc-5.1 {paramtype - too few args} {*}{
@@ -2913,6 +2913,46 @@ test tdbc::odbc-24.4 {datasource - add/remove} {*}{
 	    [dict exists [tdbc::odbc::datasources] TdbcOdbcTestDB]
     }
     -result {{} 1 {} 0}
+}
+
+test tdbc::odbc-25.1a {error code} {*}{
+    -constraints sqlite
+    -setup {
+	db allrows {DELETE FROM people}
+	db allrows {INSERT INTO people(idnum, name) VALUES(1, 'fred')}
+    }
+    -body {
+	list [catch {
+	    db allrows {INSERT INTO people(idnum, name) VALUES(1, 'fred')}
+	} result] $result $::errorCode
+    }
+    -match glob
+    -result {1 * {TDBC GENERAL_ERROR HY000 ODBC *}}
+}
+
+test tbdc::odbc-25.1b {error code} {*}{
+    -constraints !sqlite
+    -setup {
+	db allrows {DELETE FROM people}
+	db allrows {INSERT INTO people(idnum, name) VALUES(1, 'fred')}
+    }
+    -body {
+	list [catch {
+	    db allrows {INSERT INTO people(idnum, name) VALUES(1, 'fred')}
+	} result] $result $::errorCode
+    }
+    -match glob
+    -result {1 * {TDBC GENERAL_ERROR HY000 ODBC *}}
+}
+
+test tdbc::odbc-26.1 {parameters in native form} {*}{
+    -body {
+	list [catch {
+	    db allrows {SELECT * from people where name = ?}
+	} result] $result $::errorCode
+    }
+    -match glob
+    -result {1 * {TDBC GENERAL_ERROR HY000 ODBC -1}}
 }
 
 #-------------------------------------------------------------------------------

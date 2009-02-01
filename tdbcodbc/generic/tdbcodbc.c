@@ -804,16 +804,14 @@ TransferSQLError(
 				/* Buffer to hold the error message */
     SQLSMALLINT i;		/* Loop index for going through diagnostics */
     const char* sep = "";	/* Separator string for messages */
+    const char* sqlstate;	/* SQL state */
     Tcl_Obj* resultObj;		/* Result string containing error message */
     Tcl_Obj* codeObj;		/* Error code object */
-    Tcl_Obj* codes[2];		/* Temp storage to initialize codeObj */
     Tcl_Obj* lineObj;		/* Object holding one diagnostic */
     Tcl_DString bufferDS;	/* Buffer for transferring messages */
 
     resultObj = Tcl_NewObj();
-    codes[0] = Tcl_NewStringObj("TDBC", 4);
-    codes[1] = Tcl_NewStringObj("ODBC", 4);
-    codeObj = Tcl_NewListObj(2, codes);
+    codeObj = Tcl_NewStringObj("TDBC", -1);
 
     /* Loop through the diagnostics */
 
@@ -826,10 +824,19 @@ TransferSQLError(
 
 	Tcl_DStringInit(&bufferDS);
 	DStringAppendWChars(&bufferDS, state, 5);
-	lineObj = Tcl_NewStringObj(Tcl_DStringValue(&bufferDS),
-				   Tcl_DStringLength(&bufferDS));
+	sqlstate = Tcl_DStringValue(&bufferDS);
+	lineObj = Tcl_NewStringObj(sqlstate, Tcl_DStringLength(&bufferDS));
+	if (i == 1) {
+	    Tcl_Obj* stateObj = Tcl_NewStringObj(Tdbc_MapSqlState(sqlstate),
+						 -1);
+	    Tcl_ListObjAppendElement(NULL, codeObj, stateObj);
+	}
 	Tcl_DStringFree(&bufferDS);
 	Tcl_ListObjAppendElement(NULL, codeObj, lineObj);
+	if (i == 1) {
+	    Tcl_ListObjAppendElement(NULL, codeObj,
+				     Tcl_NewStringObj("ODBC", -1));
+	}
 	Tcl_ListObjAppendElement(NULL, codeObj, Tcl_NewIntObj(nativeError));
 
 	/* Add the error message to the return value */
