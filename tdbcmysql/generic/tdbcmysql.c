@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _WIN32
+#ifdef HAVE_MYSQL_MY_GLOBAL_H
 #include <mysql/my_global.h>
 #endif
 #include <mysql/mysql.h>

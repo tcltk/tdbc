@@ -1,3 +1,13 @@
+2009-02-01  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcodbc.c (StatementInitMethod): Corrected a bad check
+	that caused SQLDescribeParam to be bypassed entirely. Corrected
+	bad code that was exposed by this fix (SQLDescribeParam failure was
+	handled incorrectly). Corrected the error code for variables in	
+	native SQL syntax.
+	* tests/tdbcodbc.test: Corrected error codes for seven tests, to
+	match the [try]-friendly error code syntax.
+	
 2009-01-31  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:	Advanced version to 1.0b7

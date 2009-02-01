@@ -40,9 +40,9 @@ namespace eval tdbc::sqlite3 {
 	set timeout 0
 	if {[llength $args] % 2 != 0} {
 	    set cmd [lrange [info level 0] 0 end-[llength $args]]
-	    return -code error "wrong # args, should be\
-                                \"$cmd ?-option value?...\"" \
-		-errorcode {TDBC GENERAL_ERROR HY000 SQLITE3 WRONGNUMARGS}
+	    return -code error \
+		-errorcode {TDBC GENERAL_ERROR HY000 SQLITE3 WRONGNUMARGS} \
+		"wrong # args, should be \"$cmd ?-option value?...\""
 	}
 	next
 	sqlite3 [namespace current]::db $databaseName
@@ -97,11 +97,11 @@ namespace eval tdbc::sqlite3 {
 		    return $timeout
 		}
 		default {
-		    return -code error "bad option \"$option\": must be\
-                                        -encoding, -isolation, -readonly\
-                                        or -timeout" \
+		    return -code error \
 			-errorcode [list TDBC GENERAL_ERROR HY000 SQLITE3 \
-					BADOPTION $option]
+					BADOPTION $option] \
+			"bad option \"$option\": must be\
+                         -encoding, -isolation, -readonly or -timeout"
 		    
 		}
 	    }
@@ -111,9 +111,10 @@ namespace eval tdbc::sqlite3 {
 	    # Syntax error
 
 	    set cmd [lrange [info level 0] 0 end-[llength $args]]
-	    return -code error "wrong # args, should be\
-                                \"$cmd ?-option value?...\"" \
-		-errorcode [list TDBC GENERAL_ERROR HY000 SQLITE3 WRONGNUMARGS]
+	    return -code error \
+		-errorcode [list TDBC GENERAL_ERROR HY000 \
+				SQLITE3 WRONGNUMARGS] \
+		"wrong # args, should be \" $cmd ?-option value?...\""
 	}
 
 	# Set one or more options
@@ -123,10 +124,11 @@ namespace eval tdbc::sqlite3 {
 		-e - -en - -enc - -enco - -encod - -encodi - -encodin - 
 		-encoding {
 		    if {$value ne {utf-8}} {
-			return -code error "-encoding not supported.\
-					    SQLite3 is always Unicode." \
+			return -code error \
 			    -errorcode [list TDBC FEATURE_NOT_SUPPORTED 0A000 \
-					    SQLITE3 ENCODING]
+					    SQLITE3 ENCODING] \
+			    "-encoding not supported. SQLite3 is always \
+                             Unicode."
 		    }
 		}
 		-i - -is - -iso - -isol - -isola - -isolat - -isolati -
@@ -150,38 +152,41 @@ namespace eval tdbc::sqlite3 {
 			    db eval {PRAGMA read_uncommitted = 0}
 			}
 			default {
-			    return -code error "bad isolation level \"$value\":\
-                                should be readuncommitted, readcommitted,\
-                                repeatableread, serializable, or readonly" \
+			    return -code error \
 				-errorcode [list TDBC GENERAL_ERROR HY000 \
-						SQLITE3 BADISOLATION $value]
+						SQLITE3 BADISOLATION $value] \
+				"bad isolation level \"$value\":\
+                                should be readuncommitted, readcommitted,\
+                                repeatableread, serializable, or readonly"
 			}
 		    }
 		}
 		-r - -re - -rea - -read - -reado - -readon - -readonl -
 		-readonly {
 		    if {$value} {
-			return -code error "SQLite3's Tcl API does not support\
-					    read-only access" \
+			return -code error \
 			    -errorcode [list TDBC FEATURE_NOT_SUPPORTED 0A000 \
-					    SQLITE3 READONLY]
+					    SQLITE3 READONLY] \
+			    "SQLite3's Tcl API does not support read-only\
+                             access"
 		    }
 		}
 		-t - -ti - -tim - -time - -timeo - -timeou - -timeout {
 		    if {![string is integer $value]} {
-			return -code error "expected integer but got \"$value\"" \
+			return -code error \
 			    -errorcode [list TDBC DATA_EXCEPTION 22018 \
-					    SQLITE3 $value]
+					    SQLITE3 $value] \
+			    "expected integer but got \"$value\""
 		    }
 		    db timeout $value
 		    set timeout $value
 		}
 		default {
-		    return -code error "bad option \"$option\": must be\
-                                        -encoding, -isolation, -readonly\
-                                        or -timeout" \
+		    return -code error \
 			-errorcode [list TDBC GENERAL_ERROR HY000 \
-					SQLITE3 BADOPTION $value]
+					SQLITE3 BADOPTION $value] \
+			"bad option \"$option\": must be\
+                         -encoding, -isolation, -readonly or -timeout"
 
 		}
 	    }
@@ -253,9 +258,10 @@ namespace eval tdbc::sqlite3 {
     # server.
 
     method preparecall {call} {
-	return -code error {SQLite3 does not support stored procedures} \
+	return -code error \
 	    -errorcode [list TDBC FEATURE_NOT_SUPPORTED 0A000 \
-			    SQLITE3 PREPARECALL]
+			    SQLITE3 PREPARECALL] \
+	    {SQLite3 does not support stored procedures}
     }
 
     # The 'begintransaction' method launches a database transaction
@@ -397,9 +403,11 @@ namespace eval tdbc::sqlite3 {
 	    set paramDict [lindex $args 0]
 	    my RunQuery
 	} else {
-	    return -code error "wrong # args: should be\
-               [lrange [info level 0] 0 1] statement ?dictionary?" \
-		-errorcode [list TDBC GENERAL_ERROR HY000 SQLITE3 WRONGNUMARGS]
+	    return -code error \
+		-errorcode [list TDBC GENERAL_ERROR HY000 \
+				SQLITE3 WRONGNUMARGS] \
+		"wrong # args: should be\
+                 [lrange [info level 0] 0 1] statement ?dictionary?"
 
 	}
 	my variable RowCount

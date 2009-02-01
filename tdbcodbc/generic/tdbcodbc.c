@@ -2323,7 +2323,7 @@ StatementInitMethod(
 	sdata->params[j].flags = PARAM_IN;
     }
     rc = SQLNumParams(sdata->hStmt, &nParams);
-    if (rc == SQL_SUCCESS && rc == SQL_SUCCESS_WITH_INFO) {
+    if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO) {
 	if (nParams != i) {
 	    Tcl_SetObjResult(interp,
 			     Tcl_NewStringObj("The SQL statement appears "
@@ -2331,7 +2331,7 @@ StatementInitMethod(
 					      "native SQL syntax. You need "
 					      "to replace them with ones "
 					      "in ':variableName' form.", -1));
-	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
+	    Tcl_SetErrorCode(interp, "TDBC", "DYNAMIC_SQL_ERROR", "07002",
 			     "ODBC", "-1", NULL);
 	    goto freeNativeSql;
 	}
@@ -2365,14 +2365,14 @@ StatementInitMethod(
 		 * workable option.
 		 */
 		if (cdata->flags && CONNECTION_FLAG_HAS_WVARCHAR) {
-		    sdata->params[j].dataType = SQL_WVARCHAR;
+		    sdata->params[i].dataType = SQL_WVARCHAR;
 		} else {
-		    sdata->params[j].dataType = SQL_VARCHAR;
+		    sdata->params[i].dataType = SQL_VARCHAR;
 		}
-		sdata->params[j].precision = 255;
-		sdata->params[j].scale = 0;
-		sdata->params[j].nullable = SQL_NULLABLE_UNKNOWN;
-		sdata->params[j].flags = PARAM_IN;
+		sdata->params[i].precision = 255;
+		sdata->params[i].scale = 0;
+		sdata->params[i].nullable = SQL_NULLABLE_UNKNOWN;
+		sdata->params[i].flags = PARAM_IN;
 	    }
 	}
     }

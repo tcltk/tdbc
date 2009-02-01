@@ -2152,7 +2152,7 @@ test tdbc::odbc-14.4 {commit - not in transaction} {*}{
 	list [catch {::db commit} result] $result $::errorCode
     }
     -match glob
-    -result {1 {no transaction is in progress} {TDBC ODBC HY010 *}}
+    -result {1 {no transaction is in progress} {TDBC GENERAL_ERROR HY010 ODBC *}}
 }
 
 test tdbc::odbc-14.5 {rollback - not in transaction} {*}{
@@ -2160,7 +2160,7 @@ test tdbc::odbc-14.5 {rollback - not in transaction} {*}{
 	list [catch {::db rollback} result] $result $::errorCode
     }
     -match glob
-    -result {1 {no transaction is in progress} {TDBC ODBC HY010 *}}
+    -result {1 {no transaction is in progress} {TDBC GENERAL_ERROR HY010 ODBC *}}
 }
 
 test tdbc::odbc-14.6 {empty transaction} {*}{
@@ -2239,7 +2239,7 @@ test tdbc::odbc-14.10 {nested transactions} {*}{
 	catch {::db rollback}
     }
     -match glob
-    -result {1 {ODBC does not support nested transactions} {TDBC ODBC HYC00 *}}
+    -result {1 {ODBC does not support nested transactions} {TDBC GENERAL_ERROR HYC00 ODBC *}}
 }
 
 #------------------------------------------------------------------------------
@@ -2635,7 +2635,7 @@ test tdbc::odbc-19.3 {$connection configure - inappropriate arg} {*}{
     -body {
 	list [catch {::db configure -parent} result] $::errorCode
     }
-    -result {1 {TDBC ODBC HY010 -1}}
+    -result {1 {TDBC GENERAL_ERROR HY010 ODBC -1}}
 }
 
 test tdbc::odbc-19.4 {$connection configure - set unknown arg} {*}{
@@ -2651,7 +2651,7 @@ test tdbc::odbc-19.5 {$connection configure - set inappropriate arg} {*}{
     -body {
 	list [catch {::db configure -parent .} result] $::errorCode
     }
-    -result {1 {TDBC ODBC HY010 -1}}
+    -result {1 {TDBC GENERAL_ERROR HY010 ODBC -1}}
 }
 
 test tdbc::odbc-19.6 {$connection configure - wrong # args} {*}{
@@ -2679,7 +2679,7 @@ test tdbc::odbc-19.8 {$connection configure - -encoding} {*}{
 	    [set errorCode]
     }
     -match glob
-    -result {1 {optional function not implemented} {TDBC ODBC HYC00 *}}
+    -result {1 {optional function not implemented} {TDBC GENERAL_ERROR HYC00 ODBC *}}
 }
 
 test tdbc::odbc-19.9 {$connection configure - -encoding} \
@@ -2942,10 +2942,11 @@ test tbdc::odbc-25.1b {error code} {*}{
 	} result] $result $::errorCode
     }
     -match glob
-    -result {1 * {TDBC GENERAL_ERROR HY000 ODBC *}}
+    -result {1 * {TDBC CONSTRAINT_VIOLATION 23000 ODBC *}}
 }
 
-test tdbc::odbc-26.1 {parameters in native form} {*}{
+test tdbc::odbc-26.1a {parameters in native form} {*}{
+    -constraints sqlite
     -body {
 	list [catch {
 	    db allrows {SELECT * from people where name = ?}
@@ -2953,6 +2954,17 @@ test tdbc::odbc-26.1 {parameters in native form} {*}{
     }
     -match glob
     -result {1 * {TDBC GENERAL_ERROR HY000 ODBC -1}}
+}
+
+test tdbc::odbc-26.1b {parameters in native form} {*}{
+    -constraints !sqlite
+    -body {
+	list [catch {
+	    db allrows {SELECT * from people where name = ?}
+	} result] $result $::errorCode
+    }
+    -match glob
+    -result {1 * {TDBC DYNAMIC_SQL_ERROR 07002 ODBC *}}
 }
 
 #-------------------------------------------------------------------------------

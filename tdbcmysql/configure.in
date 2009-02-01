@@ -213,8 +213,8 @@ AC_CHECK_HEADERS([mysql/my_global.h])
 AC_CHECK_HEADER([mysql/mysql.h], , 
     AC_MSG_ERROR("cannot find a working mysql.h"), [
 #include <stdio.h>
-#ifdef HAVE_MY_GLOBAL_H
-#include <my_global.h>
+#ifdef HAVE_MYSQL_MY_GLOBAL_H
+#include <mysql/my_global.h>
 #endif
 ])
 CPPFLAGS="${TDBCMYSQL_SAVED_CPPLFAGS}"

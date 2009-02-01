@@ -1,4 +1,16 @@
-2001-01-31  Kevin B. Kenny  <kennykb@acm.org>
+2009-02-01  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in:		Modified 'pkgIndex.tcl' rule to allow for
+				requiring the TclOO package in 8.5, and not
+				in 8.6, while allowing both versions.
+				Modified 'clean' to clean up 'pkgIndex.tcl',
+				and added the version dependencies as
+				TCL_VERSION_REQ, TCL_VERSION_DESIRED,
+				and TCLOO_VERSION_REQ.
+	* tests/tdbc.test:	Removed explicit check for {TCL WRONGARGS}
+				in ::errorCode, to restore 8.5 compatibility.
+	
+2009-01-31  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:
 	* configure.in:

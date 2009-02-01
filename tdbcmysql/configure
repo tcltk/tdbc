@@ -11937,8 +11937,8 @@ cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 
 #include <stdio.h>
-#ifdef HAVE_MY_GLOBAL_H
-#include <my_global.h>
+#ifdef HAVE_MYSQL_MY_GLOBAL_H
+#include <mysql/my_global.h>
 #endif
 
 
