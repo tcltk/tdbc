@@ -351,7 +351,9 @@ dist: dist-clean
 	cp -p $(srcdir)/library/tdbc.tcl $(DIST_DIR)/library/
 
 	mkdir $(DIST_DIR)/tests
-	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/tokenize.test \
+	cp -p $(srcdir)/tests/all.tcl \
+		$(srcdir)/tests/tdbc.test \
+		$(srcdir)/tests/tokenize.test \
 		$(DIST_DIR)/tests/
 
 	mkdir $(DIST_DIR)/tools

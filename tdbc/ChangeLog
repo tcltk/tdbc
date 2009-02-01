@@ -6,7 +6,8 @@
 				Modified 'clean' to clean up 'pkgIndex.tcl',
 				and added the version dependencies as
 				TCL_VERSION_REQ, TCL_VERSION_DESIRED,
-				and TCLOO_VERSION_REQ.
+				and TCLOO_VERSION_REQ. Added the new
+				'tests/tdbc.test' to 'make dist'.
 	* tests/tdbc.test:	Removed explicit check for {TCL WRONGARGS}
 				in ::errorCode, to restore 8.5 compatibility.
 	
