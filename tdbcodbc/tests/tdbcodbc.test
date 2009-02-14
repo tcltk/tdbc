@@ -2945,18 +2945,7 @@ test tbdc::odbc-25.1b {error code} {*}{
     -result {1 * {TDBC CONSTRAINT_VIOLATION 23000 ODBC *}}
 }
 
-test tdbc::odbc-26.1a {parameters in native form} {*}{
-    -constraints sqlite
-    -body {
-	list [catch {
-	    db allrows {SELECT * from people where name = ?}
-	} result] $result $::errorCode
-    }
-    -match glob
-    -result {1 * {TDBC GENERAL_ERROR HY000 ODBC -1}}
-}
-
-test tdbc::odbc-26.1b {parameters in native form} {*}{
+test tdbc::odbc-26.1 {parameters in native form} {*}{
     -constraints !sqlite
     -body {
 	list [catch {
@@ -2964,7 +2953,7 @@ test tdbc::odbc-26.1b {parameters in native form} {*}{
 	} result] $result $::errorCode
     }
     -match glob
-    -result {1 * {TDBC DYNAMIC_SQL_ERROR 07002 ODBC *}}
+    -result {1 * {TDBC DYNAMIC_SQL_ERROR 07002 ODBC -1}}
 }
 
 #-------------------------------------------------------------------------------

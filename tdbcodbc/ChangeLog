@@ -5,6 +5,11 @@
 	* configure:		autoconf-2.59
 	
 	* doc/tdbc_odbc.n:	Formatting changes so that man2html works.
+
+	* tests/tdbcodbc.test (tdbc::odbc-26.1):
+				Removed superfluous difference between
+				SQLite and non-SQLite tests - all now
+				return the same SQLSTATE.
 	
 2009-02-01  Kevin B. Kenny  <kennykb@acm.org>
 
