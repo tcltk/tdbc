@@ -1,3 +1,11 @@
+2009-02-14  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in:
+	* README:		Advance verwsion to 1.0b8
+	* configure:		autoconf-2.59
+	
+	* doc/tdbc_odbc.n:	Formatting changes so that man2html works.
+	
 2009-02-01  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcodbc.c (StatementInitMethod): Corrected a bad check

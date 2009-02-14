@@ -1,3 +1,11 @@
+2009-02-14  Kevin B. Kenny  <kennykb@acm.org>
+
+	* doc/tdbc_mysql.n:	Many small format changes to make 'man2html'
+				work.
+	* README:
+	* configure.in:		Advance version number to 1.0b8
+	* configure:		autoconf-2.59
+	
 2009-02-01  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcmysql.c: 

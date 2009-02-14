@@ -24,7 +24,10 @@ To advance the version number:
     tdbcsqlite3/configure - Regenerate
     tdbcsqlite3/ChangeLog
 
-(2) Commit to fossil. Tag the release. Sync.
+(2) Commit to fossil. Tag the release. Sync. Make a clean install of all four
+    packages inside a virgin Tcl/Tk.  Copy libmysql.dll into the tdbcmysql
+    lib directory, and install the sqlite3 package. Run tests against
+    the installed version.
 
 (3) make dist
 
@@ -37,3 +40,17 @@ To advance the version number:
     cvs -d:ext:kennykb@tcl.cvs.sf.net:/cvsroot/tcl -z9 \
 	import -ko tdbc tdbc tdbc-1-0b2
 
+(6) Make the Windows binary distribution and ship it.
+
+        tclsh86 ./makeWinBinaries.tcl
+
+    Result is a /tmp/dist/tdbc-${VERSION}-win32/ directory that can be
+    zipped and uploaded to SF
+
+(7) Make the HTML manual
+
+    tclsh86 tdbc/tools/tdbc-man2html.tcl \
+        --srcdir=. --htmldir=/tmp/dist/tdbc-${VERSION}-doc \
+        --tdbc --tdbcmysql --tdbcodbc --tdbcsqlite3
+
+    Result is a /tmp/dist/tdbc-doc directory containing the HTML manual.

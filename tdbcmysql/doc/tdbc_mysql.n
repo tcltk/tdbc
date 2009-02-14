@@ -62,7 +62,7 @@ package require \fBtdbc::mysql 1.0\fR
 \fBtdbc::mysql::drivers\fR
 .sp
 \fBtdbc::mysql::datasource\fR \fIcommand\fR \fIdriverName\fR ?\fIkeyword\fR-\fIvalue\fR?...
-.BEn
+.BE
 .SH "DESCRIPTION"
 .PP
 The \fBtdbc::mysql\fR driver provides a database interface that conforms
@@ -70,7 +70,7 @@ to Tcl DataBase Connectivity (TDBC) and allows a Tcl script to connect
 to a MySQL database.
 .PP
 Connection to an MYSQL database is established by invoking
-\fBtdbc::mysql::connection create\fR, passing it a pair of \fI-option-value\fB
+\fBtdbc::mysql::connection create\fR, passing it a pair of \fI-option-value\fR
 pairs. The available options are enumerated under CONNECTION OPTIONS below.
 .PP
 The side effect of \fBtdbc::mysql::connection create\fR is to create a
@@ -81,7 +81,7 @@ details of how to use the connection to manipulate a database.
 The \fBtdbc::mysql::connection create\fR object command supports the
 \fB-encoding\fR, \fB-isolation\fR, \fB-readonly\fR and \fB-timeout\fR
 options common to all TDBC drivers. The \fB-encoding\fR option will
-always fail unless the encoding is \fButf-8-fR; the database connection
+always fail unless the encoding is \fButf-8\fR; the database connection
 always uses UTF-8 encoding to be able to transfer arbitrary Unicode
 characters. The \fB-readonly\fR option must be \fB0\fR, because
 MySQL does not offer read-only connections. 
@@ -137,7 +137,7 @@ Connects to the MySQL server on the local host using the default
 connection method, presenting user ID 'joe' and password 'sesame'.
 Uses 'joes_database' as the default database name.
 .SH "SEE ALSO"
-tdbc(n), tdbc_connection(n),  tdbc_resultSet(n), tdbc_statement(n)
+tdbc(n), tdbc::connection(n), tdbc::resultset(n), tdbc::statement(n)
 .SH "KEYWORDS"
 TDBC, SQL, MySQL, database, connectivity, connection
 .SH "COPYRIGHT"

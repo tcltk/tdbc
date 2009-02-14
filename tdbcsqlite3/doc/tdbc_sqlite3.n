@@ -91,7 +91,7 @@ are implemented. Other isolation levels are promoted to
 The \fB-readonly\fR flag is not implemented. \fB-readonly 0\fR is
 accepted silently, while \fB-readonly 1\fR reports an error.
 .SH "SEE ALSO"
-tdbc(n), tdbc_connection(n),  tdbc_resultSet(n), tdbc_statement(n)
+tdbc(n), tdbc::connection(n),  tdbc::resultset(n), tdbc::statement(n)
 .SH "KEYWORDS"
 TDBC, SQL, SQLite3, database, connectivity, connection
 .SH "COPYRIGHT"

@@ -3,14 +3,15 @@
 set ver [package require tdbc]
 
 set instdir [file normalize [file join  $::tcl_library ..]]
-set pathlist [glob -types d \
+set pathlist tdbc${ver}
+lappend pathlist {*}[glob -types d \
 		  -directory $instdir \
 		  -tails 1 \
 		  {tdbc[a-z]*}]
 lappend pathlist sqlite33.6.4
 lappend pathlist tcl8/8.6/tdbc
 
-set distdir /tmp/dist/tdbc${ver}-drivers
+set distdir /tmp/dist/tdbc${ver}-win32
 file mkdir $distdir
 set f [open [file join $distdir INSTALL.tcl] w]
 puts $f {
@@ -23,7 +24,7 @@ puts $f {
 
 foreach dir $pathlist {
     file mkdir [file join $distdir $dir]
-    puts $f "file mkdir -force \[file join \$::tcl_library [list $dir]\]"
+    puts $f "file mkdir \[file join \$instdir [list $dir]\]"
     foreach file [glob -directory [file join $instdir $dir] -tails *] {
 	file copy -force [file join $instdir $dir $file] \
 	    [file join $distdir $dir $file]

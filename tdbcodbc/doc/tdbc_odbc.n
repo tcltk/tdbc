@@ -159,7 +159,7 @@ connection.
 .PP
 .CS
 set connString {DRIVER={Microsoft Access Driver (*.mdb)};}
-append connString {FIL={MS Access}\;}
+append connString {FIL={MS Access}\\;}
 append connString {DBQ=} \\
     [file nativename [file normalize $fileName]]
 tdbc::odbc::connection create db2 -readonly 1 $connString
@@ -195,7 +195,7 @@ Creates a new, empty Microsoft Access database in the file identified
 by "$fileName". No connection is made to the database until the
 program calls \fBtdbc::odbc::connection create\fR.
 .SH "SEE ALSO"
-tdbc(n), tdbc_connection(n),  tdbc_resultSet(n), tdbc_statement(n)
+tdbc(n), tdbc::connection(n),  tdbc::resultset(n), tdbc::statement(n)
 .SH "KEYWORDS"
 TDBC, SQL, ODBC, database, connectivity, connection
 .SH "COPYRIGHT"
