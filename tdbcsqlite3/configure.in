@@ -5,7 +5,7 @@ dnl	to configure the system for the local environment.
 #
 # RCS: @(#) $Id: configure.in,v 1.48 2008/11/05 00:13:00 hobbs Exp $
 
-AC_INIT([tdbcsqlite3], [1.0b8])
+AC_INIT([tdbcsqlite3], [1.0b9])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.

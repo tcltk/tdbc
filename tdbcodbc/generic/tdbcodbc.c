@@ -1328,7 +1328,6 @@ ConfigureConnection(
 
 	/* -encoding -- The ODBC encoding should be the system encoding */
 
-	fprintf(stderr, "find out encoding\n"); fflush(stderr);
 	sysEncoding = Tcl_GetEncoding(interp, NULL);
 	if (sysEncoding == NULL) {
 	    encName = "iso8859-1";
@@ -1343,7 +1342,6 @@ ConfigureConnection(
 
 	/* -isolation */
 
-	fprintf(stderr, "find out isolation\n"); fflush(stderr);
 	rc = SQLGetConnectAttr(hDBC, SQL_ATTR_TXN_ISOLATION,
 			       (SQLPOINTER) &mode, 0, NULL);
 	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
@@ -1357,7 +1355,6 @@ ConfigureConnection(
 
 	/* -readonly */
 
-	fprintf(stderr, "find out access mode\n"); fflush(stderr);
 	rc = SQLGetConnectAttr(hDBC, SQL_ATTR_ACCESS_MODE,
 			       (SQLPOINTER) &mode, 0, NULL);
 	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
@@ -1371,7 +1368,6 @@ ConfigureConnection(
 
 	/* -timeout */
 
-	fprintf(stderr, "find out timeout\n"); fflush(stderr);
 	rc = SQLGetConnectAttr(hDBC, SQL_ATTR_CONNECTION_TIMEOUT,
 			       (SQLPOINTER)&seconds, 0, NULL);
 	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
@@ -1389,7 +1385,6 @@ ConfigureConnection(
 
 	/* end of options */
 
-	fprintf(stderr, "configuration found\n"); fflush(stderr);
 	Tcl_SetObjResult(interp, retval);
 	return TCL_OK;
 

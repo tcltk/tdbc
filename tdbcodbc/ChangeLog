@@ -1,5 +1,9 @@
 2009-12-16  Kevin B. Kenny  <kennykb@acm.org>
 
+	* README:	
+	* configure.in:		Advanced version to 1.0b9
+	* configure:		autoconf-2.59
+
 	* Makefile.in: Removed useless TCL_VERSION_REQ test in the
 	               pkgIndex.tcl.
 	* generic/tdbcodbc.c (GetCell): 

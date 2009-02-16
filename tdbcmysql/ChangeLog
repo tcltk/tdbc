@@ -1,3 +1,9 @@
+2009-02-16  Kevin B. Kenny  <kennykb@acm.org>
+
+	* README:
+	* configure.in:		Advance version number to 1.0b9
+	* configure:		autoconf-2.59
+	
 2009-02-14  Kevin B. Kenny  <kennykb@acm.org>
 
 	* doc/tdbc_mysql.n:	Many small format changes to make 'man2html'
