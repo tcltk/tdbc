@@ -2,6 +2,14 @@
 
 	* Makefile.in: Removed useless TCL_VERSION_REQ test in the
 	               pkgIndex.tcl.
+	* generic/tdbcodbc.c (GetCell): 
+		Fixed bad bug in retrieving LONGVARCHAR, LONGVARBINARY,
+		CLOB, BLOB, etc. (The SQL_NO_TOTAL return was not being
+		handled, resulting in infinite loops, memory corruption,
+		or NULLS in place of the actual data.)
+	* tests/tdbcodbc.test (tdbc::odbc-27.1):
+		Added a test case for the above bug.
+		Thanks to Patrick Dunnigan for the bug report.
 	
 2009-02-14  Kevin B. Kenny  <kennykb@acm.org>
 
