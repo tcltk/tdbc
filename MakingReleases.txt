@@ -50,7 +50,13 @@ To advance the version number:
 (7) Make the HTML manual
 
     tclsh86 tdbc/tools/tdbc-man2html.tcl \
-        --srcdir=. --htmldir=/tmp/dist/tdbc-${VERSION}-doc \
+        --srcdir=. --htmldir=/tmp/dist/tdbc${VERSION}-doc \
         --tdbc --tdbcmysql --tdbcodbc --tdbcsqlite3
 
-    Result is a /tmp/dist/tdbc-doc directory containing the HTML manual.
+    Result is a /tmp/dist/tdbc${VERSION}-doc directory containing the 
+    HTML manual.
+
+(8) Sync with tdbc.tcl.tk
+
+(9) Make win32 and doc ZIPS and upload to
+    https://frs.sourceforge.net/webupload
