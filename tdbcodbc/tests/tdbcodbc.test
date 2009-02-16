@@ -2956,6 +2956,37 @@ test tdbc::odbc-26.1 {parameters in native form} {*}{
     -result {1 * {TDBC DYNAMIC_SQL_ERROR 07002 ODBC -1}}
 }
 
+test tdbc::odbc-27.1 {blobs} {*}{
+    -constraints sqlite
+    -setup {
+	db allrows {
+	    create table blobtest (
+	        id integer primary key,
+                stuff blob
+            )
+        }
+	set testblob [string repeat 0123456789abc 200]
+        db allrows {
+            insert into blobtest(id, stuff) values (1, :testblob)
+        }
+    }
+    -body {
+	set trouble {}
+	db foreach row {select id, stuff from blobtest} {
+            if {[dict get $row id] ne $testblob} {
+		set trouble       "blob is   \"[dict get $row id]\""
+                append trouble \n "should be \"" $testblob "\""
+	    }
+	}
+    }
+    -cleanup {
+	db allrows {
+	    drop table blobtest
+	}
+    }
+    -result {}
+}
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Get rid of the test database

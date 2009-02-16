@@ -15,13 +15,6 @@
 # RCS: @(#) $Id: Makefile.in,v 1.64 2007/10/23 22:08:06 hobbs Exp $
 
 #========================================================================
-# Add additional lines to handle any additional AC_SUBST cases that
-# have been added in a customized configure script.
-#========================================================================
-
-#SAMPLE_NEW_VAR	= @SAMPLE_NEW_VAR@
-
-#========================================================================
 # Nothing of the variables below this line should need to be changed.
 # Please check the TARGETS section below to make sure the make targets
 # are correct.
@@ -287,7 +280,6 @@ VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win
 pkgIndex.tcl: Makefile
 	-@echo Creating pkgIndex.tcl
 	@( \
-	echo 'if {[catch {package require Tcl $(TCL_VERSION_REQ)}]} return'; \
 	echo 'package ifneeded tdbc::odbc $(PACKAGE_VERSION) \
 	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]' \
 	) > pkgIndex.tcl

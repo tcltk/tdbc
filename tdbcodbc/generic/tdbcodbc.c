@@ -1328,6 +1328,7 @@ ConfigureConnection(
 
 	/* -encoding -- The ODBC encoding should be the system encoding */
 
+	fprintf(stderr, "find out encoding\n"); fflush(stderr);
 	sysEncoding = Tcl_GetEncoding(interp, NULL);
 	if (sysEncoding == NULL) {
 	    encName = "iso8859-1";
@@ -1342,6 +1343,7 @@ ConfigureConnection(
 
 	/* -isolation */
 
+	fprintf(stderr, "find out isolation\n"); fflush(stderr);
 	rc = SQLGetConnectAttr(hDBC, SQL_ATTR_TXN_ISOLATION,
 			       (SQLPOINTER) &mode, 0, NULL);
 	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
@@ -1355,6 +1357,7 @@ ConfigureConnection(
 
 	/* -readonly */
 
+	fprintf(stderr, "find out access mode\n"); fflush(stderr);
 	rc = SQLGetConnectAttr(hDBC, SQL_ATTR_ACCESS_MODE,
 			       (SQLPOINTER) &mode, 0, NULL);
 	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
@@ -1368,6 +1371,7 @@ ConfigureConnection(
 
 	/* -timeout */
 
+	fprintf(stderr, "find out timeout\n"); fflush(stderr);
 	rc = SQLGetConnectAttr(hDBC, SQL_ATTR_CONNECTION_TIMEOUT,
 			       (SQLPOINTER)&seconds, 0, NULL);
 	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
@@ -1385,6 +1389,7 @@ ConfigureConnection(
 
 	/* end of options */
 
+	fprintf(stderr, "configuration found\n"); fflush(stderr);
 	Tcl_SetObjResult(interp, retval);
 	return TCL_OK;
 
@@ -3559,15 +3564,16 @@ GetCell(
 				 * or NULL */
 ) {
 
+#define BUFSIZE 256
     StatementData* sdata = rdata->sdata;
     ConnectionData* cdata = sdata->cdata;
     SQLSMALLINT dataType;	/* Type of character data to retrieve */
-    SQLWCHAR colWBuf[256];	/* Buffer to hold the string value of a 
+    SQLWCHAR colWBuf[BUFSIZE+1];/* Buffer to hold the string value of a 
 				 * column */
     SQLCHAR* colBuf = (SQLCHAR*) colWBuf;
     SQLCHAR* colPtr = colBuf;	/* Pointer to the current allocated buffer
 				 * (which may have grown) */
-    SQLLEN colAllocLen = 256 * sizeof(SQLWCHAR);
+    SQLLEN colAllocLen = BUFSIZE * sizeof(SQLWCHAR);
 				/* Current allocated size of the buffer,
 				 * in bytes */
     SQLLEN colLen;		/* Actual size of the return value, in bytes */
@@ -3579,6 +3585,8 @@ GetCell(
     SQLRETURN rc;		/* ODBC result code */
     int retry;			/* Flag that the last ODBC operation should
 				 * be retried */
+    SQLINTEGER offset;		/* Offset in the buffer for retrying large
+				 * object operations */
 
     colObj = NULL;
     *colObjPtr = NULL;
@@ -3711,24 +3719,46 @@ GetCell(
 
     convertString:
 	/* Anything else is converted as a string */
-	retry = 0;
+	offset = 0;
 	do {
+	    retry = 0;
 	    /* 
 	     * It's possible that SQLGetData won't update colLen if
 	     * SQL_ERROR is returned. Store a background of zero so
 	     * that it's always initialized.
 	     */
 	    colLen = 0;
+
+	    /* Try to get the string */
+
 	    rc = SQLGetData(rdata->hStmt, i+1, dataType,
-			    (SQLPOINTER) colPtr, colAllocLen,
+			    (SQLPOINTER) (((char*)colPtr)+offset),
+			    colAllocLen-offset,
 			    &colLen);
-	    if (colLen >= colAllocLen) {
-		colAllocLen = 2 * colLen + sizeof(SQLWCHAR);
-		if (colPtr != colBuf) {
-		    ckfree((char*) colPtr);
+	    if (rc == SQL_SUCCESS_WITH_INFO
+		&& SQLStateIs(SQL_HANDLE_STMT, rdata->hStmt, "01004")) {
+		/*
+		 * The requested buffer was too small to hold the
+		 * data. 
+		 */
+		offset = colAllocLen;
+		if (colLen == SQL_NO_TOTAL) {
+		    /*
+		     * The driver wouldn't tell us how much space was
+		     * needed, but we got a full bufferload (less the
+		     * terminating NULL character)
+		     */
+		    colAllocLen = 2 * colAllocLen;
+		} else {
+		    colAllocLen += colLen;
 		}
-		colPtr = (SQLCHAR*)
-		    ckalloc(colAllocLen);
+		if (colPtr == colBuf) {
+		    colPtr = (SQLCHAR*) ckalloc(colAllocLen + sizeof(SQLWCHAR));
+		    memcpy(colPtr, colBuf, BUFSIZE * sizeof(SQLWCHAR));
+		} else {
+		    colPtr = (SQLCHAR*)
+			ckrealloc((char*)colPtr, colAllocLen + sizeof(SQLWCHAR));
+		}
 		retry = 1;
 	    }
 	} while (retry);
@@ -3745,14 +3775,16 @@ GetCell(
 	    Tcl_DStringInit(&colDS);
 	    if (dataType == SQL_C_BINARY) {
 		colObj = Tcl_NewByteArrayObj((const unsigned char*) colPtr,
-					     (int) colLen);
+					     (int) (colLen + offset));
 	    } else {
 		if (dataType == SQL_C_CHAR) {
-		    Tcl_ExternalToUtfDString(NULL, (char*) colPtr, (int)colLen,
+		    Tcl_ExternalToUtfDString(NULL, (char*) colPtr,
+					     (int) (colLen + offset),
 					     &colDS);
 		} else {
 		    DStringAppendWChars(&colDS, (SQLWCHAR*) colPtr,
-					(int)(colLen / sizeof(SQLWCHAR)));
+					(int)((colLen + offset)
+					      / sizeof(SQLWCHAR)));
 		}
 		colObj = Tcl_NewStringObj(Tcl_DStringValue(&colDS),
 					  Tcl_DStringLength(&colDS));
