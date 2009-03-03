@@ -169,6 +169,8 @@ typedef struct ConnectionData {
 
 typedef struct StatementData {
     int refCount;		/* Reference count */
+    Tcl_Object connectionObject;
+				/* The connection object */
     ConnectionData* cdata;	/* Data for the connection to which this
 				 * statement pertains. */
     Tcl_Obj* subVars;	        /* List of variables to be substituted, in the
@@ -386,9 +388,9 @@ static int ConfigureConnection(Tcl_Interp* interp,
 			       int objc, Tcl_Obj *CONST objv[],
 			       SQLUSMALLINT* connectFlagsPtr,
 			       HWND* hParentWindowPtr);
-static int ConnectionInitMethod(ClientData clientData, Tcl_Interp* interp,
-				Tcl_ObjectContext context,
-				int objc, Tcl_Obj *const objv[]);
+static int ConnectionConstructor(ClientData clientData, Tcl_Interp* interp,
+				 Tcl_ObjectContext context,
+				 int objc, Tcl_Obj *const objv[]);
 static int ConnectionBeginTransactionMethod(ClientData clientData,
 					    Tcl_Interp* interp,
 					    Tcl_ObjectContext context,
@@ -414,32 +416,37 @@ static void DeleteConnectionMetadata(ClientData clientData);
 static void DeleteConnection(ConnectionData* cdata);
 static int CloneConnection(Tcl_Interp* interp, ClientData oldClientData,
 			   ClientData* newClientData);
-static StatementData* NewStatement(ConnectionData* cdata);
-static int StatementInitMethod(ClientData clientData, Tcl_Interp* interp,
-			       Tcl_ObjectContext context,
-			       int objc, Tcl_Obj *const objv[]);
+static StatementData* NewStatement(ConnectionData* cdata,
+				   Tcl_Object connectionObject);
+static int StatementConstructor(ClientData clientData, Tcl_Interp* interp,
+				Tcl_ObjectContext context,
+				int objc, Tcl_Obj *const objv[]);
+static int StatementConnectionMethod(ClientData clientData, Tcl_Interp* interp,
+				     Tcl_ObjectContext context,
+				     int objc, Tcl_Obj *const objv[]);
 static int StatementParamListMethod(ClientData clientData, Tcl_Interp* interp,
 				    Tcl_ObjectContext context,
 				    int objc, Tcl_Obj *const objv[]);
 static int StatementParamtypeMethod(ClientData clientData, Tcl_Interp* interp,
 				    Tcl_ObjectContext context,
 				    int objc, Tcl_Obj *const objv[]);
-static int TablesStatementInitMethod(ClientData clientData, Tcl_Interp* interp,
-				     Tcl_ObjectContext context,
-				     int objc, Tcl_Obj *const objv[]);
-static int ColumnsStatementInitMethod(ClientData clientData, Tcl_Interp* interp,
+static int TablesStatementConstructor(ClientData clientData, Tcl_Interp* interp,
 				      Tcl_ObjectContext context,
 				      int objc, Tcl_Obj *const objv[]);
-static int TypesStatementInitMethod(ClientData clientData, Tcl_Interp* interp,
-				    Tcl_ObjectContext context,
-				    int objc, Tcl_Obj *const objv[]);
+static int ColumnsStatementConstructor(ClientData clientData,
+				       Tcl_Interp* interp,
+				       Tcl_ObjectContext context,
+				       int objc, Tcl_Obj *const objv[]);
+static int TypesStatementConstructor(ClientData clientData, Tcl_Interp* interp,
+				     Tcl_ObjectContext context,
+				     int objc, Tcl_Obj *const objv[]);
 static void DeleteStatementMetadata(ClientData clientData);
 static void DeleteStatement(StatementData* sdata);
 static int CloneStatement(Tcl_Interp* interp, ClientData oldClientData,
 			  ClientData* newClientData);
-static int ResultSetInitMethod(ClientData clientData, Tcl_Interp* interp,
-			       Tcl_ObjectContext context,
-			       int objc, Tcl_Obj *const objv[]);
+static int ResultSetConstructor(ClientData clientData, Tcl_Interp* interp,
+				Tcl_ObjectContext context,
+				int objc, Tcl_Obj *const objv[]);
 static int ResultSetColumnsMethod(ClientData clientData, Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
@@ -497,11 +504,11 @@ const static Tcl_ObjectMetadataType resultSetDataType = {
 
 /* Method types of the connection methods that are implemented in C */
 
-const static Tcl_MethodType ConnectionInitMethodType = {
+const static Tcl_MethodType ConnectionConstructorType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init",			/* name */
-    ConnectionInitMethod,	/* callProc */
+    "CONSTRUCTOR",		/* name */
+    ConnectionConstructor,	/* callProc */
     DeleteCmd,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
@@ -554,11 +561,19 @@ const static Tcl_MethodType* ConnectionMethods[] = {
 
 /* Method types of the statement methods that are implemented in C */
 
-const static Tcl_MethodType StatementInitMethodType = {
+const static Tcl_MethodType StatementConstructorType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init",			/* name */
-    StatementInitMethod,	/* callProc */
+    "CONSTRUCTOR",		/* name */
+    StatementConstructor,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType StatementConnectionMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "connection",		/* name */
+    StatementConnectionMethod,	/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
@@ -584,31 +599,24 @@ const static Tcl_MethodType StatementParamtypeMethodType = {
  */
 
 const static Tcl_MethodType* StatementMethods[] = {
-    &StatementInitMethodType,
+    &StatementConnectionMethodType,
     &StatementParamListMethodType,
     &StatementParamtypeMethodType,
     NULL
 };
 
 /*
- * Method types for the class that implements the fake 'statement'
+ * Constructor type for the class that implements the fake 'statement'
  * used to query the names and attributes of database tables.
  */
 
-const static Tcl_MethodType TablesStatementInitMethodType = {
+const static Tcl_MethodType TablesStatementConstructorType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init",			/* name */
-    TablesStatementInitMethod,	/* callProc */
+    "CONSTRUCTOR",		/* name */
+    TablesStatementConstructor,	/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
-};
-
-/* Table of methods to instantiate on the 'tablesStatement' class */
-
-const static Tcl_MethodType* TablesStatementMethods[] = {
-    &TablesStatementInitMethodType,
-    NULL
 };
 
 /*
@@ -616,50 +624,37 @@ const static Tcl_MethodType* TablesStatementMethods[] = {
  * used to query the names and attributes of database columns.
  */
 
-const static Tcl_MethodType ColumnsStatementInitMethodType = {
+const static Tcl_MethodType ColumnsStatementConstructorType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init",			/* name */
-    ColumnsStatementInitMethod,	/* callProc */
+    "CONSTRUCTOR",		/* name */
+    ColumnsStatementConstructor,
+				/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
-};
-
-/* Table of methods to instantiate on the 'columnsStatement' class */
-
-const static Tcl_MethodType* ColumnsStatementMethods[] = {
-    &ColumnsStatementInitMethodType,
-    NULL
 };
 
 /*
- * Method types for the class that implements the fake 'statement'
+ * Constructor type for the class that implements the fake 'statement'
  * used to query the names and attributes of database types.
  */
 
-const static Tcl_MethodType TypesStatementInitMethodType = {
+const static Tcl_MethodType TypesStatementConstructorType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init",			/* name */
-    &TypesStatementInitMethod,	/* callProc */
+    "CONSTRUCTOR",		/* name */
+    &TypesStatementConstructor,	/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
-};
-
-/* Table of methods to instantiate on the 'typesStatement' class */
-
-const static Tcl_MethodType* TypesStatementMethods[] = {
-    &TypesStatementInitMethodType,
-    NULL
 };
 
 /* Method types of the result set methods that are implemented in C */
 
-const static Tcl_MethodType ResultSetInitMethodType = {
+const static Tcl_MethodType ResultSetConstructorType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init",			/* name */
-    ResultSetInitMethod,	/* callProc */
+    "CONSTRUCTOR",		/* name */
+    ResultSetConstructor,	/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
@@ -689,7 +684,6 @@ const static Tcl_MethodType ResultSetRowcountMethodType = {
 
 
 const static Tcl_MethodType* ResultSetMethods[] = {
-    &ResultSetInitMethodType,
     &ResultSetColumnsMethodType,
     &ResultSetRowcountMethodType,
     NULL
@@ -1636,22 +1630,23 @@ ConfigureConnection(
 /*
  *-----------------------------------------------------------------------------
  *
- * ConnectionInitMethod --
+ * ConnectionConstructor --
  *
  *	Initializer for ::tdbc::odbc::connection, which represents a
  *	database connection.
  *
+ * Parameters:
+ *	Accepts a connection string followed by alternating keywords
+ *	and values. Refer to the manual page for the acceptable options.
+ *
  * Results:
  *	Returns a standard Tcl result.
- *
- * The ConnectionInitMethod takes the same arguments that the connection's
- * constructor does, and attempts to connect to the database. 
  *
  *-----------------------------------------------------------------------------
  */
 
 static int
-ConnectionInitMethod(
+ConnectionConstructor(
     ClientData clientData,	/* Environment handle */
     Tcl_Interp* interp,		/* Tcl interpreter */
     Tcl_ObjectContext objectContext, /* Object context */
@@ -1660,7 +1655,10 @@ ConnectionInitMethod(
 ) {
     PerInterpData* pidata = (PerInterpData*) clientData;
 				/* Per-interp data for the ODBC package */
-    Tcl_Object thisObject;	/* The current connection object */
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    int skip = Tcl_ObjectContextSkippedArgs(objectContext);
+				/* Number of leading args to skip */
     SQLHDBC hDBC;		/* Handle to the database connection */
     SQLRETURN rc;		/* Return code from ODBC calls */
     HWND hParentWindow = NULL;	/* Windows handle of the main window */
@@ -1678,14 +1676,13 @@ ConnectionInitMethod(
 				/* Driver options */
     ConnectionData *cdata;	/* Client data for the connection object */
 
-    thisObject = Tcl_ObjectContextObject(objectContext);
 
     /*
      * Check param count
      */
 
-    if (objc < 3 || (objc%2) != 1) {
-	Tcl_WrongNumArgs(interp, 2, objv,
+    if (objc < skip+1 || ((objc-skip) % 2) != 1) {
+	Tcl_WrongNumArgs(interp, skip, objv,
 			 "connection-string ?-option value?...");
 	return TCL_ERROR;
     }
@@ -1705,8 +1702,8 @@ ConnectionInitMethod(
      * Grab configuration options.
      */
 
-    if (objc > 3 
-	&& ConfigureConnection(interp, hDBC, pidata, objc-3, objv+3,
+    if (objc > skip+1
+	&& ConfigureConnection(interp, hDBC, pidata, objc-skip-1, objv+skip+1,
 			       &connectFlags, &hParentWindow) != TCL_OK) {
 	SQLFreeHandle(SQL_HANDLE_DBC, hDBC);
 	return TCL_ERROR;
@@ -1716,7 +1713,7 @@ ConnectionInitMethod(
      * Connect to the database (SQLConnect, SQLDriverConnect, SQLBrowseConnect)
      */
 
-    connectionStringReq = GetWCharStringFromObj(objv[2],
+    connectionStringReq = GetWCharStringFromObj(objv[skip],
 						&connectionStringReqLen);
     rc = SQLDriverConnectW(hDBC, hParentWindow, connectionStringReq,
 			   (SQLSMALLINT) connectionStringReqLen,
@@ -2154,11 +2151,13 @@ CloneConnection(
 
 static StatementData*
 NewStatement(
-    ConnectionData* cdata	/* Instance data for the connection */
+    ConnectionData* cdata,	/* Instance data for the connection */
+    Tcl_Object connectionObject	/* Object handle wrapping the instance */
 ) {
     StatementData* sdata = (StatementData*) ckalloc(sizeof(StatementData));
     sdata->refCount = 1;
     sdata->cdata = cdata;
+    sdata->connectionObject = connectionObject;
     IncrConnectionRefCount(cdata);
     sdata->subVars = Tcl_NewObj();
     Tcl_IncrRefCount(sdata->subVars);
@@ -2178,13 +2177,13 @@ NewStatement(
 /*
  *-----------------------------------------------------------------------------
  *
- * StatementInitMethod --
+ * StatementConstructor --
  *
  *	C-level initialization for the object representing an ODBC prepared
  *	statement.
  *
  * Parameters:
- *	Accepts a 4-element 'objv': $object init $connection $statementText,
+ *	Accepts a 4-element 'objv': statement new $connection $statementText,
  *	where $connection is the ODBC connection object, and $statementText
  *	is the text of the statement to prepare.
  *
@@ -2199,7 +2198,7 @@ NewStatement(
  */
 
 static int
-StatementInitMethod(
+StatementConstructor(
     ClientData clientData,	/* Not used */
     Tcl_Interp* interp,		/* Tcl interpreter */
     Tcl_ObjectContext context,	/* Object context  */
@@ -2207,7 +2206,10 @@ StatementInitMethod(
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
 
-    Tcl_Object thisObject;	/* The current statement object */
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* The number of args to skip */
     Tcl_Object connectionObject;
 				/* The database connection as a Tcl_Object */
     ConnectionData* cdata;	/* The connection object's data */
@@ -2224,20 +2226,19 @@ StatementInitMethod(
 
     /* Find the connection object, and get its data. */
 
-    thisObject = Tcl_ObjectContextObject(context);
-    if (objc != 4) {
-	Tcl_WrongNumArgs(interp, 2, objv, "connection statementText");
+    if (objc != skip+2) {
+	Tcl_WrongNumArgs(interp, skip, objv, "connection statementText");
 	return TCL_ERROR;
     }
 
-    connectionObject = Tcl_GetObjectFromObj(interp, objv[2]);
+    connectionObject = Tcl_GetObjectFromObj(interp, objv[skip]);
     if (connectionObject == NULL) {
 	return TCL_ERROR;
     }
     cdata = (ConnectionData*) Tcl_ObjectGetMetadata(connectionObject,
 						    &connectionDataType);
     if (cdata == NULL) {
-	Tcl_AppendResult(interp, Tcl_GetString(objv[2]),
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
 			 " does not refer to an ODBC connection", NULL);
 	return TCL_ERROR;
     }
@@ -2246,11 +2247,11 @@ StatementInitMethod(
      * Allocate an object to hold data about this statement
      */
 
-    sdata = NewStatement(cdata);
+    sdata = NewStatement(cdata, connectionObject);
 
     /* Tokenize the statement */
 
-    tokens = Tdbc_TokenizeSql(interp, Tcl_GetString(objv[3]));
+    tokens = Tdbc_TokenizeSql(interp, Tcl_GetString(objv[skip+1]));
     if (tokens == NULL) {
 	goto freeSData;
     }
@@ -2391,6 +2392,49 @@ StatementInitMethod(
  freeSData:
     DecrStatementRefCount(sdata);
     return TCL_ERROR;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StatementConnectionMethod --
+ *
+ *	Retrieves the handle of the connection to which a statement belongs
+ *
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns the connection handle
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StatementConnectionMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    StatementData* sdata;	/* The current statement */
+    Tcl_Object connectionObject;
+				/* The object representing the connection */
+    Tcl_Command connectionCommand;
+				/* The command representing the object */
+    Tcl_Obj* retval = Tcl_NewObj();
+				/* The command name */
+
+    sdata = (StatementData*) Tcl_ObjectGetMetadata(thisObject,
+						   &statementDataType);
+    connectionObject = sdata->connectionObject;
+    connectionCommand = Tcl_GetObjectCommand(connectionObject);
+    Tcl_GetCommandFullName(interp, connectionCommand, retval);
+    Tcl_SetObjResult(interp, retval);
+    return TCL_OK;
 }
 
 /*
@@ -2574,7 +2618,7 @@ StatementParamtypeMethod(
 /*
  *-----------------------------------------------------------------------------
  *
- * TablesStatementInitMethod --
+ * TablesStatementConstructor --
  *
  *	C-level initialization for the object representing an ODBC query
  *	for table metadata
@@ -2595,7 +2639,7 @@ StatementParamtypeMethod(
  */
 
 static int
-TablesStatementInitMethod(
+TablesStatementConstructor(
     ClientData clientData,	/* Not used */
     Tcl_Interp* interp,		/* Tcl interpreter */
     Tcl_ObjectContext context,	/* Object context  */
@@ -2603,7 +2647,10 @@ TablesStatementInitMethod(
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
 
-    Tcl_Object thisObject;	/* The current statement object */
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* The number of initial args to this call */
     Tcl_Object connectionObject;
 				/* The database connection as a Tcl_Object */
     ConnectionData* cdata;	/* The connection object's data */
@@ -2612,20 +2659,19 @@ TablesStatementInitMethod(
 
     /* Find the connection object, and get its data. */
 
-    thisObject = Tcl_ObjectContextObject(context);
-    if (objc != 4) {
-	Tcl_WrongNumArgs(interp, 2, objv, "connection pattern");
+    if (objc != skip+2) {
+	Tcl_WrongNumArgs(interp, skip, objv, "connection pattern");
 	return TCL_ERROR;
     }
 
-    connectionObject = Tcl_GetObjectFromObj(interp, objv[2]);
+    connectionObject = Tcl_GetObjectFromObj(interp, objv[skip]);
     if (connectionObject == NULL) {
 	return TCL_ERROR;
     }
     cdata = (ConnectionData*) Tcl_ObjectGetMetadata(connectionObject,
 						    &connectionDataType);
     if (cdata == NULL) {
-	Tcl_AppendResult(interp, Tcl_GetString(objv[2]),
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
 			 " does not refer to an ODBC connection", NULL);
 	return TCL_ERROR;
     }
@@ -2634,7 +2680,7 @@ TablesStatementInitMethod(
      * Allocate an object to hold data about this statement
      */
 
-    sdata = NewStatement(cdata);
+    sdata = NewStatement(cdata, connectionObject);
 
     /* Allocate an ODBC statement handle */
 
@@ -2650,7 +2696,8 @@ TablesStatementInitMethod(
      * that's what we have there.
      */
 
-    sdata->nativeSqlW = GetWCharStringFromObj(objv[3], &(sdata->nativeSqlLen));
+    sdata->nativeSqlW = GetWCharStringFromObj(objv[skip+1],
+					      &(sdata->nativeSqlLen));
     sdata->nativeMatchPatternW = NULL;
     sdata->flags |= STATEMENT_FLAG_TABLES;
 
@@ -2669,13 +2716,14 @@ TablesStatementInitMethod(
 /*
  *-----------------------------------------------------------------------------
  *
- * ColumnsStatementInitMethod --
+ * ColumnsStatementConstructor --
  *
  *	C-level initialization for the object representing an ODBC query
  *	for column metadata
  *
  * Parameters:
- *	Accepts a 5-element 'objv': $object init $connection $table $pattern,
+ *	Accepts a 5-element 'objv': 
+ *		columnsStatement new $connection $table $pattern,
  *	where $connection is the ODBC connection object, $table is the
  *	name of the table being queried, and $pattern is the pattern to
  *	match column names.
@@ -2691,7 +2739,7 @@ TablesStatementInitMethod(
  */
 
 static int
-ColumnsStatementInitMethod(
+ColumnsStatementConstructor(
     ClientData clientData,	/* Not used */
     Tcl_Interp* interp,		/* Tcl interpreter */
     Tcl_ObjectContext context,	/* Object context  */
@@ -2699,29 +2747,34 @@ ColumnsStatementInitMethod(
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
 
-    Tcl_Object thisObject;	/* The current statement object */
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* The number of parameters to skip */
     Tcl_Object connectionObject;
 				/* The database connection as a Tcl_Object */
     ConnectionData* cdata;	/* The connection object's data */
     StatementData* sdata;	/* The statement's object data */
     RETCODE rc;			/* Return code from ODBC */
 
-    /* Find the connection object, and get its data. */
 
-    thisObject = Tcl_ObjectContextObject(context);
-    if (objc != 5) {
-	Tcl_WrongNumArgs(interp, 2, objv, "connection tableName pattern");
+    /* Check param count */
+
+    if (objc != skip+3) {
+	Tcl_WrongNumArgs(interp, skip, objv, "connection tableName pattern");
 	return TCL_ERROR;
     }
 
-    connectionObject = Tcl_GetObjectFromObj(interp, objv[2]);
+    /* Find the connection object, and get its data. */
+
+    connectionObject = Tcl_GetObjectFromObj(interp, objv[skip]);
     if (connectionObject == NULL) {
 	return TCL_ERROR;
     }
     cdata = (ConnectionData*) Tcl_ObjectGetMetadata(connectionObject,
 						    &connectionDataType);
     if (cdata == NULL) {
-	Tcl_AppendResult(interp, Tcl_GetString(objv[2]),
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
 			 " does not refer to an ODBC connection", NULL);
 	return TCL_ERROR;
     }
@@ -2730,7 +2783,7 @@ ColumnsStatementInitMethod(
      * Allocate an object to hold data about this statement
      */
 
-    sdata = NewStatement(cdata);
+    sdata = NewStatement(cdata, connectionObject);
 
     /* Allocate an ODBC statement handle */
 
@@ -2746,13 +2799,13 @@ ColumnsStatementInitMethod(
      * and set a flag that that's what we have there.
      */
 
-    sdata->nativeSqlW = GetWCharStringFromObj(objv[3], &(sdata->nativeSqlLen));
+    sdata->nativeSqlW = GetWCharStringFromObj(objv[skip+1],
+					      &(sdata->nativeSqlLen));
     sdata->nativeMatchPatternW =
-	GetWCharStringFromObj(objv[4], &(sdata->nativeMatchPatLen));
+	GetWCharStringFromObj(objv[skip+2], &(sdata->nativeMatchPatLen));
     sdata->flags = STATEMENT_FLAG_COLUMNS;
 
     /* Attach the current statement data as metadata to the current object */
-
 
     Tcl_ObjectSetMetadata(thisObject, &statementDataType, (ClientData) sdata);
     return TCL_OK;
@@ -2767,13 +2820,14 @@ ColumnsStatementInitMethod(
 /*
  *-----------------------------------------------------------------------------
  *
- * TypesStatementInitMethod --
+ * TypesStatementConstructor --
  *
  *	C-level initialization for the object representing an ODBC query
  *	for data type metadata
  *
  * Parameters:
- *	Accepts a 3- or 4-element 'objv': $object init $connection ?$typeNum?
+ *	Accepts a 3- or 4-element 'objv': 
+ *		typesStatement new $connection ?$typeNum?
  *	where $connection is the ODBC connection object, and $typeNum,
  *	if present, makes the query match only the given type.
  *
@@ -2788,7 +2842,7 @@ ColumnsStatementInitMethod(
  */
 
 static int
-TypesStatementInitMethod(
+TypesStatementConstructor(
     ClientData clientData,	/* Not used */
     Tcl_Interp* interp,		/* Tcl interpreter */
     Tcl_ObjectContext context,	/* Object context  */
@@ -2796,7 +2850,10 @@ TypesStatementInitMethod(
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
 
-    Tcl_Object thisObject;	/* The current statement object */
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* The number of leading args to skip */
     Tcl_Object connectionObject;
 				/* The database connection as a Tcl_Object */
     ConnectionData* cdata;	/* The connection object's data */
@@ -2806,28 +2863,27 @@ TypesStatementInitMethod(
 
     /* Parse args */
 
-    if (objc == 3) {
+    if (objc == skip+1) {
 	typeNum = SQL_ALL_TYPES;
-    } else if (objc == 4) {
-	if (Tcl_GetIntFromObj(interp, objv[3], &typeNum) != TCL_OK) {
+    } else if (objc == skip+2) {
+	if (Tcl_GetIntFromObj(interp, objv[skip+1], &typeNum) != TCL_OK) {
 	    return TCL_ERROR;
 	} 
     } else {
-	Tcl_WrongNumArgs(interp, 2, objv, "connection ?typeNum?");
+	Tcl_WrongNumArgs(interp, skip, objv, "connection ?typeNum?");
 	return TCL_ERROR;
     }
 
     /* Find the connection object, and get its data. */
 
-    thisObject = Tcl_ObjectContextObject(context);
-    connectionObject = Tcl_GetObjectFromObj(interp, objv[2]);
+    connectionObject = Tcl_GetObjectFromObj(interp, objv[skip]);
     if (connectionObject == NULL) {
 	return TCL_ERROR;
     }
     cdata = (ConnectionData*) Tcl_ObjectGetMetadata(connectionObject,
 						    &connectionDataType);
     if (cdata == NULL) {
-	Tcl_AppendResult(interp, Tcl_GetString(objv[2]),
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
 			 " does not refer to an ODBC connection", NULL);
 	return TCL_ERROR;
     }
@@ -2836,7 +2892,7 @@ TypesStatementInitMethod(
      * Allocate an object to hold data about this statement
      */
 
-    sdata = NewStatement(cdata);
+    sdata = NewStatement(cdata, connectionObject);
 
     /* Allocate an ODBC statement handle */
 
@@ -2947,14 +3003,16 @@ CloneStatement(
 /*
  *-----------------------------------------------------------------------------
  *
- * ResultSetInitMethod --
+ * ResultSetConstructor --
  *
  *	Constructs a new result set.
  *
  * Usage:
- *	$resultSet init statement ?dictionary?
+ *	$resultSet new statement ?dictionary?
+ *	$resultSet create name statement ?dictionary?
  *
  * Parameters:
+ *	statement -- The statement object to which the result set belongs
  *	dictionary -- Dictionary containing the substitutions for named
  *		      parameters in the given statement.
  *
@@ -2966,7 +3024,7 @@ CloneStatement(
  */
 
 static int
-ResultSetInitMethod(
+ResultSetConstructor(
     ClientData clientData,	/* Not used */
     Tcl_Interp* interp,		/* Tcl interpreter */
     Tcl_ObjectContext context,	/* Object context  */
@@ -2976,6 +3034,9 @@ ResultSetInitMethod(
 
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current result set object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* Number of skipped args in the
+				 * method invocation */
     Tcl_Object statementObject;	/* The current statement object */
     PerInterpData* pidata;	/* The per-interpreter data for this package */
     ConnectionData* cdata;	/* The ODBC connection object's data */
@@ -3002,21 +3063,25 @@ ResultSetInitMethod(
 
     /* Check parameter count */
 
-    if (objc != 3 && objc != 4) {
-	Tcl_WrongNumArgs(interp, 2, objv, "statement ?dictionary?");
+    if (objc != skip+1 && objc != skip+2) {
+	Tcl_WrongNumArgs(interp, skip, objv, "statement ?dictionary?");
 	return TCL_ERROR;
     }
 
+    /* Initialize superclasses */
+
+    Tcl_ObjectContextInvokeNext(interp, context, skip, objv, skip);
+
     /* Find the statement object, and get the statement data */
 
-    statementObject = Tcl_GetObjectFromObj(interp, objv[2]);
+    statementObject = Tcl_GetObjectFromObj(interp, objv[skip]);
     if (statementObject == NULL) {
 	return TCL_ERROR;
     }
     sdata = (StatementData*) Tcl_ObjectGetMetadata(statementObject,
 						   &statementDataType);
     if (sdata == NULL) {
-	Tcl_AppendResult(interp, Tcl_GetString(objv[2]),
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
 			 " does not refer to an ODBC statement", NULL);
 	return TCL_ERROR;
     }
@@ -3077,11 +3142,11 @@ ResultSetInitMethod(
     for (nBound = 0; nBound < nParams; ++nBound) {
 	Tcl_ListObjIndex(NULL, sdata->subVars, nBound, &paramNameObj);
 	paramName = Tcl_GetString(paramNameObj);
-	if (objc == 4) {
+	if (objc == skip+2) {
 
 	    /* Param from a dictionary */
 
-	    if (Tcl_DictObjGet(interp, objv[3], paramNameObj, &paramValObj)
+	    if (Tcl_DictObjGet(interp, objv[skip+1], paramNameObj, &paramValObj)
 		!= TCL_OK) {
 		return TCL_ERROR;
 	    }
@@ -4527,7 +4592,7 @@ Tdbcodbc_Init(
     }
 
     /* 
-     * Find the connection class, and attach an 'init' method to
+     * Find the connection class, and attach the constructor to
      * it. Hold the SQLENV in the method's client data.
      */
 
@@ -4539,11 +4604,10 @@ Tdbcodbc_Init(
     }
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
-    nameObj = Tcl_NewStringObj("init", -1);
-    Tcl_IncrRefCount(nameObj);
-    Tcl_NewMethod(interp, curClass, nameObj, 0, &ConnectionInitMethodType,
-		       (ClientData) pidata);
-    Tcl_DecrRefCount(nameObj);
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 0,
+					  &ConnectionConstructorType,
+					  (ClientData) pidata));
 
     /* Attach the other methods to the connection class */
 
@@ -4576,6 +4640,13 @@ Tdbcodbc_Init(
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
 
+    /* Attach the constructor to the 'statement' class */
+
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &StatementConstructorType,
+					  (ClientData) NULL));
+
     /* Attach the methods to the 'statement' class */
 
     for (i = 0; StatementMethods[i] != NULL; ++i) {
@@ -4597,15 +4668,12 @@ Tdbcodbc_Init(
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
 
-    /* Attach the methods to the 'tablesStatement' class */
+    /* Attach the constructor to the 'tablesStatement' class */
 
-    for (i = 0; TablesStatementMethods[i] != NULL; ++i) {
-	nameObj = Tcl_NewStringObj(TablesStatementMethods[i]->name, -1);
-	Tcl_IncrRefCount(nameObj);
-	Tcl_NewMethod(interp, curClass, nameObj, 1,
-			   TablesStatementMethods[i], (ClientData) NULL);
-	Tcl_DecrRefCount(nameObj);
-    }
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &TablesStatementConstructorType,
+					  (ClientData) NULL));
 
     /* Look up the 'columnsStatement' class */
 
@@ -4618,15 +4686,12 @@ Tdbcodbc_Init(
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
 
-    /* Attach the methods to the 'columnsStatement' class */
+    /* Attach the constructor to the 'columnsStatement' class */
 
-    for (i = 0; ColumnsStatementMethods[i] != NULL; ++i) {
-	nameObj = Tcl_NewStringObj(ColumnsStatementMethods[i]->name, -1);
-	Tcl_IncrRefCount(nameObj);
-	Tcl_NewMethod(interp, curClass, nameObj, 1,
-			   ColumnsStatementMethods[i], (ClientData) NULL);
-	Tcl_DecrRefCount(nameObj);
-    }
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &ColumnsStatementConstructorType,
+					  (ClientData) NULL));
 
     /* Look up the 'typesStatement' class */
 
@@ -4639,15 +4704,12 @@ Tdbcodbc_Init(
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
 
-    /* Attach the methods to the 'typesStatement' class */
+    /* Attach the constructor to the 'typesStatement' class */
 
-    for (i = 0; TypesStatementMethods[i] != NULL; ++i) {
-	nameObj = Tcl_NewStringObj(TypesStatementMethods[i]->name, -1);
-	Tcl_IncrRefCount(nameObj);
-	Tcl_NewMethod(interp, curClass, nameObj, 1,
-			   TypesStatementMethods[i], (ClientData) NULL);
-	Tcl_DecrRefCount(nameObj);
-    }
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &TypesStatementConstructorType,
+					  (ClientData) NULL));
 
     /* Look up the 'resultSet' class */
 
@@ -4659,6 +4721,13 @@ Tdbcodbc_Init(
     }
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
+
+    /* Attach the constructor to the 'resultSet' class */
+
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &ResultSetConstructorType,
+					  (ClientData) NULL));
 
     /* Attach the methods to the 'resultSet' class */
 

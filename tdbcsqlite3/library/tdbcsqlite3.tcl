@@ -31,12 +31,11 @@ namespace eval tdbc::sqlite3 {
 
     superclass ::tdbc::connection
 
+    variable timeout
+
     # The constructor accepts a database name and opens the database.
 
     constructor {databaseName args} {
-	my variable statementClass
-	my variable timeout
-	set statementClass ::tdbc::sqlite3::statement
 	set timeout 0
 	if {[llength $args] % 2 != 0} {
 	    set cmd [lrange [info level 0] 0 end-[llength $args]]
@@ -52,10 +51,14 @@ namespace eval tdbc::sqlite3 {
 	db nullvalue \ufffd
     }
 
+    # The 'statementCreate' method forwards to the constructor of the
+    # statement class
+
+    forward statementCreate ::tdbc::sqlite3::statement create
+
     # The 'configure' method queries and sets options to the database
 
     method configure args {
-	my variable timeout
 	if {[llength $args] == 0} {
 
 	    # Query all configuration options
@@ -315,6 +318,8 @@ namespace eval tdbc::sqlite3 {
 
     superclass ::tdbc::statement
 
+    variable Params db sql
+
     # The constructor accepts the handle to the connection and the SQL
     # code for the statement to prepare.  All that it does is to parse the
     # statement and store it.  The parse is used to support the 
@@ -322,13 +327,8 @@ namespace eval tdbc::sqlite3 {
 
     constructor {connection sqlcode} {
 	next
-	my variable resultSetClass
-	set resultSetClass ::tdbc::sqlite3::resultset
-	my variable Params
 	set Params {}
-	my variable db
 	set db [$connection getDBhandle]
-	my variable sql
 	set sql $sqlcode
 	foreach token [::tdbc::tokenize $sqlcode] {
 	    if {[string index $token 0] in {$ : @}} {
@@ -338,11 +338,14 @@ namespace eval tdbc::sqlite3 {
 	}
     }
 
+    # The 'resultSetCreate' method relays to the result set constructor
+
+    forward resultSetCreate ::tdbc::sqlite3::resultset create
+
     # The 'params' method returns descriptions of the parameters accepted
     # by the statement
 
     method params {} {
-	my variable Params
 	return $Params
     }
 
@@ -351,12 +354,10 @@ namespace eval tdbc::sqlite3 {
     method paramtype args {;}
 
     method getDBhandle {} {
-	my variable db
 	return $db
     }
 
     method getSql {} {
-	my variable sql
 	return $sql
     }
 
@@ -374,35 +375,52 @@ namespace eval tdbc::sqlite3 {
 
     superclass ::tdbc::resultset
 
-    constructor {statement args} {
-	# TODO - Consider deferring running the query until the
-	#        caller actually does 'nextrow' or 'foreach' - so that
-	#        we know which, and can avoid the strange unpacking of
-	#        data that happens in RunQuery in the 'foreach' case.
+    # The variables of this class all have peculiar names. The reason is
+    # that the RunQuery method needs to execute with an activation record
+    # that has no local variables whose names could conflict with names
+    # in the SQL query. We start the variable names with hyphens because
+    # they can't be bind variables.
 
+    variable -columns -db -resultArray -results -sql -Cursor -RowCount
+
+    constructor {statement args} {
 	next
-	my variable db
-	set db [$statement getDBhandle]
-	my variable sql
-	set sql [$statement getSql]
-	my variable resultArray
-	my variable columns
-	set columns {}
-	my variable results
-	set results {}
+	set -db [$statement getDBhandle]
+	set -sql [$statement getSql]
+	set -columns {}
+	set -results {}
 	if {[llength $args] == 0} {
-	    # Variable substitutions evaluated in caller's context
-	    uplevel 1 [list $db eval $sql \
-			   [namespace which -variable resultArray] \
+
+	    # Variable substitutions are evaluated in caller's context
+
+	    uplevel 1 [list ${-db} eval ${-sql} \
+			   [namespace which -variable -resultArray] \
 			   [namespace code {my RecordResult}]]
+
 	} elseif {[llength $args] == 1} {
+
 	    # Variable substitutions are in the dictionary at [lindex $args 0].
-	    # We have to move over into a different proc to get rid of the
-	    # 'resultArray' alias in the current callframe
-	    my variable paramDict
-	    set paramDict [lindex $args 0]
-	    my RunQuery
+
+	    set -paramDict [lindex $args 0]
+
+	    # At this point, the activation record must contain no variables
+	    # that might be bound within the query.  All variables at this point
+	    # begin with hyphens so that they are syntactically incorrect
+	    # as bound variables in SQL.
+
+	    unset args
+	    unset statement
+
+	    dict with -paramDict {
+		${-db} eval ${-sql} -resultArray {
+		    my RecordResult
+		}
+	    }
+
 	} else {
+
+	    # Too many args
+
 	    return -code error \
 		-errorcode [list TDBC GENERAL_ERROR HY000 \
 				SQLITE3 WRONGNUMARGS] \
@@ -410,47 +428,8 @@ namespace eval tdbc::sqlite3 {
                  [lrange [info level 0] 0 1] statement ?dictionary?"
 
 	}
-	my variable RowCount
-	set RowCount [$db changes]
-	my variable Cursor
-	set Cursor -1
-    }
-
-    # RunQuery runs the query against the database. This procedure can have
-    # no local variables, because they can suffer name conflicts with 
-    # variables in the substituents of the query.  It therefore makes
-    # method calls to get the SQL statement to execute and the name of the
-    # result array (which is a fully qualified name).
-
-    method RunQuery {} {
-	dict with [my ParamDictName] {
-	    [my getDBhandle] eval [my GetSql] [my ResultArrayName] {
-		my RecordResult
-	    }
-	}
-    }
-
-    # Return the fully qualified name of the dictionary containing the 
-    # parameters.
-
-    method ParamDictName {} {
-	my variable paramDict
-	return [namespace which -variable paramDict]
-    }
-
-    # Return the SQL code to execute.
-
-    method GetSql {} {
-	my variable sql
-	return $sql
-    }
-
-    # Return the fully qualified name of an array that will hold a row of
-    # results from a query
-
-    method ResultArrayName {} {
-	my variable resultArray
-	return [namespace which -variable resultArray]
+	set -RowCount [${-db} changes]
+	set -Cursor -1
     }
 
     # Record one row of results from a query by appending it as a dictionary
@@ -458,47 +437,38 @@ namespace eval tdbc::sqlite3 {
     # comprising the names of the columns of the result.
 
     method RecordResult {} {
-	my variable resultArray
-	my variable results
-	my variable columns
-	set columns $resultArray(*)
+	set -columns ${-resultArray(*)}
 	set dict {}
-	foreach key $columns {
-	    if {$resultArray($key) ne "\ufffd"} {
-		dict set dict $key $resultArray($key)
+	foreach key ${-columns} {
+	    if {[set -resultArray($key)] ne "\ufffd"} {
+		dict set dict $key [set -resultArray($key)]
 	    }
 	}
-	lappend results $dict
+	lappend -results $dict
     }
 
     method getDBhandle {} {
-	my variable db
-	return $db
+	return ${-db}
     }
 
     # Return a list of the columns
 
     method columns {} {
-	my variable columns
-	return $columns
+	return ${-columns}
     }
 
     # Return the next row of the result set as a list
 
     method nextlist var {
 
-	my variable Cursor
-	my variable results
-
 	upvar 1 $var row
 
-	if {[incr Cursor] >= [llength $results]} {
+	if {[incr -Cursor] >= [llength ${-results}]} {
 	    return 0
 	} else {
-	    my variable columns
 	    set row {}
-	    set d [lindex $results $Cursor]
-	    foreach key $columns {
+	    set d [lindex ${-results} ${-Cursor}]
+	    foreach key ${-columns} {
 		if {[dict exists $d $key]} {
 		    lappend row [dict get $d $key]
 		} else {
@@ -513,15 +483,12 @@ namespace eval tdbc::sqlite3 {
 
     method nextdict var {
 
-	my variable Cursor
-	my variable results
-
 	upvar 1 $var row
 
-	if {[incr Cursor] >= [llength $results]} {
+	if {[incr -Cursor] >= [llength ${-results}]} {
 	    return 0
 	} else {
-	    set row [lindex $results $Cursor]
+	    set row [lindex ${-results} ${-Cursor}]
 	}
 	return 1
     }
@@ -529,7 +496,6 @@ namespace eval tdbc::sqlite3 {
     # Return the number of rows affected by a statement
 
     method rowcount {} {
-	my variable RowCount
-	return $RowCount
+	return ${-RowCount}
     }
 }

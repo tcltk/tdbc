@@ -57,40 +57,26 @@ package require tdbc
 
     superclass ::tdbc::connection
 
-    # The constructor takes the connection string as its argument
-    # It sets up a namespace to hold the statements associated with
-    # the connection, and then delegates to the 'init' method (written in C)
-    # to do the actual work of attaching to the database. When that comes back,
-    # it sets up a statement to query the support types, makes a dictionary
-    # to enumerate them, and calls back to set a flag if WVARCHAR is seen
-    # (If WVARCHAR is seen, the database supports Unicode.)
+    variable statementSeq typemap
 
-    constructor args {
-	next
-	my variable statementClass
-	my variable typemap
-	set typemap $::tdbc::odbc::sqltypes
-	set statementClass ::tdbc::odbc::statement
-	my init {*}$args
-	set typesStmt [tdbc::odbc::typesStatement new [self]]
-	$typesStmt foreach row {
-	    set typeNum [dict get $row DATA_TYPE]
-	    if {![dict exists $typemap $typeNum]} {
-		dict set typemap $typeNum [string tolower \
-					       [dict get $row TYPE_NAME]]
-	    }
-	    if {$typeNum == -9} {
-		[self] HasWvarchar 1
-	    }
-	}
-	rename $typesStmt {}
-    }
+    # The constructor is written in C. It takes the connection string
+    # as its argument It sets up a namespace to hold the statements
+    # associated with the connection, and then delegates to the 'init'
+    # method (written in C) to do the actual work of attaching to the
+    # database. When that comes back, it sets up a statement to query
+    # the support types, makes a dictionary to enumerate them, and
+    # calls back to set a flag if WVARCHAR is seen (If WVARCHAR is
+    # seen, the database supports Unicode.)
+
+    # The 'statementCreate' method forwards to the constructor of the
+    # statement class
+
+    forward statementCreate ::tdbc::odbc::statement create
 
     # The 'tables' method returns a dictionary describing the tables
     # in the database
 
     method tables {{pattern %}} {
-	my variable statementSeq
 	set stmt [::tdbc::odbc::tablesStatement create \
 		      Stmt::[incr statementSeq] [self] $pattern]
        	set status [catch {
@@ -110,13 +96,20 @@ package require tdbc
     # in the database
 
     method columns {table {pattern %}} {
-	my variable typemap
-	my variable statementSeq
+	# Make sure that the type map is initialized
+	my typemap
+
+	# Query the columns from the database
+
 	set stmt [::tdbc::odbc::columnsStatement create \
 		      Stmt::[incr statementSeq] [self] $table $pattern]
 	set status [catch {
 	    set retval {}
 	    $stmt foreach -as dicts origrow {
+
+		# Map the type, precision, scale and nullable indicators
+		# to tdbc's notation
+
 		set row {}
 		dict for {key value} $origrow {
 		    dict set row [string tolower $key] $value
@@ -163,15 +156,29 @@ package require tdbc
 	}
     }
 
-    # The 'TypeMap' method returns the type map
+    # The 'typemap' method returns the type map
 
     method typemap {} {
-	my variable typemap
+	if {![info exists typemap]} {
+	    set typemap $::tdbc::odbc::sqltypes
+	    set typesStmt [tdbc::odbc::typesStatement new [self]]
+	    $typesStmt foreach row {
+		set typeNum [dict get $row DATA_TYPE]
+		if {![dict exists $typemap $typeNum]} {
+		    dict set typemap $typeNum [string tolower \
+						   [dict get $row TYPE_NAME]]
+		}
+		if {$typeNum == -9} {
+		    [self] HasWvarchar 1
+		}
+	    }
+	    rename $typesStmt {}
+	}
 	return $typemap
     }
 
-    # The 'init', 'begintransaction', 'commit' and 'rollback' methods 
-    # are implemented in C.
+    # The 'begintransaction', 'commit' and 'rollback' methods are
+    # implemented in C.
 
 }
 
@@ -188,25 +195,20 @@ package require tdbc
 
     superclass ::tdbc::statement
 
-    # The constructor accepts the handle to the connection and the SQL code
-    # for the statement to prepare.  It creates a subordinate namespace to
-    # hold the statement's active result sets, and then delegates to the
-    # 'init' method, written in C, to do the actual work of preparing the
-    # statement.
+    # The constructor is implemented in C. It accepts the handle to
+    # the connection and the SQL code for the statement to prepare.
+    # It creates a subordinate namespace to hold the statement's
+    # active result sets, and then delegates to the 'init' method,
+    # written in C, to do the actual work of preparing the statement.
 
-    constructor {connection sqlcode} {
-	next
-	my variable resultSetClass 
-	set resultSetClass ::tdbc::odbc::resultset
-	my init $connection $sqlcode
-	my variable typemap
-	set typemap [$connection typemap]
-    }
+    # The 'resultSetCreate' method forwards to the result set constructor
+
+    forward resultSetCreate ::tdbc::odbc::resultset create
 
     # The 'params' method describes the parameters to the statement
 
     method params {} {
-	my variable typemap
+	set typemap [[my connection] typemap]
 	set result {}
 	foreach {name flags typeNum precision scale nullable} [my ParamList] {
 	    set lst [dict create \
@@ -227,6 +229,8 @@ package require tdbc
     # Methods implemented in C:
     # init statement ?dictionary?  
     #     Does the heavy lifting for the constructor
+    # connection
+    #	Returns the connection handle to which this statement belongs
     # paramtype paramname ?direction? type ?precision ?scale??
     #     Declares the type of a parameter in the statement
 
@@ -246,18 +250,15 @@ oo::class create ::tdbc::odbc::tablesStatement {
 
     superclass ::tdbc::statement
 
-    # The constructor accepts the handle to the connection and a pattern
-    # to match table names.  It works in all ways like the constructor of
-    # the 'statement' class except that its 'init' method sets up to enumerate
-    # tables and not run a SQL query.
+    # The constructor is written in C. It accepts the handle to the
+    # connection and a pattern to match table names.  It works in all
+    # ways like the constructor of the 'statement' class except that
+    # its 'init' method sets up to enumerate tables and not run a SQL
+    # query.
 
-    constructor {connection pattern} {
-	next
-	variable resultSetClass ::tdbc::odbc::resultset
-	my init $connection $pattern
-    }
+    # The 'resultSetCreate' method forwards to the result set constructor
 
-    # The C code contains a variant implementation of the 'init' method.
+    forward resultSetCreate ::tdbc::odbc::resultset create
 
 }
 
@@ -275,19 +276,16 @@ oo::class create ::tdbc::odbc::columnsStatement {
 
     superclass ::tdbc::statement
 
-    # The constructor accepts the handle to the connection, a table
-    # name, and a pattern to match column names. It works in all ways
-    # like the constructor of the 'statement' class except that its
-    # 'init' method sets up to enumerate tables and not run a SQL
-    # query.
+    # The constructor is written in C. It accepts the handle to the
+    # connection, a table name, and a pattern to match column
+    # names. It works in all ways like the constructor of the
+    # 'statement' class except that its 'init' method sets up to
+    # enumerate tables and not run a SQL query.
 
-    constructor {connection table pattern} {
-	next
-	variable resultSetClass ::tdbc::odbc::resultset
-	my init $connection $table $pattern
-    }
+    # The 'resultSetCreate' class forwards to the constructor of the
+    # result set
 
-    # The C code contains a variant implementation of the 'init' method.
+    forward resultSetCreate ::tdbc::odbc::resultset create
 
 }
 
@@ -306,17 +304,15 @@ oo::class create ::tdbc::odbc::typesStatement {
 
     superclass ::tdbc::statement
 
-    # The constructor accepts the handle to the connection, and
-    # (optionally) a data type number. It works in all ways
-    # like the constructor of the 'statement' class except that its
-    # 'init' method sets up to enumerate types and not run a SQL
+    # The constructor is written in C. It accepts the handle to the
+    # connection, and (optionally) a data type number. It works in all
+    # ways like the constructor of the 'statement' class except that
+    # its 'init' method sets up to enumerate types and not run a SQL
     # query.
 
-    constructor {connection args} {
-	next
-	variable resultSetClass ::tdbc::odbc::resultset
-	my init $connection {*}$args
-    }
+    # The 'resultSetCreate' method forwards to the constructor of result sets
+
+    forward resultSetCreate ::tdbc::odbc::resultset create
 
     # The C code contains a variant implementation of the 'init' method.
 
@@ -335,30 +331,21 @@ oo::class create ::tdbc::odbc::typesStatement {
 
     superclass ::tdbc::resultset
 
-    # Constructor looks like
-    #     tdbc::odbc::resultset create resultSetName statement ?dictionary?
-    # It delegates to the 'init' method (written in C) to run the statement
-    # and set up the result set. The call to [my init] is wrapped in [uplevel]
-    # so that [my init] can access variables in the caller's scope.
-
-    constructor {statement args} {
-	next
-	uplevel 1 [list {*}[namespace code {my init}] $statement {*}$args]
-    }
-
     # Methods implemented in C include:
 
-    # init statement ?dictionary?
+    # constructor statement ?dictionary?
     #     -- Executes the statement against the database, optionally providing
     #        a dictionary of substituted parameters (default is to get params
     #        from variables in the caller's scope).
     # columns
     #     -- Returns a list of the names of the columns in the result.
-    # nextrow ?-as dicts|lists? ?--? variableName
+    # nextdict
     #     -- Stores the next row of the result set in the given variable in
-    #        the caller's scope, either as a dictionary whose keys are 
-    #        column names and whose values are column values, or else
-    #        as a list of cells.
+    #        the caller's scope as a dictionary whose keys are 
+    #        column names and whose values are column values.
+    # nextlist
+    #     -- Stores the next row of the result set in the given variable in
+    #        the caller's scope as a list of cells.
     # rowcount
     #     -- Returns a count of rows affected by the statement, or -1
     #        if the count of rows has not been determined.

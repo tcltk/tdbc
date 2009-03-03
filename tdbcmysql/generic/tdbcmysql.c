@@ -387,10 +387,10 @@ static void TransferMysqlStmtError(Tcl_Interp* interp, MYSQL_STMT* mysqlPtr);
 static Tcl_Obj* QueryConnectionOption(ConnectionData* cdata, Tcl_Interp* interp,
 				      int optionNum);
 static int ConfigureConnection(ConnectionData* cdata, Tcl_Interp* interp,
-			       int objc, Tcl_Obj *const objv[]);
-static int ConnectionInitMethod(ClientData clientData, Tcl_Interp* interp,
-				Tcl_ObjectContext context,
-				int objc, Tcl_Obj *const objv[]);
+			       int objc, Tcl_Obj *const objv[], int skip);
+static int ConnectionConstructor(ClientData clientData, Tcl_Interp* interp,
+				 Tcl_ObjectContext context,
+				 int objc, Tcl_Obj *const objv[]);
 static int ConnectionBegintransactionMethod(ClientData clientData,
 					    Tcl_Interp* interp,
 					    Tcl_ObjectContext context,
@@ -429,9 +429,9 @@ static MYSQL_STMT* AllocAndPrepareStatement(Tcl_Interp* interp,
 					    StatementData* sdata);
 static Tcl_Obj* ResultDescToTcl(MYSQL_RES* resultDesc, int flags);
 
-static int StatementInitMethod(ClientData clientData, Tcl_Interp* interp,
-			       Tcl_ObjectContext context,
-			       int objc, Tcl_Obj *const objv[]);
+static int StatementConstructor(ClientData clientData, Tcl_Interp* interp,
+				Tcl_ObjectContext context,
+				int objc, Tcl_Obj *const objv[]);
 static int StatementParamtypeMethod(ClientData clientData, Tcl_Interp* interp,
 				    Tcl_ObjectContext context,
 				    int objc, Tcl_Obj *const objv[]);
@@ -444,9 +444,9 @@ static void DeleteStatement(StatementData* sdata);
 static int CloneStatement(Tcl_Interp* interp, ClientData oldClientData,
 			  ClientData* newClientData);
 
-static int ResultSetInitMethod(ClientData clientData, Tcl_Interp* interp,
-			       Tcl_ObjectContext context,
-			       int objc, Tcl_Obj *const objv[]);
+static int ResultSetConstructor(ClientData clientData, Tcl_Interp* interp,
+				Tcl_ObjectContext context,
+				int objc, Tcl_Obj *const objv[]);
 static int ResultSetColumnsMethod(ClientData clientData, Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
@@ -504,11 +504,11 @@ const static Tcl_ObjectMetadataType resultSetDataType = {
 
 /* Method types of the connection methods that are implemented in C */
 
-const static Tcl_MethodType ConnectionInitMethodType = {
+const static Tcl_MethodType ConnectionConstructorType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init",			/* name */
-    ConnectionInitMethod,	/* callProc */
+    "CONSTRUCTOR",		/* name */
+    ConnectionConstructor,	/* callProc */
     DeleteCmd,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
@@ -592,11 +592,11 @@ const static Tcl_MethodType* ConnectionMethods[] = {
 
 /* Method types of the statement methods that are implemented in C */
 
-const static Tcl_MethodType StatementInitMethodType = {
+const static Tcl_MethodType StatementConstructorType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init",			/* name */
-    StatementInitMethod,	/* callProc */
+    "CONSTRUCTOR",		/* name */
+    StatementConstructor,	/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
@@ -622,7 +622,6 @@ const static Tcl_MethodType StatementParamtypeMethodType = {
  */
 
 const static Tcl_MethodType* StatementMethods[] = {
-    &StatementInitMethodType,
     &StatementParamsMethodType,
     &StatementParamtypeMethodType,
     NULL
@@ -630,11 +629,11 @@ const static Tcl_MethodType* StatementMethods[] = {
 
 /* Method types of the result set methods that are implemented in C */
 
-const static Tcl_MethodType ResultSetInitMethodType = {
+const static Tcl_MethodType ResultSetConstructorType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "init",			/* name */
-    ResultSetInitMethod,	/* callProc */
+    "CONSTRUCTOR",		/* name */
+    ResultSetConstructor,	/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
@@ -666,7 +665,6 @@ const static Tcl_MethodType ResultSetRowcountMethodType = {
 /* Methods to create on the result set class */
 
 const static Tcl_MethodType* ResultSetMethods[] = {
-    &ResultSetInitMethodType,
     &ResultSetColumnsMethodType,
     &ResultSetRowcountMethodType,
     NULL
@@ -833,7 +831,8 @@ ConfigureConnection(
     ConnectionData* cdata,	/* Connection data */
     Tcl_Interp* interp,		/* Tcl interpreter */
     int objc,			/* Parameter count */
-    Tcl_Obj* const objv[]	/* Parameter data */
+    Tcl_Obj* const objv[],	/* Parameter data */
+    int skip			/* Number of parameters to skip */
 ) {
 
     const char* stringOpts[INDX_MAX];
@@ -853,7 +852,7 @@ ConfigureConnection(
 
 	/* Query configuration options on an existing connection */
 
-	if (objc == 2) {
+	if (objc == skip) {
 	    retval = Tcl_NewObj();
 	    for (i = 0; ConnOptions[i].name != NULL; ++i) {
 		if (ConnOptions[i].flags & CONN_OPT_FLAG_ALIAS) continue;
@@ -867,9 +866,10 @@ ConfigureConnection(
 	    }
 	    Tcl_SetObjResult(interp, retval);
 	    return TCL_OK;
-	} else if (objc == 3) {
+	} else if (objc == skip+1) {
 
-	    if (Tcl_GetIndexFromObjStruct(interp, objv[2], (void*) ConnOptions,
+	    if (Tcl_GetIndexFromObjStruct(interp, objv[skip],
+					  (void*) ConnOptions,
 					  sizeof(ConnOptions[0]), "option",
 					  0, &optionIndex) != TCL_OK) {
 		return TCL_ERROR;
@@ -884,8 +884,8 @@ ConfigureConnection(
 	}
     }
 
-    if (objc % 2 != 0) {
-	Tcl_WrongNumArgs(interp, 2, objv, "?-option value?...");
+    if ((objc-skip) % 2 != 0) {
+	Tcl_WrongNumArgs(interp, skip, objv, "?-option value?...");
 	return TCL_ERROR;
     }
 
@@ -894,7 +894,7 @@ ConfigureConnection(
     for (i = 0; i < INDX_MAX; ++i) {
 	stringOpts[i] = NULL;
     }
-    for (i = 2; i < objc; i += 2) {
+    for (i = skip; i < objc; i += 2) {
 
 	/* Unknown option */
 
@@ -1087,32 +1087,35 @@ ConfigureConnection(
 /*
  *-----------------------------------------------------------------------------
  *
- * ConnectionInitMethod --
+ * ConnectionConstructor --
  *
- *	Initializer for ::tdbc::mysql::connection, which represents a
+ *	Constructor for ::tdbc::mysql::connection, which represents a
  *	database connection.
  *
  * Results:
  *	Returns a standard Tcl result.
  *
- * The ConnectionInitMethod takes the same arguments that the connection's
- * constructor does, and attempts to connect to the database. 
+ * The ConnectionInitMethod takes alternating keywords and values giving
+ * the configuration parameters of the connection, and attempts to connect
+ * to the database.
  *
  *-----------------------------------------------------------------------------
  */
 
 static int
-ConnectionInitMethod(
+ConnectionConstructor(
     ClientData clientData,	/* Environment handle */
     Tcl_Interp* interp,		/* Tcl interpreter */
-    Tcl_ObjectContext objectContext, /* Object context */
+    Tcl_ObjectContext context, /* Object context */
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
     PerInterpData* pidata = (PerInterpData*) clientData;
 				/* Per-interp data for the MYSQL package */
-    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* The number of leading arguments to skip */
     ConnectionData* cdata;	/* Per-connection data */
 
     /* Hang client data on this connection */
@@ -1129,7 +1132,7 @@ ConnectionInitMethod(
     
     /* Configure the connection */
 
-    if (ConfigureConnection(cdata, interp, objc, objv) != TCL_OK) {
+    if (ConfigureConnection(cdata, interp, objc, objv, skip) != TCL_OK) {
 	return TCL_ERROR;
     }
 
@@ -1407,10 +1410,12 @@ static int ConnectionConfigureMethod(
 ) {
     Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
 				/* The current connection object */
+    int skip = Tcl_ObjectContextSkippedArgs(objectContext);
+				/* Number of arguments to skip */
     ConnectionData* cdata = (ConnectionData*)
 	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
 				/* Instance data */
-    return ConfigureConnection(cdata, interp, objc, objv);
+    return ConfigureConnection(cdata, interp, objc, objv, skip);
 }
 
 /*
@@ -1954,15 +1959,18 @@ ResultDescToTcl(
 /*
  *-----------------------------------------------------------------------------
  *
- * StatementInitMethod --
+ * StatementConstructor --
  *
  *	C-level initialization for the object representing an MySQL prepared
  *	statement.
  *
+ * Usage:
+ *	statement new connection statementText
+ *	statement create name connection statementText
+ *
  * Parameters:
- *	Accepts a 4-element 'objv': $object init $connection $statementText,
- *	where $connection is the MySQL connection object, and $statementText
- *	is the text of the statement to prepare.
+ *      connection -- the MySQL connection object
+ *	statementText -- text of the statement to prepare.
  *
  * Results:
  *	Returns a standard Tcl result
@@ -1975,7 +1983,7 @@ ResultDescToTcl(
  */
 
 static int
-StatementInitMethod(
+StatementConstructor(
     ClientData clientData,	/* Not used */
     Tcl_Interp* interp,		/* Tcl interpreter */
     Tcl_ObjectContext context,	/* Object context  */
@@ -1983,7 +1991,11 @@ StatementInitMethod(
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
 
-    Tcl_Object thisObject;	/* The current statement object */
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* Number of args to skip before the
+				 * payload arguments */
     Tcl_Object connectionObject;
 				/* The database connection as a Tcl_Object */
     ConnectionData* cdata;	/* The connection object's data */
@@ -2000,19 +2012,19 @@ StatementInitMethod(
     /* Find the connection object, and get its data. */
 
     thisObject = Tcl_ObjectContextObject(context);
-    if (objc != 4) {
-	Tcl_WrongNumArgs(interp, 2, objv, "connection statementText");
+    if (objc != skip+2) {
+	Tcl_WrongNumArgs(interp, skip, objv, "connection statementText");
 	return TCL_ERROR;
     }
 
-    connectionObject = Tcl_GetObjectFromObj(interp, objv[2]);
+    connectionObject = Tcl_GetObjectFromObj(interp, objv[skip]);
     if (connectionObject == NULL) {
 	return TCL_ERROR;
     }
     cdata = (ConnectionData*) Tcl_ObjectGetMetadata(connectionObject,
 						    &connectionDataType);
     if (cdata == NULL) {
-	Tcl_AppendResult(interp, Tcl_GetString(objv[2]),
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
 			 " does not refer to a MySQL connection", NULL);
 	return TCL_ERROR;
     }
@@ -2025,7 +2037,7 @@ StatementInitMethod(
 
     /* Tokenize the statement */
 
-    tokens = Tdbc_TokenizeSql(interp, Tcl_GetString(objv[3]));
+    tokens = Tdbc_TokenizeSql(interp, Tcl_GetString(objv[skip+1]));
     if (tokens == NULL) {
 	goto freeSData;
     }
@@ -2414,14 +2426,16 @@ CloneStatement(
 /*
  *-----------------------------------------------------------------------------
  *
- * ResultSetInitMethod --
+ * ResultSetConstructor --
  *
  *	Constructs a new result set.
  *
  * Usage:
- *	$resultSet init statement ?dictionary?
+ *	$resultSet new statement ?dictionary?
+ *	$resultSet create name statement ?dictionary?
  *
  * Parameters:
+ *	statement -- Statement handle to which this resultset belongs
  *	dictionary -- Dictionary containing the substitutions for named
  *		      parameters in the given statement.
  *
@@ -2433,7 +2447,7 @@ CloneStatement(
  */
 
 static int
-ResultSetInitMethod(
+ResultSetConstructor(
     ClientData clientData,	/* Not used */
     Tcl_Interp* interp,		/* Tcl interpreter */
     Tcl_ObjectContext context,	/* Object context  */
@@ -2443,6 +2457,8 @@ ResultSetInitMethod(
 
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current result set object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* Number of args to skip */
     Tcl_Object statementObject;	/* The current statement object */
     PerInterpData* pidata;	/* The per-interpreter data for this package */
     ConnectionData* cdata;	/* The MySQL connection object's data */
@@ -2459,21 +2475,25 @@ ResultSetInitMethod(
 
     /* Check parameter count */
 
-    if (objc != 3 && objc != 4) {
-	Tcl_WrongNumArgs(interp, 2, objv, "statement ?dictionary?");
+    if (objc != skip+1 && objc != skip+2) {
+	Tcl_WrongNumArgs(interp, skip, objv, "statement ?dictionary?");
 	return TCL_ERROR;
     }
 
+    /* Initialize the base classes */
+
+    Tcl_ObjectContextInvokeNext(interp, context, skip, objv, skip);
+
     /* Find the statement object, and get the statement data */
 
-    statementObject = Tcl_GetObjectFromObj(interp, objv[2]);
+    statementObject = Tcl_GetObjectFromObj(interp, objv[skip]);
     if (statementObject == NULL) {
 	return TCL_ERROR;
     }
     sdata = (StatementData*) Tcl_ObjectGetMetadata(statementObject,
 						   &statementDataType);
     if (sdata == NULL) {
-	Tcl_AppendResult(interp, Tcl_GetString(objv[2]),
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
 			 " does not refer to a MySQL statement", NULL);
 	return TCL_ERROR;
     }
@@ -2541,12 +2561,12 @@ ResultSetInitMethod(
     for (nBound = 0; nBound < nParams; ++nBound) {
 	Tcl_ListObjIndex(NULL, sdata->subVars, nBound, &paramNameObj);
 	paramName = Tcl_GetString(paramNameObj);
-	if (objc == 4) {
+	if (objc == skip+2) {
 
 	    /* Param from a dictionary */
 
-	    if (Tcl_DictObjGet(interp, objv[3], paramNameObj, &paramValObj)
-		!= TCL_OK) {
+	    if (Tcl_DictObjGet(interp, objv[skip+1],
+			       paramNameObj, &paramValObj) != TCL_OK) {
 		return TCL_ERROR;
 	    }
 	} else {
@@ -3227,11 +3247,13 @@ Tdbcmysql_Init(
     }
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
-    nameObj = Tcl_NewStringObj("init", -1);
-    Tcl_IncrRefCount(nameObj);
-    Tcl_NewMethod(interp, curClass, nameObj, 0, &ConnectionInitMethodType,
-		       (ClientData) pidata);
-    Tcl_DecrRefCount(nameObj);
+
+    /* Attach the constructor to the 'connection' class */
+
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &ConnectionConstructorType,
+					  (ClientData) pidata));
 
     /* Attach the methods to the 'connection' class */
 
@@ -3254,6 +3276,13 @@ Tdbcmysql_Init(
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
 
+    /* Attach the constructor to the 'statement' class */
+
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &StatementConstructorType,
+					  (ClientData) NULL));
+
     /* Attach the methods to the 'statement' class */
 
     for (i = 0; StatementMethods[i] != NULL; ++i) {
@@ -3274,6 +3303,13 @@ Tdbcmysql_Init(
     }
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
+
+    /* Attach the constructor to the 'resultSet' class */
+
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &ResultSetConstructorType,
+					  (ClientData) NULL));
 
     /* Attach the methods to the 'resultSet' class */
 

@@ -30,17 +30,14 @@ package require tdbc
 
     superclass ::tdbc::connection
 
-    # The constructor takes the connection string as its argument
-    # It sets up a namespace to hold the statements associated with
-    # the connection, and then delegates to the 'init' method (written in C)
-    # to do the actual work of attaching to the database.
+    # The constructor is written in C. It takes alternating keywords
+    # and values pairs as its argumenta.  (See the manual page for the
+    # available options.)
 
-    constructor args {
-	next
-	my variable statementClass
-	set statementClass ::tdbc::mysql::statement
-	my init {*}$args
-    }
+    # The 'statementCreate' method delegates to the constructor of the
+    # statement class
+
+    forward statementCreate ::tdbc::mysql::statement create
 
     # The 'columns' method returns a dictionary describing the tables
     # in the database
@@ -98,116 +95,23 @@ package require tdbc
 
     superclass ::tdbc::statement
 
-    # The constructor accepts the handle to the connection and the SQL code
-    # for the statement to prepare.  It creates a subordinate namespace to
-    # hold the statement's active result sets, and then delegates to the
-    # 'init' method, written in C, to do the actual work of preparing the
-    # statement.
+    # The 'resultSetCreate' method forwards to the constructor of the
+    # result set.
 
-    constructor {connection sqlcode} {
-	next
-	my variable resultSetClass 
-	set resultSetClass ::tdbc::mysql::resultset
-	my init $connection $sqlcode
-    }
+    forward resultSetCreate ::tdbc::mysql::resultset create
 
     # Methods implemented in C:
-    # init statement ?dictionary?  
-    #     Does the heavy lifting for the constructor
+    #
+    # constructor connection SQLCode
+    #	The constructor accepts the handle to the connection and the SQL code
+    #	for the statement to prepare.  It creates a subordinate namespace to
+    #	hold the statement's active result sets, and then delegates to the
+    #	'init' method, written in C, to do the actual work of preparing the
+    #	statement.
     # params
-    #     Returns descriptions of the parameters of a statement.
+    #   Returns descriptions of the parameters of a statement.
     # paramtype paramname ?direction? type ?precision ?scale??
-    #     Declares the type of a parameter in the statement
-
-}
-
-#------------------------------------------------------------------------------
-#
-# tdbc::mysql::tablesStatement --
-#
-#	The class 'tdbc::mysql::tablesStatement' represents the special
-#	statement that queries the tables in a database through an MYSQL
-#	connection.
-#
-#------------------------------------------------------------------------------
-
-oo::class create ::tdbc::mysql::tablesStatement {
-
-    superclass ::tdbc::statement
-
-    # The constructor accepts the handle to the connection and a pattern
-    # to match table names.  It works in all ways like the constructor of
-    # the 'statement' class except that its 'init' method sets up to enumerate
-    # tables and not run a SQL query.
-
-    constructor {connection pattern} {
-	next
-	variable resultSetClass ::tdbc::mysql::resultset
-	my init $connection $pattern
-    }
-
-    # The C code contains a variant implementation of the 'init' method.
-
-}
-
-#------------------------------------------------------------------------------
-#
-# tdbc::mysql::columnsStatement --
-#
-#	The class 'tdbc::mysql::tablesStatement' represents the special
-#	statement that queries the columns of a table or view
-#	in a database through an MYSQL connection.
-#
-#------------------------------------------------------------------------------
-
-oo::class create ::tdbc::mysql::columnsStatement {
-
-    superclass ::tdbc::statement
-
-    # The constructor accepts the handle to the connection, a table
-    # name, and a pattern to match column names. It works in all ways
-    # like the constructor of the 'statement' class except that its
-    # 'init' method sets up to enumerate tables and not run a SQL
-    # query.
-
-    constructor {connection table pattern} {
-	next
-	variable resultSetClass ::tdbc::mysql::resultset
-	my init $connection $table $pattern
-    }
-
-    # The C code contains a variant implementation of the 'init' method.
-
-}
-
-#------------------------------------------------------------------------------
-#
-# tdbc::mysql::typesStatement --
-#
-#	The class 'tdbc::mysql::typesStatement' represents the special
-#	statement that queries the types available in a database through
-#	an MYSQL connection.
-#
-#------------------------------------------------------------------------------
-
-
-oo::class create ::tdbc::mysql::typesStatement {
-
-    superclass ::tdbc::statement
-
-    # The constructor accepts the handle to the connection, and
-    # (optionally) a data type number. It works in all ways
-    # like the constructor of the 'statement' class except that its
-    # 'init' method sets up to enumerate types and not run a SQL
-    # query.
-
-    constructor {connection args} {
-	next
-	variable resultSetClass ::tdbc::mysql::resultset
-	my init $connection {*}$args
-    }
-
-    # The C code contains a variant implementation of the 'init' method.
+    #   Declares the type of a parameter in the statement
 
 }
 
@@ -224,30 +128,22 @@ oo::class create ::tdbc::mysql::typesStatement {
 
     superclass ::tdbc::resultset
 
-    # Constructor looks like
-    #     tdbc::mysql::resultset create resultSetName statement ?dictionary?
-    # It delegates to the 'init' method (written in C) to run the statement
-    # and set up the result set. The call to [my init] is wrapped in [uplevel]
-    # so that [my init] can access variables in the caller's scope.
-
-    constructor {statement args} {
-	next
-	uplevel 1 [list {*}[namespace code {my init}] $statement {*}$args]
-    }
-
     # Methods implemented in C include:
 
-    # init statement ?dictionary?
+    # constructor statement ?dictionary?
     #     -- Executes the statement against the database, optionally providing
     #        a dictionary of substituted parameters (default is to get params
     #        from variables in the caller's scope).
     # columns
     #     -- Returns a list of the names of the columns in the result.
-    # nextrow ?-as dicts|lists? ?--? variableName
+    # nextdict
     #     -- Stores the next row of the result set in the given variable in
-    #        the caller's scope, either as a dictionary whose keys are 
+    #        the caller's scope as a dictionary whose keys are 
     #        column names and whose values are column values, or else
     #        as a list of cells.
+    # nextlist
+    #     -- Stores the next row of the result set in the given variable in
+    #        the caller's scope as a list of cells.
     # rowcount
     #     -- Returns a count of rows affected by the statement, or -1
     #        if the count of rows has not been determined.

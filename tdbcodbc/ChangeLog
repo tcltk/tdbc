@@ -1,3 +1,11 @@
+2009-03-03  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcodbc.c:
+	* library/tdbcodbc.tcl: Replaced 'my variable' with variables at
+	class level.  Replaced 'init' methods with constructors implemented
+	in C.  Replaced 'statementClass' and 'resultSetClass' variables
+	with forwarded 'statementCreate' and 'resultSetCreate' methods.
+	
 2009-12-16  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:	

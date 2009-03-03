@@ -1,3 +1,13 @@
+2009-03-03  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcmysql.c:
+	* library/tdbcmysql.tcl: Replaced 'init' methods with constructors
+	written in C.  Added 'statementCreate' and 'resultSetCreate' forwarding
+	in place of the 'statementClass' and 'resultSetClass' variables.
+	Removed some classes that were the result of overeager copying
+	from tclodbc. Replaced 'my variable' with variables declared at
+	class level.
+	
 2009-02-16  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:

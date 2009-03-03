@@ -1,3 +1,11 @@
+2009-03-03  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tdbc.tcl: Replaced the 'statementClass' and 'resultSetClass'
+	instance variables with 'statementCreate and 'resultSetCreate'
+	methods (expected to forward to the appropriate constructors).
+	Replaced 'my variable' usage with 'variable' declarations at
+	class level. Removed various bits of debugging output.
+	
 2009-02-16  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbc.h:
