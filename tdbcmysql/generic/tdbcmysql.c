@@ -3,7 +3,7 @@
  *
  *	Bridge between TDBC (Tcl DataBase Connectivity) and MYSQL.
  *
- * Copyright (c) 2008 by Kevin B. Kenny.
+ * Copyright (c) 2008, 2009 by Kevin B. Kenny.
  *
  * Please refer to the file, 'license.terms' for the conditions on
  * redistribution of this file and for a DISCLAIMER OF ALL WARRANTIES.
@@ -209,6 +209,11 @@ typedef struct ResultSetData {
     MYSQL_BIND* paramBindings;	/* Parameter bindings */
     unsigned long* paramLengths;/* Parameter lengths */
     my_ulonglong rowCount;	/* Number of affected rows */
+    my_bool* resultErrors;	/* Failure indicators for retrieving columns */
+    my_bool* resultNulls;	/* NULL indicators for retrieving columns */
+    unsigned long* resultLengths;
+				/* Byte lengths of retrieved columns */
+    MYSQL_BIND* resultBindings;	/* Bindings controlling column retrieval */
 } ResultSetData;
 #define IncrResultSetRefCount(x)		\
     do {					\
@@ -1741,7 +1746,6 @@ CloneCmd(
     ClientData oldClientData,	/* Environment handle to be discarded */
     ClientData* newClientData	/* New environment handle to be used */
 ) {
-    /* TODO - adjust ref counts or whatever */
     *newClientData = oldClientData;
     return TCL_OK;
 }
@@ -2472,6 +2476,12 @@ ResultSetConstructor(
     const char* paramValStr;	/* String value of the current parameter */
     char* bufPtr;		/* Pointer to the parameter buffer */
     int len;			/* Length of a bound parameter */
+    int nColumns;		/* Number of columns in the result set */
+    MYSQL_FIELD* fields;	/* Description of columns of the result set */
+    MYSQL_BIND* resultBindings;	/* Bindings of the columns of the result set */
+    unsigned long* resultLengths; 
+				/* Lengths of the columns of the result set */
+    int i;
 
     /* Check parameter count */
 
@@ -2497,6 +2507,7 @@ ResultSetConstructor(
 			 " does not refer to a MySQL statement", NULL);
 	return TCL_ERROR;
     }
+    Tcl_ListObjLength(NULL, sdata->columnNames, &nColumns);
     cdata = sdata->cdata;
 
     /* 
@@ -2523,8 +2534,70 @@ ResultSetConstructor(
     rdata->paramBindings = NULL;
     rdata->paramLengths = NULL;
     rdata->rowCount = 0;
+    rdata->resultErrors = (my_bool*) ckalloc(nColumns * sizeof(my_bool));
+    rdata->resultNulls = (my_bool*) ckalloc(nColumns * sizeof(my_bool));
+    resultLengths = rdata->resultLengths = (unsigned long*)
+	ckalloc(nColumns * sizeof(unsigned long));
+    resultBindings = rdata->resultBindings = (MYSQL_BIND*)
+	ckalloc(nColumns * sizeof(MYSQL_BIND));
+    memset(resultBindings, 0, nColumns * sizeof(MYSQL_BIND));
     IncrStatementRefCount(sdata);
     Tcl_ObjectSetMetadata(thisObject, &resultSetDataType, (ClientData) rdata);
+
+    /* Make bindings for all the result columns. Defer binding variable
+     * length fields until first execution. */
+
+    if (nColumns > 0) {
+	fields = mysql_fetch_fields(sdata->metadataPtr);
+    }
+    for (i = 0; i < nColumns; ++i) {
+	switch (fields[i].type) {
+
+	case MYSQL_TYPE_FLOAT:
+	case MYSQL_TYPE_DOUBLE:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_DOUBLE;
+	    resultBindings[i].buffer = ckalloc(sizeof(double));
+	    resultBindings[i].buffer_length = sizeof(double);
+	    resultLengths[i] = sizeof(double);
+	    break;
+
+	case MYSQL_TYPE_BIT:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_BIT;
+	    resultBindings[i].buffer = ckalloc(fields[i].length);
+	    resultBindings[i].buffer_length = fields[i].length;
+	    resultLengths[i] = fields[i].length;
+	    break;
+
+	case MYSQL_TYPE_LONGLONG:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_LONGLONG;
+	    resultBindings[i].buffer = ckalloc(sizeof(Tcl_WideInt));
+	    resultBindings[i].buffer_length = sizeof(Tcl_WideInt);
+	    resultLengths[i] = sizeof(Tcl_WideInt);
+	    break;
+
+	case MYSQL_TYPE_TINY:
+	case MYSQL_TYPE_SHORT:
+	case MYSQL_TYPE_INT24:
+	case MYSQL_TYPE_LONG:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_LONG;
+	    resultBindings[i].buffer = ckalloc(sizeof(long));
+	    resultBindings[i].buffer_length = sizeof(long);
+	    resultLengths[i] = sizeof(long);
+	    break;
+
+	default:
+	    resultBindings[i].buffer_type = MYSQL_TYPE_STRING;
+	    resultBindings[i].buffer = NULL;
+	    resultBindings[i].buffer_length = 0;
+	    resultLengths[i] = 0;
+	    break;
+	}
+	resultBindings[i].length = resultLengths + i;
+	rdata->resultNulls[i] = 0;
+	resultBindings[i].is_null = rdata->resultNulls + i;
+	rdata->resultErrors[i] = 0;
+	resultBindings[i].error = rdata->resultErrors + i;
+    }
 
     /*
      * Find a statement handle that we can use to execute the SQL code.
@@ -2543,7 +2616,7 @@ ResultSetConstructor(
 	sdata->flags |= STMT_FLAG_BUSY;
     }
 
-    /* Allocate the bindings */
+    /* Allocate the parameter bindings */
 
     Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
     rdata->paramValues = Tcl_NewObj();
@@ -2720,6 +2793,8 @@ ResultSetConstructor(
      */
 
     if (mysql_stmt_bind_param(rdata->stmtPtr, rdata->paramBindings)
+	|| ((nColumns > 0) && mysql_stmt_bind_result(rdata->stmtPtr,
+						     resultBindings))
 	|| mysql_stmt_execute(rdata->stmtPtr)
 	|| mysql_stmt_store_result(rdata->stmtPtr)) {
 	TransferMysqlStmtError(interp, sdata->stmtPtr);
@@ -2835,12 +2910,13 @@ ResultSetNextrowMethod(
     
     Tcl_Obj* colObj;		/* Column obtained from the row */
     int status = TCL_ERROR;	/* Status return from this command */
-    MYSQL_BIND* resultBindings;	/* Descriptions of the results */
-    unsigned long* resultLengths;
+    MYSQL_FIELD* fields;	/* Fields of the result set */
+    MYSQL_BIND* resultBindings = rdata->resultBindings;
+				/* Descriptions of the results */
+    unsigned long* resultLengths = rdata->resultLengths;
 				/* String lengths of the results */
-    my_bool* resultNulls;	/* Indicators that the results are null */
-    my_bool* resultErrors;	/* Indicators that the results could not be
-				 * retrieved. */
+    my_bool* resultNulls = rdata->resultNulls;
+				/* Indicators that the results are null */
     unsigned char byte;		/* One byte extracted from a bit field */
     Tcl_WideInt bitVal;		/* Value of a bit field */
     int mysqlStatus;		/* Status return from MySQL */
@@ -2863,67 +2939,11 @@ ResultSetNextrowMethod(
     resultRow = Tcl_NewObj();
     Tcl_IncrRefCount(resultRow);
 
+    /*
+     * Try to rebind the result set before doing the next fetch
+     */
 
-    /* TODO - Data-type-dependent bindings */
-
-    /* Make an array of bindings to hold the row, with all the bindings
-     * zero-length until we know the sizes. */
-
-    MYSQL_FIELD* fields = mysql_fetch_fields(sdata->metadataPtr);
-    resultBindings = (MYSQL_BIND*) ckalloc(nColumns * sizeof(MYSQL_BIND));
-    resultLengths = (unsigned long *)
-	ckalloc(nColumns * sizeof(unsigned long));
-    resultNulls = (my_bool*) ckalloc(nColumns * sizeof(my_bool));
-    resultErrors = (my_bool*) ckalloc(nColumns * sizeof(my_bool));
-    memset(resultBindings, 0, nColumns * sizeof(MYSQL_BIND));
-    for (i = 0; i < nColumns; ++i) {
-	switch (fields[i].type) {
-
-	case MYSQL_TYPE_FLOAT:
-	case MYSQL_TYPE_DOUBLE:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_DOUBLE;
-	    resultBindings[i].buffer = ckalloc(sizeof(double));
-	    resultBindings[i].buffer_length = sizeof(double);
-	    resultLengths[i] = sizeof(double);
-	    break;
-
-	case MYSQL_TYPE_BIT:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_BIT;
-	    resultBindings[i].buffer = ckalloc(fields[i].length);
-	    resultBindings[i].buffer_length = fields[i].length;
-	    resultLengths[i] = fields[i].length;
-	    break;
-
-	case MYSQL_TYPE_LONGLONG:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_LONGLONG;
-	    resultBindings[i].buffer = ckalloc(sizeof(Tcl_WideInt));
-	    resultBindings[i].buffer_length = sizeof(Tcl_WideInt);
-	    resultLengths[i] = sizeof(Tcl_WideInt);
-	    break;
-
-	case MYSQL_TYPE_TINY:
-	case MYSQL_TYPE_SHORT:
-	case MYSQL_TYPE_INT24:
-	case MYSQL_TYPE_LONG:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_LONG;
-	    resultBindings[i].buffer = ckalloc(sizeof(long));
-	    resultBindings[i].buffer_length = sizeof(long);
-	    resultLengths[i] = sizeof(long);
-	    break;
-
-	default:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_STRING;
-	    resultBindings[i].buffer = NULL;
-	    resultBindings[i].buffer_length = 0;
-	    resultLengths[i] = 0;
-	    break;
-	}
-	resultBindings[i].length = resultLengths + i;
-	resultNulls[i] = 0;
-	resultBindings[i].is_null = resultNulls + i;
-	resultErrors[i] = 0;
-	resultBindings[i].error = resultErrors + i;
-    }
+    fields = mysql_fetch_fields(sdata->metadataPtr);
     if (mysql_stmt_bind_result(rdata->stmtPtr, resultBindings)) {
 	goto cleanup;
     }
@@ -3019,24 +3039,6 @@ ResultSetNextrowMethod(
     if (status != TCL_OK) {
 	TransferMysqlStmtError(interp, rdata->stmtPtr);
     }
-
-    if (resultErrors) {
-	ckfree((char*) resultErrors);
-    }
-    if (resultNulls) {
-	ckfree((char*) resultNulls);
-    }
-    if (resultLengths) {
-	ckfree((char*) resultLengths);
-    }
-    if (resultBindings) {
-	for (i = 0; i < nColumns; ++i) {
-	    if (resultBindings[i].buffer) {
-		ckfree((char*) resultBindings[i].buffer);
-	    }
-	}
-	ckfree((char*) resultBindings);
-    }
     Tcl_DecrRefCount(resultRow);
     return status;
 
@@ -3108,10 +3110,19 @@ DeleteResultSet(
     StatementData* sdata = rdata->sdata;
     int i;
     int nParams;
+    int nColumns;
     Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
-    if (rdata->paramLengths != NULL) {
-	ckfree((char*)(rdata->paramLengths));
+    Tcl_ListObjLength(NULL, sdata->columnNames, &nColumns);
+    for (i = 0; i < nColumns; ++i) {
+	if (rdata->resultBindings[i].buffer != NULL) {
+	    ckfree(rdata->resultBindings[i].buffer);
+	}
     }
+    ckfree((char*)(rdata->resultBindings));
+    ckfree((char*)(rdata->resultLengths));
+    ckfree((char*)(rdata->resultNulls));
+    ckfree((char*)(rdata->resultErrors));
+    ckfree((char*)(rdata->paramLengths));
     if (rdata->paramBindings != NULL) {
 	for (i = 0; i < nParams; ++i) {
 	    if (rdata->paramBindings[i].buffer_type != MYSQL_TYPE_NULL) {

@@ -1,3 +1,19 @@
+2009-04-16  Kevin B. Kenny  <kennykb@acm.org>
+
+	* README:
+	* configure.in:		Advance version number to 1.0b10
+	* configure:		autoconf-2.59
+
+	* generic/tdbcmysql.c: Reworked the allocation of result buffers
+			       so that they belong to the result set and
+			       are not allocated per row. Pushed binding the
+	                       results up before mysql_stmt_execute,
+	                       avoiding a crash if the same statement handle
+	                       has been used before [Ticket 39a78606aa].
+			       No update made to test suite because
+			       valgrind detected the error with existing
+			       tests on a -DPURIFY build.
+	
 2009-03-03  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcmysql.c:
@@ -7,12 +23,6 @@
 	Removed some classes that were the result of overeager copying
 	from tclodbc. Replaced 'my variable' with variables declared at
 	class level.
-	
-2009-02-16  Kevin B. Kenny  <kennykb@acm.org>
-
-	* README:
-	* configure.in:		Advance version number to 1.0b9
-	* configure:		autoconf-2.59
 	
 2009-02-14  Kevin B. Kenny  <kennykb@acm.org>
 
