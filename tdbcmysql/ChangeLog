@@ -1,3 +1,8 @@
+2009-04-18  Kevin B. Kenny  <kennykb@acm.org>
+
+	* doc/tdbc_mysql.n: Made changes so that NROFF formatting matches
+	                    the Tcl standard.
+	
 2009-04-16  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:
