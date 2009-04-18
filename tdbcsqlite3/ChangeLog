@@ -1,5 +1,10 @@
 2009-04-18  Kevin B. Kenny  <kennykb@acm.org>
 
+	* tests/tdbcsqlite3.test: Changed the 'invalid path name' to a
+	                          path name that is more likely actually
+	                          to be invalid. Changed the tests for
+	                          inappropriate access to an array variable
+	                          not to expect failure.
 	* doc/tdbc_sqlite3.n: Made changes so that NROFF formatting matches
 	                      the Tcl standard.
 	

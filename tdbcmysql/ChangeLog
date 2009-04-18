@@ -1,5 +1,9 @@
 2009-04-18  Kevin B. Kenny  <kennykb@acm.org>
 
+	* generic/tdbcmysql.c: Changed so that an inappropriate access to
+	                       an array or a failing read trace yields NULL.
+	* tests/tdbcmysql.test: Revised test cases according to the above 
+				change.
 	* doc/tdbc_mysql.n: Made changes so that NROFF formatting matches
 	                    the Tcl standard.
 	

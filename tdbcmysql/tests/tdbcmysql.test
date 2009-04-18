@@ -1587,8 +1587,7 @@ test tdbc::mysql-9.35 {stmt foreach - variable not found} {*}{
 	unset thePattern
 	$stmt close
     }
-    -returnCodes error
-    -result {can't read "thePattern": variable is array}
+    -result {}
 }
 
 test tdbc::mysql-9.36 {db foreach - variable not found} {*}{
@@ -1608,8 +1607,7 @@ test tdbc::mysql-9.36 {db foreach - variable not found} {*}{
     -cleanup {
 	unset thePattern
     }
-    -returnCodes error
-    -result {can't read "thePattern": variable is array}
+    -result {}
 }
 
 test tdbc::mysql-9.37 {rs foreach - too few args} {*}{
@@ -1969,8 +1967,7 @@ test tdbc::mysql-10.19 {allrows - variable not found} {*}{
     -cleanup {
 	unset thePattern
     }
-    -returnCodes error
-    -result {can't read "thePattern": variable is array}
+    -result {}
 }
 
 test tdbc::mysql-10.20 {allrows - too many args} {*}{

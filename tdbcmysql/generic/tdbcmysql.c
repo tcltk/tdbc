@@ -41,9 +41,7 @@ const char* LiteralValues[] = {
     "0",
     "1",
     "direction",
-    "exists",
     "in",
-    "info",
     "inout",
     "name",
     "nullable",
@@ -58,9 +56,7 @@ enum LiteralIndex {
     LIT_0,
     LIT_1,
     LIT_DIRECTION,
-    LIT_EXISTS,
     LIT_IN,
-    LIT_INFO,
     LIT_INOUT,
     LIT_NAME,
     LIT_NULLABLE,
@@ -2644,36 +2640,10 @@ ResultSetConstructor(
 	    }
 	} else {
 
-	    /* Param from a variable; check existence first */
+	    /* Param from a variable */
 
-	    Tcl_Obj* cmd[3];
-	    int result;
-	    int exists;
-	    cmd[0] = pidata->literals[LIT_INFO]; Tcl_IncrRefCount(cmd[0]);
-	    cmd[1] = pidata->literals[LIT_EXISTS]; Tcl_IncrRefCount(cmd[1]);
-	    cmd[2] = paramNameObj; Tcl_IncrRefCount(cmd[2]);
-	    result = Tcl_EvalObjv(interp, 3, cmd, TCL_EVAL_DIRECT);
-	    if (result != TCL_OK) {
-		return result;
-	    }
-	    if (Tcl_GetIntFromObj(interp, Tcl_GetObjResult(interp), &exists)
-		!= TCL_OK) {
-		/* Can happen only if someone overloaded ::info */
-		return TCL_ERROR;
-	    }
-	    Tcl_ResetResult(interp);
-	    Tcl_DecrRefCount(cmd[0]);
-	    Tcl_DecrRefCount(cmd[1]);
-	    Tcl_DecrRefCount(cmd[2]);
-	    if (exists) {
-		paramValObj = Tcl_GetVar2Ex(interp, paramName, NULL, 
-					    TCL_LEAVE_ERR_MSG);
-		if (paramValObj == NULL) {
-		    return TCL_ERROR;
-		}
-	    } else {
-		paramValObj = NULL;
-	    }
+	    paramValObj = Tcl_GetVar2Ex(interp, paramName, NULL, 
+					TCL_LEAVE_ERR_MSG);
 	}
 
 	/* 
