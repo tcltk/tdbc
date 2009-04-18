@@ -5,6 +5,9 @@
 .\" See the file "license.terms" for information on usage and redistribution of
 .\" this file, and for a DISCLAIMER OF ALL WARRANTIES.
 .\" .so man.macros
+.if t .wh -1.3i ^B
+.nr ^l \n(.l
+.ad b
 .\"	# BS - start boxed text
 .\"	# ^y = starting y location
 .\"	# ^b = 1
@@ -65,7 +68,8 @@ have manual pages of their own, listed under \fBSEE ALSO\fR.
 In addition, TDBC itself has a few service procedures that are chiefly
 of interest to driver writers. \fBSEE ALSO\fR also enumerates them.
 .SH "SEE ALSO"
-tdbc::connection(n), tdbc::resultset(n), tdbc::statement(n), tdbc::tokenize(n),
+tdbc::connection(n), tdbc::mapSqlState(n), 
+tdbc::resultset(n), tdbc::statement(n), tdbc::tokenize(n),
 tdbc::mysql(n), tdbc::odbc(n), tdbc::sqlite3(n)
 .SH "KEYWORDS"
 TDBC, SQL, database, connectivity, connection, resultset, statement

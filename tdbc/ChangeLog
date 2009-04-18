@@ -1,3 +1,12 @@
+2009-04-18  Kevin B. Kenny  <kennykb@acm.org>
+
+	* doc/tdbc.n:
+	* doc/tdbc_connection.n:
+	* doc/tdbc_resultset.n:
+	* doc/tdbc_statement.n:
+	* doc/tdbc_tokenize.n: Corrected tabs, margins, etc. to Tcl standard.
+	* doc/tdbc_mapSqlState.n: Added documentation for tdbc::mapSqlState.
+	
 2009-04-16  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbc.h:

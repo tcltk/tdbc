@@ -6,6 +6,9 @@
 .\" this file, and for a DISCLAIMER OF ALL WARRANTIES.
 .\"
 .\" .so man.macros
+.if t .wh -1.3i ^B
+.nr ^l \n(.l
+.ad b
 .\"	# BS - start boxed text
 .\"	# ^y = starting y location
 .\"	# ^b = 1
