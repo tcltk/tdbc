@@ -2,9 +2,10 @@
 
 	* doc/tdbc.n:
 	* doc/tdbc_connection.n: Changed 'starttransaction' to
-				 'begintransaction'	
+				 'begintransaction'. Corrected the 'foreach'
+				 syntax
+	* doc/tdbc_statement.n: Corrected the 'foreach' syntax.
 	* doc/tdbc_resultset.n:
-	* doc/tdbc_statement.n:
 	* doc/tdbc_tokenize.n: Corrected tabs, margins, etc. to Tcl standard.
 	* doc/tdbc_mapSqlState.n: Added documentation for tdbc::mapSqlState.
 	

@@ -78,8 +78,8 @@ package require \fBtdbc::\fR\fIdriver version\fR
 \fI$stmt\fR \fBallrows\fR ?\fB-as lists|dicts\fR? ?\fB-columnsvariable\fR \fIname\fR? ?\fB--\fR? ?\fIdict\fR
 .sp
 \fI$stmt\fR \fBforeach\fR ?\fB-as lists|dicts\fR?
-?\fB-columnsvariable\fR \fIname\fR? ?\fB--\fR? \fIdict\fR
-\fIvarName\fR \fIscript\fR
+?\fB-columnsvariable\fR \fIname\fR? ?\fB--\fR? \fIvarName\fR ?\fIdict\fR?
+\fIscript\fR
 .sp
 \fI$stmt\fR \fBclose\fR
 .BE
