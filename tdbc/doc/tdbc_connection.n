@@ -166,21 +166,21 @@ point), for types that support the concept.
 .IP \fBnullable\fR
 Contains 1 if the column can contain NULL values, and 0 otherwise.
 .PP
-The \fBstarttransaction\fR object command on a database connection
+The \fBbegintransaction\fR object command on a database connection
 begins a transaction on the database. If the underlying database does
 not support atomic, consistent, isolated, durable transactions, the
-\fBstarttransaction\fR object command returns an error reporting the
-fact. Similarly, if multiple \fBstarttransaction\fR commands are executed
+\fBbegintransaction\fR object command returns an error reporting the
+fact. Similarly, if multiple \fBbegintransaction\fR commands are executed
 withough an intervening \fBcommit\fR or \fBrollback\fR command, an
 error is returned unless the underlying database supports nested
 transactions.
 .PP
 The \fBcommit\fR object command on a database connection ends the most
-recent transaction started by \fBstarttransaction\fR and commits
+recent transaction started by \fBbegintransaction\fR and commits
 changes to the database.
 .PP
 The \fBrollback\fR object command on a database connection rolls back
-the most recent transaction started by \fBstarttransaction\fR. The
+the most recent transaction started by \fBbegintransaction\fR. The
 state of the database is as if nothing happened during the
 transaction.
 .PP
