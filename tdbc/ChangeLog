@@ -1,5 +1,11 @@
+2009-04-19  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in (install-doc): Added missing commands to install
+	                             section 3 man pages
+	
 2009-04-18  Kevin B. Kenny  <kennykb@acm.org>
 
+	* doc/Tdbc.3: Added manual page for C API to TDBC
 	* doc/tdbc.n:
 	* doc/tdbc_connection.n: Changed 'starttransaction' to
 				 'begintransaction'. Corrected the 'foreach'

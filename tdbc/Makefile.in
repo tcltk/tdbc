@@ -230,6 +230,11 @@ install-libraries: libraries
 install-doc: doc
 	@mkdir -p $(DESTDIR)$(mandir)/mann
 	@echo "Installing documentation in $(DESTDIR)$(mandir)"
+	@list='$(srcdir)/doc/*.3'; for i in $$list; do \
+	    echo "Installing $$i"; \
+	    rm -f $(DESTDIR)$(mandir)/man3/`basename $$i`; \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(mandir)/man3 ; \
+	done
 	@list='$(srcdir)/doc/*.n'; for i in $$list; do \
 	    echo "Installing $$i"; \
 	    rm -f $(DESTDIR)$(mandir)/mann/`basename $$i`; \
