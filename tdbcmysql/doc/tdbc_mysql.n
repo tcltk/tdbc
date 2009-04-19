@@ -59,6 +59,8 @@ tdbc::mysql \- TDBC-MYSQL bridge
 package require \fBtdbc::mysql 1.0\fR
 .sp
 \fBtdbc::mysql::connection create\fR \fIdb\fR ?\fI-option value...\fR?
+.br
+\fBtdbc::mysql::connction new\fR ?\fI-option value...\fR?
 .sp
 \fBtdbc::mysql::datasources\fR ?\fB-system\fR|\fB-user\fR?
 .sp
@@ -73,8 +75,13 @@ to Tcl DataBase Connectivity (TDBC) and allows a Tcl script to connect
 to a MySQL database.
 .PP
 Connection to an MYSQL database is established by invoking
-\fBtdbc::mysql::connection create\fR, passing it a pair of \fI-option-value\fR
-pairs. The available options are enumerated under CONNECTION OPTIONS below.
+\fBtdbc::mysql::connection create\fR, passing it the name to give the
+database handle and a set of \fI-option-value\fR pairs. The available
+options are enumerated under CONNECTION OPTIONS below.
+As an alternative, \fBtdbc::mysql::connection new\fR may be used to create
+a database connection with an automatically assigned name. The return value
+from \fBtdbc::mysql::connection new\fR is the name that was chosen for the
+connection handle.
 .PP
 The side effect of \fBtdbc::mysql::connection create\fR is to create a
 new database connection.. See \fBtdbc::connection(n)\fR for the

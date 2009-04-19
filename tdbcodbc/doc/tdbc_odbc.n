@@ -58,7 +58,9 @@ tdbc::odbc \- TDBC-ODBC bridge
 .SH "SYNOPSIS"
 package require \fBtdbc::odbc 1.0\fR
 .sp
-\fBtdbc::odbc::connection create\fR \fIdb\fR  \fIconnectionString\fR ?\fI-option value...\fR?
+\fBtdbc::odbc::connection create\fR \fIdb\fR \fIconnectionString\fR ?\fI-option value...\fR?
+.br
+\fBtdbc::odbc::connection new\fR \fIconnectionString\fR ?\fI-option value...\fR?
 .sp
 \fBtdbc::odbc::datasources\fR ?\fB-system\fR|\fB-user\fR?
 .sp
@@ -75,8 +77,15 @@ as a worked example of how to write a database driver in C, so that
 driver authors have a starting point for further development.
 .PP
 Connection to an ODBC database is established by invoking
-\fBtdbc::odbc::connection create\fR, passing it a standard ODBC
-connection string. The connection string will include at least a
+\fBtdbc::odbc::connection create\fR, passing it the name to be used
+as a connection handle, followed by a standard ODBC
+connection string. As an alternative, \fBtdbc::odbc::connection new\fR 
+may be used to create
+a database connection with an automatically assigned name. The return value
+from \fBtdbc::odbc::connection new\fR is the name that was chosen for the
+connection handle.
+.PP
+The connection string will include at least a
 \fBDRIVER\fR or \fBDSN\fR keyword, and may include others that are defined by a
 particular ODBC driver. (If the local ODBC system supports a graphical
 user interface, the \fB-parent\fR option (see below) may allow calling

@@ -69,9 +69,14 @@ as a worked example of how to write a database driver in Tcl, so that
 driver authors have a starting point for further development.
 .PP
 Connection to a SQLite3 database is established by invoking
-\fBtdbc::sqlite3::connection create\fR, passing it the file name of
+\fBtdbc::sqlite3::connection create\fR, passing it a string to be used
+as the connection handle followed by the file name of
 the database. The side effect of \fBtdbc::sqlite3::connection
-create\fR is to create a new database connection.. See
+create\fR is to create a new database connection..
+As an alternative, \fBtdbc::sqlite::connection new\fR may be used to create
+a database connection with an automatically assigned name. The return value
+from \fBtdbc::sqlite::connection new\fR is the name that was chosen for the
+connection handle. See
 \fBtdbc::connection(n)\fR for the details of how to use the connection
 to manipulate a database.
 .SH "CONFIGURATION OPTIONS"

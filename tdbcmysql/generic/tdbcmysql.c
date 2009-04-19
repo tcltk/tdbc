@@ -2473,7 +2473,7 @@ ResultSetConstructor(
     char* bufPtr;		/* Pointer to the parameter buffer */
     int len;			/* Length of a bound parameter */
     int nColumns;		/* Number of columns in the result set */
-    MYSQL_FIELD* fields;	/* Description of columns of the result set */
+    MYSQL_FIELD* fields = NULL;	/* Description of columns of the result set */
     MYSQL_BIND* resultBindings;	/* Bindings of the columns of the result set */
     unsigned long* resultLengths; 
 				/* Lengths of the columns of the result set */
