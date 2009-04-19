@@ -2,7 +2,8 @@
 
 	* generic/tdbcmysql.c: Silenced a compiler warning about 'fields'
 	                       being used uninitialized.
-	
+	* doc/tdbc_mysql.n: Added missing documentation for 'new' constructors.
+
 2009-04-18  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcmysql.c: Changed so that an inappropriate access to

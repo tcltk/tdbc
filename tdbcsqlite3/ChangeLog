@@ -1,3 +1,8 @@
+2009-04-19  Kevin B. Kenny  <kennykb@acm.org>
+
+	* doc/tdbc_sqlite3.n: Added missing documentation for 'new' 
+	                      constructors.
+	
 2009-04-18  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tests/tdbcsqlite3.test: Changed the 'invalid path name' to a
