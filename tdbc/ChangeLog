@@ -14,6 +14,7 @@
 	    '\" IGNORE ... \'" END IGNORE directive so that *roff macros
 	    can be skipped reliably (needed in order to handle the .AS and
 	    .AP macros)
+	Retagged 1.0b10 with these changes.
 	
 2009-04-20  Kevin B. Kenny  <kennykb@acm.org>
 
