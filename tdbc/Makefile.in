@@ -346,7 +346,7 @@ dist: dist-clean
 		$(srcdir)/doc/tdbc_statement.n \
 		$(srcdir)/doc/tdbc_mapSqlState.n \
 		$(srcdir)/doc/tdbc_tokenize.n \
-		$(srcdir)/doc/tdbc/Tdbc.3 \
+		$(srcdir)/doc/Tdbc.3 \
 		$(DIST_DIR)/doc/
 
 	mkdir $(DIST_DIR)/generic
