@@ -1,3 +1,20 @@
+2009-04-21  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in (dist): Rename Tdbc.3 to Tdbc_Init.3 to avoid
+	a file naming conflict in HTML documentation.
+	* doc/Tdbc_Init.3: Renamed from Tdbc.3. Added IGNORE arond macros
+	* doc/tbdc.n:
+	* doc/tdbc_connection.n:
+	* doc/tdbc_mapSqlState.n:
+	* doc/tdbc_resultset.n:
+	* doc/tdbc_statement.n:
+	* doc/tdbc_tokenize.n: Added IGNORE / END IGNORE around macros.
+	* tdbc_mapSqlState.n: Moved the .BS comment to where it belongs.
+	* tools/tdbc-man2html.tcl: Added .3 man pages to the build. Added a
+	    '\" IGNORE ... \'" END IGNORE directive so that *roff macros
+	    can be skipped reliably (needed in order to handle the .AS and
+	    .AP macros)
+	
 2009-04-20  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in (dist): Added new man pages to the 'dist' rule.
