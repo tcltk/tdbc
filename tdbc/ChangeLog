@@ -1,3 +1,8 @@
+2009-04-20  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in (dist): Added new man pages to the 'dist' rule.
+	Retagged 1.0b10 with these changes.
+	
 2009-04-19  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in (install-doc): Added missing commands to install
