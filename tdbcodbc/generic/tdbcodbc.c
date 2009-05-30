@@ -3769,14 +3769,9 @@ GetCell(
 
 	    /* Try to get the string */
 
-	    if (dataType == SQL_C_CHAR) {
-		bufLeft = colAllocLen - offset - 1;
-	    } else {
-		bufLeft = colAllocLen - offset - sizeof(SQLWCHAR);
-	    }
 	    rc = SQLGetData(rdata->hStmt, i+1, dataType,
 			    (SQLPOINTER) (((char*)colPtr)+offset),
-			    bufLeft,
+			    colAllocLen - offset,
 			    &colLen);
 	    if (rc == SQL_SUCCESS_WITH_INFO
 		&& SQLStateIs(SQL_HANDLE_STMT, rdata->hStmt, "01004")) {
@@ -3784,7 +3779,9 @@ GetCell(
 		 * The requested buffer was too small to hold the
 		 * data. 
 		 */
-		offset += bufLeft;
+		fprintf(stderr, "Buffer overrun, offset %d colAllocLen %d "
+			"colLen %d\n", offset, colAllocLen, colLen);
+		offset = colAllocLen;
 		if (dataType == SQL_C_CHAR) {
 		    --offset;
 		} else {

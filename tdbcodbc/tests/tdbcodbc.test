@@ -2997,7 +2997,7 @@ test tdbc::odbc-27.2 {memos} {*}{
                 stuff memo
             )
         }
-	set testblob [string repeat 0123456789 200]
+	set testblob [string repeat 0123456789abs 200]
         set stmt [db prepare {
             insert into blobtest(id, stuff) values (1, :testblob)
         }]
