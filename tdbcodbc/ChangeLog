@@ -6,7 +6,9 @@
 
 	* generic/tdbcodbc.c (GetCell): Corrected a problem where
 	results longer than the preallocated buffer length had spurious
-	NULL characters inserted. 
+	NULL characters inserted. Corrected a subsequent problem where
+	BLOBs had *missing* characters. (The ODBC documentation lies about
+	terminating NULL bytes.)
 	* tests/tdbcodbc.test (odbc-27.[12]): Corrected a problem where
 	BLOB and MEMO tests didn't actually test anything.
 	Thanks to Alan Grunwald for reporting these bugs
