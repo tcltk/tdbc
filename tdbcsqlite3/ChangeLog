@@ -1,3 +1,10 @@
+2009-05-29  Kevin B. Kenny  <kennykb@acm.org>
+
+	* README:			Advanced version number to 1.0b11
+	* configure.in:
+	* library/tdbcsqlite3.tcl:
+	* configure:			autoconf-2.59
+	
 2009-04-19  Kevin B. Kenny  <kennykb@acm.org>
 
 	* doc/tdbc_sqlite3.n: Added missing documentation for 'new' 

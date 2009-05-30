@@ -2970,11 +2970,12 @@ test tdbc::odbc-27.1 {blobs} {*}{
     -body {
 	set trouble {}
 	db foreach row {select id, stuff from blobtest} {
-            if {[dict get $row id] ne $testblob} {
-		set trouble       "blob is   \"[dict get $row id]\""
+            if {[dict get $row stuff] ne $testblob} {
+		set trouble       "blob is   \"[dict get $row stuff]\""
                 append trouble \n "should be \"" $testblob "\""
 	    }
 	}
+	set trouble
     }
     -cleanup {
 	db allrows {
@@ -2983,6 +2984,47 @@ test tdbc::odbc-27.1 {blobs} {*}{
     }
     -result {}
 }
+
+test tdbc::odbc-27.2 {memos} {*}{
+    -constraints !sqlite
+    -setup {
+	db allrows {
+	    create table blobtest (
+	        id integer primary key,
+                stuff memo
+            )
+        }
+	set testblob [string repeat 0123456789 200]
+        set stmt [db prepare {
+            insert into blobtest(id, stuff) values (1, :testblob)
+        }]
+	$stmt paramtype testblob longvarchar 65535
+	$stmt allrows 
+	$stmt close
+    }
+    -body {
+	set trouble {}
+	set count 0
+	db foreach row {select id, stuff from blobtest} {
+	    incr count
+            if {[dict get $row stuff] ne $testblob} {
+		set trouble       "blob is   \"[dict get $row stuff]\""
+                append trouble \n "should be \"" $testblob "\""
+	    }
+	}
+	if {$count != 1} {
+	    append trouble \n "$count rows returned, should have been 1"
+	}
+	set trouble
+    }
+    -cleanup {
+	db allrows {
+	    drop table blobtest
+	}
+    }
+    -result {}
+}
+
 
 #-------------------------------------------------------------------------------
 

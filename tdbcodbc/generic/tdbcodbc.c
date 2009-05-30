@@ -3773,6 +3773,11 @@ GetCell(
 		 * data. 
 		 */
 		offset = colAllocLen;
+		if (dataType == SQL_C_CHAR) {
+		    --offset;
+		} else {
+		    offset -= sizeof(SQLWCHAR);
+		}
 		if (colLen == SQL_NO_TOTAL) {
 		    /*
 		     * The driver wouldn't tell us how much space was

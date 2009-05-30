@@ -1,3 +1,16 @@
+2009-05-29  Kevin B. Kenny  <kennykb@acm.org>
+
+	* README:	
+	* configure.in:		Advanced version to 1.0b11
+	* configure:		autoconf-2.59
+
+	* generic/tdbcodbc.c (GetCell): Corrected a problem where
+	results longer than the preallocated buffer length had spurious
+	NULL characters inserted. 
+	* tests/tdbcodbc.test (odbc-27.[12]): Corrected a problem where
+	BLOB and MEMO tests didn't actually test anything.
+	Thanks to Alan Grunwald for reporting these bugs
+	
 2009-04-19  Kevin B. Kenny  <kennykb@acm.org>
 
 	* doc/tdbc_odbc.n: Added missing documentation for 'new' constructors.
