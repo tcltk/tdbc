@@ -3753,7 +3753,12 @@ GetCell(
     convertString:
 	/* Anything else is converted as a string */
 	offset = 0;
+	retry = 0;
 	do {
+	    if (retry) {
+		fprintf(stderr, "Retrying with offset=%d\n", offset);
+		fflush(stderr);
+	    }
 	    retry = 0;
 	    /* 
 	     * It's possible that SQLGetData won't update colLen if
