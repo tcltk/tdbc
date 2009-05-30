@@ -3618,6 +3618,8 @@ GetCell(
 				 * be retried */
     SQLINTEGER offset;		/* Offset in the buffer for retrying large
 				 * object operations */
+    SQLINTEGER bufLeft;		/* Number of bytes remaining in the string
+				 * buffer */
 
     colObj = NULL;
     *colObjPtr = NULL;
@@ -3762,9 +3764,14 @@ GetCell(
 
 	    /* Try to get the string */
 
+	    if (dataType == SQL_C_CHAR) {
+		bufLeft = colAllocLen - offset - 1;
+	    } else {
+		bufLeft = colAllocLen - offset - sizeof(SQLWCHAR);
+	    }
 	    rc = SQLGetData(rdata->hStmt, i+1, dataType,
 			    (SQLPOINTER) (((char*)colPtr)+offset),
-			    colAllocLen-offset,
+			    bufLeft,
 			    &colLen);
 	    if (rc == SQL_SUCCESS_WITH_INFO
 		&& SQLStateIs(SQL_HANDLE_STMT, rdata->hStmt, "01004")) {
@@ -3784,8 +3791,15 @@ GetCell(
 		     * needed, but we got a full bufferload (less the
 		     * terminating NULL character)
 		     */
+		    fprintf(stderr, "Too little space (%d) in buffer, and "
+			    "the driver didn't tell us how much is needed\n",
+			    colAllocLen);
+		    fflush(stderr);
 		    colAllocLen = 2 * colAllocLen;
 		} else {
+		    fprintf(stderr, "Too little space (%d) in buffer, need "
+			    "%d more\n", colAllocLen, colLen);
+		    fflush(stderr);
 		    colAllocLen += colLen;
 		}
 		if (colPtr == colBuf) {

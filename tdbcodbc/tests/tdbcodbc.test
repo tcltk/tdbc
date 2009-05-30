@@ -2973,6 +2973,9 @@ test tdbc::odbc-27.1 {blobs} {*}{
             if {[dict get $row stuff] ne $testblob} {
 		set trouble       "blob is   \"[dict get $row stuff]\""
                 append trouble \n "should be \"" $testblob "\""
+		append trouble \n "length is [string length \
+                                                  [dict get $row stuff]]"
+		append trouble \n "should be [string length $testblob]"
 	    }
 	}
 	set trouble
