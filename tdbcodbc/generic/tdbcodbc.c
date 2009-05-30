@@ -3784,7 +3784,7 @@ GetCell(
 		 * The requested buffer was too small to hold the
 		 * data. 
 		 */
-		offset = colAllocLen;
+		offset += bufLeft;
 		if (dataType == SQL_C_CHAR) {
 		    --offset;
 		} else {
