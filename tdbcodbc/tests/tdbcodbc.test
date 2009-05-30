@@ -3031,6 +3031,43 @@ test tdbc::odbc-27.2 {memos} {*}{
     -result {}
 }
 
+test tdbc::odbc-27.3 {clobs} {*}{
+    -constraints sqlite
+    -setup {
+	db allrows {
+	    create table blobtest (
+	        id integer primary key,
+                stuff varchar(10240)
+            )
+        }
+	set testblob [string repeat 0123456789abc 200]
+        db allrows {
+            insert into blobtest(id, stuff) values (1, :testblob)
+        }
+    }
+    -body {
+	set trouble {}
+	db foreach row {select id, stuff from blobtest} {
+            if {[dict get $row stuff] ne $testblob} {
+		set trouble       "blob is   \"[dict get $row stuff]\""
+                append trouble \n "should be \"" $testblob "\""
+		append trouble \n "length is [string length \
+                                                  [dict get $row stuff]]"
+		append trouble \n "should be [string length $testblob]"
+	    }
+	}
+	set trouble
+    }
+    -cleanup {
+	db allrows {
+	    drop table blobtest
+	}
+    }
+    -result {}
+}
+
+
+
 
 #-------------------------------------------------------------------------------
 

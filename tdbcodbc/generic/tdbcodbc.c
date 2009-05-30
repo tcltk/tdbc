@@ -3618,8 +3618,6 @@ GetCell(
 				 * be retried */
     SQLINTEGER offset;		/* Offset in the buffer for retrying large
 				 * object operations */
-    SQLINTEGER bufLeft;		/* Number of bytes remaining in the string
-				 * buffer */
 
     colObj = NULL;
     *colObjPtr = NULL;
@@ -3755,10 +3753,6 @@ GetCell(
 	offset = 0;
 	retry = 0;
 	do {
-	    if (retry) {
-		fprintf(stderr, "Retrying with offset=%d\n", offset);
-		fflush(stderr);
-	    }
 	    retry = 0;
 	    /* 
 	     * It's possible that SQLGetData won't update colLen if
@@ -3779,10 +3773,10 @@ GetCell(
 		 * The requested buffer was too small to hold the
 		 * data. 
 		 */
-		fprintf(stderr, "Buffer overrun, offset %d colAllocLen %d "
-			"colLen %d\n", offset, colAllocLen, colLen);
 		offset = colAllocLen;
-		if (dataType == SQL_C_CHAR) {
+		if (dataType == SQL_C_BINARY) {
+		    /* no NULL terminator */
+		} else if (dataType == SQL_C_CHAR) {
 		    --offset;
 		} else {
 		    offset -= sizeof(SQLWCHAR);
@@ -3793,15 +3787,8 @@ GetCell(
 		     * needed, but we got a full bufferload (less the
 		     * terminating NULL character)
 		     */
-		    fprintf(stderr, "Too little space (%d) in buffer, and "
-			    "the driver didn't tell us how much is needed\n",
-			    colAllocLen);
-		    fflush(stderr);
 		    colAllocLen = 2 * colAllocLen;
 		} else {
-		    fprintf(stderr, "Too little space (%d) in buffer, need "
-			    "%d more\n", colAllocLen, colLen);
-		    fflush(stderr);
 		    colAllocLen += colLen;
 		}
 		if (colPtr == colBuf) {
