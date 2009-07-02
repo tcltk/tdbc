@@ -1,3 +1,4 @@
+
 #include <tcl.h>
 #include <tclOO.h>
 #include <tdbc.h>
@@ -30,11 +31,7 @@ typedef struct PerInterpData {
 /* 
  * Structure that carries the data for a Postgre connection
  *
- * 	The ConnectionData structure is refcounted to simplify the
- *	destruction of statements associated with a connection.
- *	When a connection is destroyed, the subordinate namespace that
- *	contains its statements is taken down, destroying them. It's
- *	not safe to take down the ConnectionData until nothing is
+ * 	The 
  *	referring to it, which avoids taking down the TDBC until the
  *	other objects that refer to it vanish.
  */
@@ -43,6 +40,7 @@ typedef struct ConnectionData {
     int refCount;		/* Reference count. */
     PerInterpData* pidata;	/* Per-interpreter data */
     PGconn* pgPtr;		/* Postgre  connection handle */
+    int stmtCounter;		/* Counter for naming statements */
 //    int nCollations;		/* Number of collations defined */
 //    int* collationSizes;	/* Character lengths indexed by collation ID */
 //    int flags;
@@ -61,6 +59,40 @@ typedef struct ConnectionData {
 	}					\
     } while(0)
 
+/*
+ * Structure that carries the data for a Postgre prepared statement.
+ *
+ *	Just as with connections, statements need to defer taking down
+ *	their client data until other objects (i.e., result sets) that
+ * 	refer to them have had a chance to clean up. Hence, this
+ *	structure is reference counted as well.
+ */
+
+typedef struct StatementData {
+    int refCount;		/* Reference count */
+    ConnectionData* cdata;	/* Data for the connection to which this
+				 * statement pertains. */
+    Tcl_Obj* subVars;	        /* List of variables to be substituted, in the
+				 * order in which they appear in the 
+				 * statement */
+    struct ParamData *params;	/* Data types and attributes of parameters */
+    Tcl_Obj* nativeSql;		/* Native SQL statement to pass into
+				 * MySQL */
+    char* stmtName;		/* Name identyfing the statement */
+    Tcl_Obj* columnNames;	/* Column names in the result set */
+    int flags;
+} StatementData;
+#define IncrStatementRefCount(x)		\
+    do {					\
+	++((x)->refCount);			\
+    } while (0)
+#define DecrStatementRefCount(x)		\
+    do {					\
+	StatementData* stmt = (x);		\
+	if (--(stmt->refCount) <= 0) {		\
+	    DeleteStatement(stmt);		\
+	}					\
+    } while(0)
 
 
 
@@ -81,7 +113,7 @@ enum OptStringIndex {
 };
 
 /* Names of string options for Postgre PGconnectdb() */
-const char *  OptStringNames[] = {
+const char *  optStringNames[] = {
     "host", "hostaddr", "port", "dbname", "user",
     "password", "options", "tty", "service"
 };
@@ -128,11 +160,56 @@ static int ConnectionConstructor(ClientData clientData, Tcl_Interp* interp,
 				 Tcl_ObjectContext context,
 				 int objc, Tcl_Obj *const objv[]);
 
+static int ConnectionBegintransactionMethod(ClientData clientData,
+					    Tcl_Interp* interp,
+					    Tcl_ObjectContext context,
+					    int objc, Tcl_Obj *const objv[]);
+static int ConnectionColumnsMethod(ClientData clientData, Tcl_Interp* interp,
+				  Tcl_ObjectContext context,
+				  int objc, Tcl_Obj *const objv[]);
+static int ConnectionCommitMethod(ClientData clientData, Tcl_Interp* interp,
+				  Tcl_ObjectContext context,
+				  int objc, Tcl_Obj *const objv[]);
+static int ConnectionConfigureMethod(ClientData clientData, Tcl_Interp* interp,
+				     Tcl_ObjectContext context,
+				     int objc, Tcl_Obj *const objv[]);
+static int ConnectionNeedCollationInfoMethod(ClientData clientData,
+					     Tcl_Interp* interp,
+					     Tcl_ObjectContext context,
+					     int objc, Tcl_Obj *const objv[]);
+static int ConnectionRollbackMethod(ClientData clientData, Tcl_Interp* interp,
+				    Tcl_ObjectContext context,
+				    int objc, Tcl_Obj *const objv[]);
+static int ConnectionSetCollationInfoMethod(ClientData clientData,
+					    Tcl_Interp* interp,
+					    Tcl_ObjectContext context,
+					    int objc, Tcl_Obj *const objv[]);
+static int ConnectionTablesMethod(ClientData clientData, Tcl_Interp* interp,
+				  Tcl_ObjectContext context,
+				  int objc, Tcl_Obj *const objv[]);
+
+
 
 static void DeleteConnectionMetadata(ClientData clientData);
 static void DeleteConnection(ConnectionData* cdata);
 static int CloneConnection(Tcl_Interp* interp, ClientData oldClientData,
 			   ClientData* newClientData);
+
+
+static int StatementConstructor(ClientData clientData, Tcl_Interp* interp,
+				Tcl_ObjectContext context,
+				int objc, Tcl_Obj *const objv[]);
+static int StatementParamtypeMethod(ClientData clientData, Tcl_Interp* interp,
+				    Tcl_ObjectContext context,
+				    int objc, Tcl_Obj *const objv[]);
+static int StatementParamsMethod(ClientData clientData, Tcl_Interp* interp,
+				 Tcl_ObjectContext context,
+				 int objc, Tcl_Obj *const objv[]);
+
+static void DeleteStatementMetadata(ClientData clientData);
+static void DeleteStatement(StatementData* sdata);
+s
+
 
 static void DeleteCmd(ClientData clientData);
 static int CloneCmd(Tcl_Interp* interp,
@@ -160,6 +237,134 @@ const static Tcl_MethodType ConnectionConstructorType = {
     DeleteCmd,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
+
+
+/* Method types of the connection methods that are implemented in C */
+
+const static Tcl_MethodType ConnectionConstructorType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "CONSTRUCTOR",		/* name */
+    ConnectionConstructor,	/* callProc */
+    DeleteCmd,			/* deleteProc */
+    CloneCmd			/* cloneProc */
+};
+
+const static Tcl_MethodType ConnectionBegintransactionMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "begintransaction",		/* name */
+    ConnectionBegintransactionMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ConnectionColumnsMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "Columns",			/* name */
+    ConnectionColumnsMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ConnectionCommitMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "commit",			/* name */
+    ConnectionCommitMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ConnectionConfigureMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "configure",		/* name */
+    ConnectionConfigureMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ConnectionNeedCollationInfoMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "NeedCollationInfo",	/* name */
+    ConnectionNeedCollationInfoMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ConnectionRollbackMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "rollback",			/* name */
+    ConnectionRollbackMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ConnectionSetCollationInfoMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "SetCollationInfo",		/* name */
+    ConnectionSetCollationInfoMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ConnectionTablesMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "tables",			/* name */
+    ConnectionTablesMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+
+const static Tcl_MethodType* ConnectionMethods[] = {
+    &ConnectionBegintransactionMethodType,
+    &ConnectionColumnsMethodType,
+    &ConnectionCommitMethodType,
+    &ConnectionConfigureMethodType,
+//    &ConnectionNeedCollationInfoMethodType,
+    &ConnectionRollbackMethodType,
+//    &ConnectionSetCollationInfoMethodType,
+    &ConnectionTablesMethodType,
+    NULL
+};
+
+/* Method types of the statement methods that are implemented in C */
+
+const static Tcl_MethodType StatementConstructorType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "CONSTRUCTOR",		/* name */
+    StatementConstructor,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType StatementParamsMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "params",			/* name */
+    StatementParamsMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType StatementParamtypeMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "paramtype",		/* name */
+    StatementParamtypeMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+
+/* 
+ * Methods to create on the statement class. 
+ */
+
+const static Tcl_MethodType* StatementMethods[] = {
+    &StatementParamsMethodType,
+    &StatementParamtypeMethodType,
+    NULL
+};
+
+
 
 
 /* Initialization script */
@@ -194,6 +399,8 @@ TransferPostgreError(
     Tcl_Interp* interp,		/* Tcl interpreter */
     PGconn* pgPtr		/* Postgre connection handle */
 ) {
+
+    //TODO generate PGResult * with PQmakeEmptyPGresult
     Tcl_Obj* errorCode = Tcl_NewObj();
     Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("TDBC", -1));
     Tcl_ListObjAppendElement(NULL, errorCode,
@@ -248,7 +455,7 @@ QueryConnectionOption (
 	/* Fallback: try to get parameter value by generic function */
 	retval = Tcl_NewStringObj(
 		PQparameterStatus(cdata->pgPtr,
-		    OptStringNames[ConnOptions[optionNum].info]),
+		    optStringNames[ConnOptions[optionNum].info]),
 		-1);
 	if (retval == NULL)
 	    TransferPostgreError(interp, cdata->pgPtr);
@@ -284,20 +491,16 @@ ConfigureConnection(
     Tcl_Obj* const objv[],	/* Parameter data */
     int skip			/* Number of parameters to skip */
 ) {
-
-    const char* OptStringNames[INDX_MAX];
-				/* String-valued options */
     int optionIndex;		/* Index of the current option in ConnOptions */
     int optionValue;		/* Integer value of the current option */
     int i,j;
     char portval[10];		/* String representation of port number */
+    const char* stringOpts[INDX_MAX];
 #define CONNINFO_LEN 1000
     char connInfo[CONNINFO_LEN];	/* COnfiguration string for PQconnectdb() */ 
 
     Tcl_Obj* retval;
     Tcl_Obj* optval;
-
-    memset(OptStringNames, 0, INDX_MAX);
 
     if (cdata->pgPtr != NULL) {
 
@@ -345,7 +548,7 @@ ConfigureConnection(
     /* Extract options from the command line */
 
     for (i = 0; i < INDX_MAX; ++i) {
-	OptStringNames[i] = NULL;
+	stringOpts[i] = NULL;
     }
     for (i = skip; i < objc; i += 2) {
 
@@ -374,7 +577,7 @@ ConfigureConnection(
 
 	switch (ConnOptions[optionIndex].type) {
 	case TYPE_STRING:
-	    OptStringNames[ConnOptions[optionIndex].info] =
+	    stringOpts[ConnOptions[optionIndex].info] =
 		Tcl_GetString(objv[i+1]);
 	    break;
 /*	case TYPE_FLAG:
@@ -417,7 +620,7 @@ ConfigureConnection(
 		return TCL_ERROR;
 	    }
 	    sprintf(portval, "%d", optionValue);
-	    OptStringNames[INDX_PORT] = portval;
+	    optStringNames[INDX_PORT] = portval;
 	break;
 /*	case TYPE_READONLY:
 	    if (Tcl_GetBooleanFromObj(interp, objv[i+1], &optionValue)
@@ -446,23 +649,22 @@ ConfigureConnection(
 
 
 
-    if (cdata->pgPtr != NULL) {
+    if (cdata->pgPtr == NULL) {
 	j=0; 
 	connInfo[0] = '\0'; 
 	for (i=0; i<INDX_MAX; i+=1) {
-	    if (OptStringNames[i] != NULL ) {
+	    if (stringOpts[i] != NULL ) {
 		//TODO escape values
-		strncpy(&connInfo[j], OptStringNames[i], CONNINFO_LEN - j);
-		j+=strlen(OptStringNames[i]);
+		strncpy(&connInfo[j], optStringNames[i], CONNINFO_LEN - j);
+		j+=strlen(optStringNames[i]);
 		strncpy(&connInfo[j], " = '", CONNINFO_LEN - j);
 		j+=strlen(" = '"); 
-		strncpy(&connInfo[j], OptStringNames[i], CONNINFO_LEN - j);
-		j+=strlen(OptStringNames[i]);
+		strncpy(&connInfo[j], stringOpts[i], CONNINFO_LEN - j);
+		j+=strlen(stringOpts[i]);
 		strncpy(&connInfo[j], "' ", CONNINFO_LEN - j);
 		j+=strlen("' ");
 	    }
 	}
-	printf("conninfo: |%s|\n", connInfo);
 	cdata->pgPtr = PQconnectdb(connInfo);
 	if (cdata->pgPtr == NULL) {
 	    Tcl_SetObjResult(interp,
@@ -472,7 +674,7 @@ ConfigureConnection(
 	    return TCL_ERROR;
 	}
 
-	if (PQstatus(cdata->pgPtr) == CONNECTION_BAD) { 
+	if (PQstatus(cdata->pgPtr) != CONNECTION_OK) { 
 	    TransferPostgreError(interp, cdata->pgPtr);
 	    return TCL_ERROR; 
 	}
@@ -525,6 +727,7 @@ ConnectionConstructor(
     cdata->refCount = 1;
     cdata->pidata = pidata;
     cdata->pgPtr = NULL;
+    cdata->stmtCounter = 0;
 //    cdata->nCollations = 0;
  //   cdata->collationSizes = NULL;
  //   cdata->flags = 0;
@@ -540,6 +743,215 @@ ConnectionConstructor(
     return TCL_OK;
 
 }
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionBegintransactionMethod --
+ *
+ *	Method that requests that following operations on an POSTGRE connection
+ *	be executed as an atomic transaction.
+ *
+ * Usage:
+ *	$connection begintransaction
+ *
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns an empty result if successful, and throws an error otherwise.
+ *
+ *-----------------------------------------------------------------------------
+*/
+
+static int
+ConnectionBegintransactionMethod(
+    ClientData clientData,	/* Unused */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("not implemented\n");
+    //looks like PGexec("BEGIN")
+    //
+    
+//    return TCL_ERROR;
+//    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+ //   ConnectionData* cdata = (ConnectionData*)
+//	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+
+    /* Check parameters */
+
+ //   if (objc != 2) {
+//	Tcl_WrongNumArgs(interp, 2, objv, "");
+//	return TCL_ERROR;
+//    }
+
+//    /* Reject attempts at nested transactions */
+
+//    if (cdata->flags & CONN_FLAG_IN_XCN) {
+//	Tcl_SetObjResult(interp, Tcl_NewStringObj("POSTGRE does not support "
+//						  "nested transactions", -1));
+//	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HYC00",
+//			 "MYSQL", "-1", NULL);
+//	return TCL_ERROR;
+//    }
+//   cdata->flags |= CONN_FLAG_IN_XCN;
+    
+//TODO check what about autocommit in POSTGRE
+//    /* Turn off autocommit for the duration of the transaction */
+//
+//  if (cdata->flags & CONN_FLAG_AUTOCOMMIT) {
+//	if (mysql_autocommit(cdata->mysqlPtr, 0)) {
+//	    TransferMysqlError(interp, cdata->mysqlPtr);
+//	    return TCL_ERROR;
+//	}
+//	cdata->flags &= ~CONN_FLAG_AUTOCOMMIT;
+//   }
+
+//    return TCL_OK;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionCommitMethod --
+ *
+ *	Method that requests that a pending transaction against a database
+ * 	be committed.
+ *
+ * Usage:
+ *	$connection commit
+ * 
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns an empty Tcl result if successful, and throws an error
+ *	otherwise.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionCommitMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("not implemented");
+    // Looks like PQExec("COMMIT");
+    return TCL_ERROR; 
+
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionColumnsMethod --
+ *
+ *	Method that asks for the names of columns in a table
+ *	in the database (optionally matching a given pattern)
+ *
+ * Usage:
+ * 	$connection columns table ?pattern?
+ * 
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns the list of tables
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionColumnsMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("not implemented, yet\n");
+
+    //SEEMS Like PQExec of SELECT * FROM ...
+    //and then PQnfields x PQfname
+    return TCL_ERROR;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionRollbackMethod --
+ *
+ *	Method that requests that a pending transaction against a database
+ * 	be rolled back.
+ *
+ * Usage:
+ * 	$connection rollback
+ * 
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns an empty Tcl result if successful, and throws an error
+ *	otherwise.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionRollbackMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("not implemented\n");
+    //Looks like PQexec("ROLLBACK");
+    return TCL_ERROR; 
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionTablesMethod --
+ *
+ *	Method that asks for the names of tables in the database (optionally
+ *	matching a given pattern
+ *
+ * Usage:
+ * 	$connection tables ?pattern?
+ * 
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns the list of tables
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionTablesMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    //$tableList = pg_exec($dbconn, "select * from pg_tables");
+    printf("not implemented\n");
+    return TCL_ERROR;
+}
+
 
 
 /*
@@ -701,6 +1113,217 @@ DeletePerInterpData(
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * NewStatement --
+ *
+ *	Creates an empty object to hold statement data.
+ *
+ * Results:
+ *	Returns a pointer to the newly-created object.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static StatementData*
+NewStatement(
+    ConnectionData* cdata	/* Instance data for the connection */
+) {
+    char stmtName[30];
+    StatementData* sdata = (StatementData*) ckalloc(sizeof(StatementData));
+    sdata->refCount = 1;
+    sdata->cdata = cdata;
+    IncrConnectionRefCount(cdata);
+    sdata->subVars = Tcl_NewObj();
+    Tcl_IncrRefCount(sdata->subVars);
+    sdata->params = NULL;
+    sdata->nativeSql = NULL;
+    sdata->columnNames = NULL;
+    sdata->flags = 0;
+
+    cdata->stmtCounter += 1;
+    snprintf(stmtName, "statement%d", cdata->stmtCounter, 30);
+    sdata->stmtName = strdup(stmtName);
+
+    return sdata;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StatementConstructor --
+ *
+ *	C-level initialization for the object representing an MySQL prepared
+ *	statement.
+ *
+ * Usage:
+ *	statement new connection statementText
+ *	statement create name connection statementText
+ *
+ * Parameters:
+ *      connection -- the MySQL connection object
+ *	statementText -- text of the statement to prepare.
+ *
+ * Results:
+ *	Returns a standard Tcl result
+ *
+ * Side effects:
+ *	Prepares the statement, and stores it (plus a reference to the
+ *	connection) in instance metadata.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StatementConstructor(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* Number of args to skip before the
+				 * payload arguments */
+    Tcl_Object connectionObject;
+				/* The database connection as a Tcl_Object */
+    ConnectionData* cdata;	/* The connection object's data */
+    StatementData* sdata;	/* The statement's object data */
+    Tcl_Obj* tokens;		/* The tokens of the statement to be prepared */
+    int tokenc;			/* Length of the 'tokens' list */
+    Tcl_Obj** tokenv;		/* Exploded tokens from the list */
+    Tcl_Obj* nativeSql;		/* SQL statement mapped to native form */
+    char* tokenStr;		/* Token string */
+    int tokenLen;		/* Length of a token */
+    int nParams;		/* Number of parameters of the statement */
+    char tmpstr[30];
+    int i,j;
+
+    /* Find the connection object, and get its data. */
+
+    thisObject = Tcl_ObjectContextObject(context);
+    if (objc != skip+2) {
+	Tcl_WrongNumArgs(interp, skip, objv, "connection statementText");
+	return TCL_ERROR;
+    }
+
+    connectionObject = Tcl_GetObjectFromObj(interp, objv[skip]);
+    if (connectionObject == NULL) {
+	return TCL_ERROR;
+    }
+    cdata = (ConnectionData*) Tcl_ObjectGetMetadata(connectionObject,
+						    &connectionDataType);
+    if (cdata == NULL) {
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
+			 " does not refer to a MySQL connection", NULL);
+	return TCL_ERROR;
+    }
+
+    /*
+     * Allocate an object to hold data about this statement
+     */
+
+    sdata = NewStatement(cdata);
+
+    /* Tokenize the statement */
+
+    tokens = Tdbc_TokenizeSql(interp, Tcl_GetString(objv[skip+1]));
+    if (tokens == NULL) {
+	goto freeSData;
+    }
+    Tcl_IncrRefCount(tokens);
+
+    /*
+     * Rewrite the tokenized statement to MySQL syntax. Reject the
+     * statement if it is actually multiple statements.
+     */
+
+    if (Tcl_ListObjGetElements(interp, tokens, &tokenc, &tokenv) != TCL_OK) {
+	goto freeTokens;
+    }
+    nativeSql = Tcl_NewObj();
+    Tcl_IncrRefCount(nativeSql);
+    j=0;
+    for (i = 0; i < tokenc; ++i) {
+	tokenStr = Tcl_GetStringFromObj(tokenv[i], &tokenLen);
+	
+	switch (tokenStr[0]) {
+	case '$':
+	case ':':
+	case '@':
+	    j+=1;
+	    snprintf(tmpstr, "$%d", j, 30);
+	    Tcl_AppendToObj(nativeSql, tmpstr, 1);
+	    Tcl_ListObjAppendElement(NULL, sdata->subVars, 
+				     Tcl_NewStringObj(tokenStr+1, tokenLen-1));
+	    break;
+
+	case ';':
+	    Tcl_SetObjResult(interp,
+			     Tcl_NewStringObj("tdbc::mysql"
+					      " does not support semicolons "
+					      "in statements", -1));
+	    goto freeNativeSql;
+	    break; 
+
+	default:
+	    Tcl_AppendToObj(nativeSql, tokenStr, tokenLen);
+	    break;
+
+	}
+    }
+    sdata->nativeSql = nativeSql;
+    Tcl_DecrRefCount(tokens);
+
+    /* Prepare the statement */
+
+    sdata->stmtPtr = AllocAndPrepareStatement(interp, sdata);
+    if (sdata->stmtPtr == NULL) {
+	goto freeSData;
+    }
+
+    /* Get result set metadata */
+
+    sdata->metadataPtr = mysql_stmt_result_metadata(sdata->stmtPtr);
+    if (mysql_stmt_errno(sdata->stmtPtr)) {
+	TransferMysqlStmtError(interp, sdata->stmtPtr);
+	goto freeSData;
+    }
+    sdata->columnNames = ResultDescToTcl(sdata->metadataPtr, 0);
+    Tcl_IncrRefCount(sdata->columnNames);
+
+    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
+    sdata->params = (ParamData*) ckalloc(nParams * sizeof(ParamData));
+    for (i = 0; i < nParams; ++i) {
+	sdata->params[i].flags = PARAM_IN;
+	sdata->params[i].dataType = MYSQL_TYPE_VARCHAR;
+	sdata->params[i].precision = 0;
+	sdata->params[i].scale = 0;
+    }
+
+    /* Attach the current statement data as metadata to the current object */
+
+    Tcl_ObjectSetMetadata(thisObject, &statementDataType, (ClientData) sdata);
+    return TCL_OK;
+
+    /* On error, unwind all the resource allocations */
+
+ freeNativeSql:
+    Tcl_DecrRefCount(nativeSql);
+ freeTokens:
+    Tcl_DecrRefCount(tokens);
+ freeSData:
+    DecrStatementRefCount(sdata);
+    return TCL_ERROR;
+}
+
+
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -774,6 +1397,45 @@ Tdbcpostgre_Init(
 	    Tcl_NewMethod(interp, curClass, NULL, 1,
 		&ConnectionConstructorType,
 		(ClientData) pidata));
+
+    /* Attach the methods to the 'connection' class */
+
+    for (i = 0; ConnectionMethods[i] != NULL; ++i) {
+	nameObj = Tcl_NewStringObj(ConnectionMethods[i]->name, -1);
+	Tcl_IncrRefCount(nameObj);
+	Tcl_NewMethod(interp, curClass, nameObj, 1, ConnectionMethods[i],
+			   (ClientData) NULL);
+	Tcl_DecrRefCount(nameObj);
+    }
+
+    /* Look up the 'statement' class */
+
+    nameObj = Tcl_NewStringObj("::tdbc::mysql::statement", -1);
+    Tcl_IncrRefCount(nameObj);
+    if ((curClassObject = Tcl_GetObjectFromObj(interp, nameObj)) == NULL) {
+	Tcl_DecrRefCount(nameObj);
+	return TCL_ERROR;
+    }
+    Tcl_DecrRefCount(nameObj);
+    curClass = Tcl_GetObjectAsClass(curClassObject);
+
+    /* Attach the constructor to the 'statement' class */
+
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &StatementConstructorType,
+					  (ClientData) NULL));
+
+    /* Attach the methods to the 'statement' class */
+
+    for (i = 0; StatementMethods[i] != NULL; ++i) {
+	nameObj = Tcl_NewStringObj(StatementMethods[i]->name, -1);
+	Tcl_IncrRefCount(nameObj);
+	Tcl_NewMethod(interp, curClass, nameObj, 1, StatementMethods[i],
+			   (ClientData) NULL);
+	Tcl_DecrRefCount(nameObj);
+    }
+
     return TCL_OK;
 }
 
