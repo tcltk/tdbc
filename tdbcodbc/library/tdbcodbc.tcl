@@ -131,8 +131,10 @@ package require tdbc
 			dict set row scale \
 			    [dict get $row decimal_digits]
 		    }
-		    dict set row nullable \
-			[expr {!![dict get $row is_nullable]}]
+		    if {![dict exists $row nullable]} {
+			dict set row nullable \
+			    [expr {!![string trim [dict get $row is_nullable]]}]
+		    }
 		    dict set retval [dict get $row column_name] $row
 		}
 	    }

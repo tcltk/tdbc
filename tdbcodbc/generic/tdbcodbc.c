@@ -1134,10 +1134,22 @@ GetResultSetDescription(
     Tcl_DString colNameDS;	/* Name of the current column, translated */
     Tcl_Obj* colNameObj;	/* Name of the current column, packaged in
 				 * a Tcl_Obj */
+    Tcl_HashTable nameHash;	/* Hash table to manage column name 
+				 * uniqueness. */
+    Tcl_HashEntry* nameEntry;	/* Hash table entry for the current name */
+    int new;			/* Flag that column name is unique */
+    int count;			/* Count to append to the name */
+    char numbuf[16];		/* Buffer to hold the appended count */
     SQLSMALLINT i;
     int retry;
     int status = TCL_ERROR;
 
+    /* Create a hash table to manage column name uniqueness */
+
+    Tcl_InitHashTable(&nameHash, TCL_STRING_KEYS);
+    nameEntry = Tcl_CreateHashEntry(&nameHash, "", &new);
+    Tcl_SetHashValue(nameEntry, (ClientData) 0);
+    
     /* Count the columns of the result set */
 
     rc = SQLNumResultCols(hStmt, &nColumns);
@@ -1198,12 +1210,38 @@ GetResultSetDescription(
 		goto cleanup;
 	    }
 	    
-	    /* Add column name to the list of column names */
+	    /* Make a Tcl_Obj for the column name */
 
 	    Tcl_DStringInit(&colNameDS);
 	    DStringAppendWChars(&colNameDS, colNameW, colNameLen);
 	    colNameObj = Tcl_NewStringObj(Tcl_DStringValue(&colNameDS),
 					  Tcl_DStringLength(&colNameDS));
+
+	    /* Test if column name is unique */
+
+	    for (;;) {
+		nameEntry = Tcl_CreateHashEntry(&nameHash,
+						Tcl_GetString(colNameObj),
+						&new);
+		if (new) {
+		    Tcl_SetHashValue(nameEntry, (ClientData) 1);
+		    break;
+		}
+
+		/* 
+		 * Non-unique name - append a # and the number of times
+		 * we've seen it before.
+		 */
+
+		count = (int) Tcl_GetHashValue(nameEntry);
+		++count;
+		Tcl_SetHashValue(nameEntry, (ClientData) count);
+		sprintf(numbuf, "#%d", count);
+		Tcl_AppendToObj(colNameObj, numbuf, -1);
+	    }
+	    
+	    /* Add column name to the list of column names */
+
 	    Tcl_ListObjAppendElement(NULL, colNames, colNameObj);
 	    Tcl_DStringFree(&colNameDS);
 	}
@@ -1218,6 +1256,7 @@ GetResultSetDescription(
     /* Clean up the column name buffer if we reallocated it. */
 
  cleanup:
+    Tcl_DeleteHashTable(&nameHash);
     if (colNameW != colNameBuf) {
 	ckfree((char*) colNameW);
     }
