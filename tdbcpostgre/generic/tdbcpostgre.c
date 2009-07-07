@@ -59,6 +59,29 @@ typedef struct ConnectionData {
 	}					\
     } while(0)
 
+
+
+/*
+ * Structure describing the data types of substituted parameters in
+ * a SQL statement.
+ */
+
+typedef struct ParamData {
+    int flags;			/* Flags regarding the parameters - see below */
+    int dataType;		/* Data type */
+    int precision;		/* Size of the expected data */
+    int scale;			/* Digits after decimal point of the
+				 * expected data */
+} ParamData;
+
+#define PARAM_KNOWN	1<<0	/* Something is known about the parameter */
+#define PARAM_IN 	1<<1	/* Parameter is an input parameter */
+#define PARAM_OUT 	1<<2	/* Parameter is an output parameter */
+				/* (Both bits are set if parameter is
+				 * an INOUT parameter) */
+#define PARAM_BINARY	1<<3	/* Parameter is binary */
+
+
 /*
  * Structure that carries the data for a Postgre prepared statement.
  *
@@ -77,7 +100,7 @@ typedef struct StatementData {
 				 * statement */
     struct ParamData *params;	/* Data types and attributes of parameters */
     Tcl_Obj* nativeSql;		/* Native SQL statement to pass into
-				 * MySQL */
+				 * Postgre */
     char* stmtName;		/* Name identyfing the statement */
     Tcl_Obj* columnNames;	/* Column names in the result set */
     int flags;
@@ -151,7 +174,7 @@ static const struct {
 };
 
 static void TransferPostgreError(Tcl_Interp* interp, PGconn * pgPtr);
-static void TransferResultError(Tcl_Interp* interp, PGresult * res);
+static int TransferResultError(Tcl_Interp* interp, PGresult * res);
 
 static Tcl_Obj* QueryConnectionOption(ConnectionData* cdata, Tcl_Interp* interp,
 				      int optionNum);
@@ -199,7 +222,7 @@ static int CloneConnection(Tcl_Interp* interp, ClientData oldClientData,
 
 static PGresult* AllocAndPrepareStatement(Tcl_Interp* interp,
 					    StatementData* sdata);
-static Tcl_Obj* ResultDescToTcl(MYSQL_RES* resultDesc, int flags);
+static Tcl_Obj* ResultDescToTcl(PGresult* resultDesc, int flags);
 
 
 static int StatementConstructor(ClientData clientData, Tcl_Interp* interp,
@@ -214,7 +237,6 @@ static int StatementParamsMethod(ClientData clientData, Tcl_Interp* interp,
 
 static void DeleteStatementMetadata(ClientData clientData);
 static void DeleteStatement(StatementData* sdata);
-s
 
 
 static void DeleteCmd(ClientData clientData);
@@ -233,16 +255,6 @@ const static Tcl_ObjectMetadataType connectionDataType = {
 				 * 'cuz connections aren't clonable */
 };
 
-
-
-const static Tcl_MethodType ConnectionConstructorType = {
-    TCL_OO_METHOD_VERSION_CURRENT,
-				/* version */
-    "CONSTRUCTOR",		/* name */
-    ConnectionConstructor,	/* callProc */
-    DeleteCmd,			/* deleteProc */
-    CloneCmd			/* cloneProc */
-};
 
 
 /* Method types of the connection methods that are implemented in C */
@@ -441,13 +453,12 @@ TransferPostgreError(
  *-----------------------------------------------------------------------------
  */
 
-static void TransferResultError(
+static int TransferResultError(
 	Tcl_Interp* interp,
 	PGresult * res
 ) {
     ExecStatusType error = PQresultStatus(res);
     const char* sqlstate;
-    Tcl_Obj* errorCode;
 
     if (error == PGRES_EMPTY_QUERY || error == PGRES_BAD_RESPONSE ||
 	    error == PGRES_NONFATAL_ERROR || error == PGRES_FATAL_ERROR) {
@@ -493,7 +504,6 @@ QueryConnectionOption (
     Tcl_Interp* interp,		/* Tcl interpreter */
     int optionNum		/* Position of the option in the table */
 ) {
-    Tcl_Obj* retval;		/* Return value */
     char * value;		/* Return value as C string */
 
     if (ConnOptions[optionNum].queryF != NULL) {
@@ -502,7 +512,7 @@ QueryConnectionOption (
 	    TransferPostgreError(interp, cdata->pgPtr);
 	    return NULL; 
 	} else 
-	    return Tcl_NewStringObj(value);
+	    return Tcl_NewStringObj(value, -1);
     }
     if (ConnOptions[optionNum].query != NULL){
         //TODO: SQL query, when no queryF given
@@ -512,13 +522,13 @@ QueryConnectionOption (
     if (ConnOptions[optionNum].type == TYPE_STRING &&
 	    ConnOptions[optionNum].info != -1) {
 	/* Fallback: try to get parameter value by generic function */
-	value = PQparameterStatus(cdata->pgPtr,
+	value = (char*) PQparameterStatus(cdata->pgPtr,
 		optStringNames[ConnOptions[optionNum].info]);
 	if (value == NULL) {
 	    TransferPostgreError(interp, cdata->pgPtr);
 	    return NULL;
 	} else
-	    return Tcl_NewStringObj(value);
+	    return Tcl_NewStringObj(value, -1);
     }
     return NULL; 
 }
@@ -1202,7 +1212,7 @@ NewStatement(
     sdata->flags = 0;
 
     cdata->stmtCounter += 1;
-    snprintf(stmtName, "statement%d", cdata->stmtCounter, 30);
+    snprintf(stmtName, 30, "statement%d", cdata->stmtCounter);
     sdata->stmtName = strdup(stmtName);
 
     return sdata;
@@ -1213,7 +1223,7 @@ NewStatement(
  *
  * AllocAndPrepareStatement --
  *
- *	Allocate space for a MySQL prepared statement, and prepare the
+ *	Allocate space for a Postgre prepared statement, and prepare the
  *	statement.
  *
  * Results:
@@ -1242,9 +1252,9 @@ AllocAndPrepareStatement(
     /* Prepare the statement */
 	
     nativeSqlStr = Tcl_GetStringFromObj(sdata->nativeSql, &nativeSqlLen);
-    res = PQprepare(cdata->pqPtr, sdata->stmtName, nativeSqlStr, 0, NULL);
+    res = PQprepare(cdata->pgPtr, sdata->stmtName, nativeSqlStr, 0, NULL);
     if (res == NULL) {
-        TransferPostgreError(interp, cdata->pqPtr);
+        TransferPostgreError(interp, cdata->pgPtr);
     }
     return res;
 }
@@ -1311,7 +1321,7 @@ ResultDescToTcl(
  *
  * StatementConstructor --
  *
- *	C-level initialization for the object representing an MySQL prepared
+ *	C-level initialization for the object representing an Postgre prepared
  *	statement.
  *
  * Usage:
@@ -1319,7 +1329,7 @@ ResultDescToTcl(
  *	statement create name connection statementText
  *
  * Parameters:
- *      connection -- the MySQL connection object
+ *      connection -- the Postgre connection object
  *	statementText -- text of the statement to prepare.
  *
  * Results:
@@ -1357,7 +1367,8 @@ StatementConstructor(
     char* tokenStr;		/* Token string */
     int tokenLen;		/* Length of a token */
     int nParams;		/* Number of parameters of the statement */
-    char tmpstr[30];
+    PGresult* res;		/* Temporary result of libpq calls */
+    char tmpstr[30];		/* Temporary array for strings */
     int i,j;
 
     /* Find the connection object, and get its data. */
@@ -1376,7 +1387,7 @@ StatementConstructor(
 						    &connectionDataType);
     if (cdata == NULL) {
 	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
-			 " does not refer to a MySQL connection", NULL);
+			 " does not refer to a Postgre connection", NULL);
 	return TCL_ERROR;
     }
 
@@ -1395,7 +1406,7 @@ StatementConstructor(
     Tcl_IncrRefCount(tokens);
 
     /*
-     * Rewrite the tokenized statement to MySQL syntax. Reject the
+     * Rewrite the tokenized statement to Postgre syntax. Reject the
      * statement if it is actually multiple statements.
      */
 
@@ -1413,7 +1424,7 @@ StatementConstructor(
 	case ':':
 	case '@':
 	    j+=1;
-	    snprintf(tmpstr, "$%d", j, 30);
+	    snprintf(tmpstr, 30, "$%d", j);
 	    Tcl_AppendToObj(nativeSql, tmpstr, 1);
 	    Tcl_ListObjAppendElement(NULL, sdata->subVars, 
 				     Tcl_NewStringObj(tokenStr+1, tokenLen-1));
@@ -1479,7 +1490,7 @@ StatementConstructor(
  *
  * StatementParamsMethod --
  *
- *	Lists the parameters in a MySQL statement.
+ *	Lists the parameters in a Postgre statement.
  *
  * Usage:
  *	$statement params
@@ -1568,7 +1579,7 @@ StatementParamsMethod(
  *
  * StatementParamtypeMethod --
  *
- *	Defines a parameter type in a MySQL statement.
+ *	Defines a parameter type in a Postgre statement.
  *
  * Usage:
  *	$statement paramtype paramName ?direction? type ?precision ?scale??
