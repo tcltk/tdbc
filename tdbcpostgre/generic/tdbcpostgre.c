@@ -8,12 +8,48 @@
 
 #include <libpq-fe.h>
 
+
+
+const char* LiteralValues[] = {
+    "",
+    "0",
+    "1",
+    "direction",
+    "in",
+    "inout",
+    "name",
+    "nullable",
+    "out",
+    "precision",
+    "scale",
+    "type",
+    NULL
+};
+enum LiteralIndex {
+    LIT_EMPTY,
+    LIT_0,
+    LIT_1,
+    LIT_DIRECTION,
+    LIT_IN,
+    LIT_INOUT,
+    LIT_NAME,
+    LIT_NULLABLE,
+    LIT_OUT,
+    LIT_PRECISION,
+    LIT_SCALE,
+    LIT_TYPE,
+    LIT__END
+};
+
+
 /*
  * Structure that holds per-interpreter data for the POSTGRE package.
  */
 
 typedef struct PerInterpData {
-    int refCount;		/* Reference count */
+    int refCount;		    /* Reference count */
+    Tcl_Obj* literals[LIT__END];    /* Literal pool */
+    Tcl_HashTable typeNumHash;	    /* Lookup table for type numbers */
 } PerInterpData;
 #define IncrPerInterpRefCount(x)  \
     do {			  \
@@ -237,6 +273,9 @@ static int StatementParamsMethod(ClientData clientData, Tcl_Interp* interp,
 
 static void DeleteStatementMetadata(ClientData clientData);
 static void DeleteStatement(StatementData* sdata);
+static int CloneStatement(Tcl_Interp* interp, ClientData oldClientData,
+ClientData* newClientData);
+
 
 
 static void DeleteCmd(ClientData clientData);
@@ -253,6 +292,17 @@ const static Tcl_ObjectMetadataType connectionDataType = {
     DeleteConnectionMetadata,	/* deleteProc */
     CloneConnection		/* cloneProc - should cause an error
 				 * 'cuz connections aren't clonable */
+};
+
+/* Metadata type that holds statement data */
+
+const static Tcl_ObjectMetadataType statementDataType = {
+    TCL_OO_METADATA_VERSION_CURRENT,
+				/* version */
+    "StatementData",		/* name */
+    DeleteStatementMetadata,	/* deleteProc */
+    CloneStatement		/* cloneProc - should cause an error
+				 * 'cuz statements aren't clonable */
 };
 
 
@@ -1159,9 +1209,9 @@ static void
 DeletePerInterpData(
     PerInterpData* pidata	/* Data structure to clean up */
 ) {
-//    int i;
+    int i;
 
-/*    Tcl_HashSearch search;
+    Tcl_HashSearch search;
     Tcl_HashEntry *entry;
     for (entry = Tcl_FirstHashEntry(&(pidata->typeNumHash), &search);
 	 entry != NULL;
@@ -1173,12 +1223,9 @@ DeletePerInterpData(
 
     for (i = 0; i < LIT__END; ++i) {
 	Tcl_DecrRefCount(pidata->literals[i]);
-    } */
+    } 
     ckfree((char *) pidata);
 
-    /*
-     * TODO: decrease thread refcount and mysql_thread_end if need be
-     */
 }
 
 
@@ -1450,20 +1497,21 @@ StatementConstructor(
     /* Prepare the statement */
 
     res = AllocAndPrepareStatement(interp, sdata);
-    if (res = NULL) 
+    if (res == NULL) 
 	goto freeSData;
     
-    if (TransferResultError(res) != TCL_OK)
+    if (TransferResultError(interp, res) != TCL_OK)
 	goto freeSData;
 
-    sdata->columnNames = ResultDescToTcl(sdata->metadataPtr, 0);
+    sdata->columnNames = ResultDescToTcl(res, 0);
+    PQclear(res);
     Tcl_IncrRefCount(sdata->columnNames);
 
     Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
     sdata->params = (ParamData*) ckalloc(nParams * sizeof(ParamData));
     for (i = 0; i < nParams; ++i) {
 	sdata->params[i].flags = PARAM_IN;
-	sdata->params[i].dataType = MYSQL_TYPE_VARCHAR;
+//	sdata->params[i].dataType = VARCHAROID;
 	sdata->params[i].precision = 0;
 	sdata->params[i].scale = 0;
     }
@@ -1735,6 +1783,7 @@ Tdbcpostgre_Init(
     Tcl_Obj* nameObj;		/* Name of a class or method being looked up */
     Tcl_Object curClassObject;  /* Tcl_Object representing the current class */
     Tcl_Class curClass;		/* Tcl_Class representing the current class */
+    int i; 
 
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
 	return TCL_ERROR;
@@ -1765,7 +1814,22 @@ Tdbcpostgre_Init(
      */
 
     pidata = (PerInterpData*) ckalloc(sizeof(PerInterpData));
-    pidata->refCount = 1; 
+    pidata->refCount = 1;
+    for (i = 0; i < LIT__END; ++i) {
+	pidata->literals[i] = Tcl_NewStringObj(LiteralValues[i], -1);
+	Tcl_IncrRefCount(pidata->literals[i]);
+    }
+    Tcl_InitHashTable(&(pidata->typeNumHash), TCL_ONE_WORD_KEYS);
+    for (i = 0; dataTypes[i].name != NULL; ++i) {
+	int new;
+	Tcl_HashEntry* entry =
+	    Tcl_CreateHashEntry(&(pidata->typeNumHash), 
+				(const char*) (int) (dataTypes[i].num),
+				&new);
+	Tcl_Obj* nameObj = Tcl_NewStringObj(dataTypes[i].name, -1);
+	Tcl_IncrRefCount(nameObj);
+	Tcl_SetHashValue(entry, (ClientData) nameObj);
+    }
 
 
     /* 
