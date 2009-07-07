@@ -18,7 +18,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([tdbcpostgre], [1.0b11])
+AC_INIT([tdbcpostgres], [1.0b11])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -93,7 +93,7 @@ AC_DEFINE([DONT_TD_VOID],[1])
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES(generic/tdbcpostgre.c)
+TEA_ADD_SOURCES(generic/tdbcpostgres.c)
 TEA_ADD_HEADERS()
 if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
   if test "${TCL_MINOR_VERSION}" -eq 5 ; then
@@ -106,7 +106,7 @@ TEA_ADD_INCLUDES([${TDBC_INCLUDE_SPEC}])
 TEA_ADD_LIBS([${TDBC_STUB_LIB_SPEC}])
 TEA_ADD_CFLAGS([${TDBC_CFLAGS}])
 TEA_ADD_STUB_SOURCES()
-TEA_ADD_TCL_SOURCES([library/tdbcpostgre.tcl])
+TEA_ADD_TCL_SOURCES([library/tdbcpostgres.tcl])
 
 #--------------------------------------------------------------------
 # A few miscellaneous platform-specific items:
@@ -182,7 +182,7 @@ TEA_ENABLE_SYMBOLS
 # link against the non-stubbed Tcl library.  Add Tk too if necessary.
 #--------------------------------------------------------------------
 
-AC_DEFINE(BUILD_tdbcpostgre,[1],[Set to 1 when building the tdbcpostgre package])
+AC_DEFINE(BUILD_tdbcpostgres,[1],[Set to 1 when building the tdbcpostgres package])
 AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
 AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
 
@@ -191,39 +191,39 @@ AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
 #--------------------------------------------------------------------
 AC_PATH_PROG([PG_CONFIG], [pg_config])
 if test ! -x "${PG_CONFIG}" ; then
-	AC_MSG_ERROR("cannot find pq_config utility. Please check if postgre is installed")
+	AC_MSG_ERROR("cannot find pq_config utility. Please check if Postgres is installed")
 fi
 
 #----------------------------------------------------------------------
-# Get Postgre libpq include files, and set POSTGRE_INCLUDE_SPEC accordingly
+# Get Postgre libpq include files, and set POSTGRESS_INCLUDE_SPEC accordingly
 #----------------------------------------------------------------------
 
-TDBCPOSTGRE_SAVED_CPPFLAGS="${CPPFLAGS}"
-POSTGRE_INCLUDE_SPEC="-I`${PG_CONFIG} --includedir`"
+TDBCPOSTGRES_SAVED_CPPFLAGS="${CPPFLAGS}"
+POSTGRES_INCLUDE_SPEC="-I`${PG_CONFIG} --includedir`"
 
-CPPFLAGS="${CPPFLAGS} ${POSTGRE_INCLUDE_SPEC}"
+CPPFLAGS="${CPPFLAGS} ${POSTGRES_INCLUDE_SPEC}"
 AC_CHECK_HEADERS([libpq-fe.h], , AC_MSG_ERROR("cannot find a working libpq-fe.h"))
 
-CPPFLAGS="${TDBCPOSTGRE_SAVED_CPPLFAGS}"
-TEA_ADD_INCLUDES([${POSTGRE_INCLUDE_SPEC}])
+CPPFLAGS="${TDBCPOSTGRES_SAVED_CPPLFAGS}"
+TEA_ADD_INCLUDES([${POSTGRES_INCLUDE_SPEC}])
 
 #----------------------------------------------------------------------
 # Locate the libpq library
 #----------------------------------------------------------------------
 
 
-POSTGRE_LIB_SPEC="-L`${PG_CONFIG} --libdir`"
+POSTGRES_LIB_SPEC="-L`${PG_CONFIG} --libdir`"
 
-TDBCPOSTGRE_SAVED_LDFLAGS="${LDFLAGS}"
+TDBCPOSTGRES_SAVED_LDFLAGS="${LDFLAGS}"
 
 AC_CHECK_LIB(pq, PQconnectdb, [
-	POSTGRE_LIB_SPEC="${MYSQL_LIB_SPEC} -lpq"
+	POSTGRES_LIB_SPEC="${MYSQL_LIB_SPEC} -lpq"
     ],  [
             AC_MSG_ERROR("cannot find a working libpq library")
 	    ])
 
-LDFLAGS="${TDBCPOSTGRE_SAVED_LDFLAGS}"
-TEA_ADD_LIBS([${POSTGRE_LIB_SPEC}])
+LDFLAGS="${TDBCPOSTGRES_SAVED_LDFLAGS}"
+TEA_ADD_LIBS([${POSTGRES_LIB_SPEC}])
 
 #--------------------------------------------------------------------
 # This macro generates a line to use when building a library.  It

@@ -43,7 +43,7 @@ enum LiteralIndex {
 
 
 /*
- * Structure that holds per-interpreter data for the POSTGRE package.
+ * Structure that holds per-interpreter data for the POSTGRES package.
  */
 
 typedef struct PerInterpData {
@@ -65,7 +65,7 @@ typedef struct PerInterpData {
 
 
 /* 
- * Structure that carries the data for a Postgre connection
+ * Structure that carries the data for a Postgres connection
  *
  * 	The 
  *	referring to it, which avoids taking down the TDBC until the
@@ -75,7 +75,7 @@ typedef struct PerInterpData {
 typedef struct ConnectionData {
     int refCount;		/* Reference count. */
     PerInterpData* pidata;	/* Per-interpreter data */
-    PGconn* pgPtr;		/* Postgre  connection handle */
+    PGconn* pgPtr;		/* Postgres  connection handle */
     int stmtCounter;		/* Counter for naming statements */
 //    int nCollations;		/* Number of collations defined */
 //    int* collationSizes;	/* Character lengths indexed by collation ID */
@@ -119,7 +119,7 @@ typedef struct ParamData {
 
 
 /*
- * Structure that carries the data for a Postgre prepared statement.
+ * Structure that carries the data for a Postgres prepared statement.
  *
  *	Just as with connections, statements need to defer taking down
  *	their client data until other objects (i.e., result sets) that
@@ -136,7 +136,7 @@ typedef struct StatementData {
 				 * statement */
     struct ParamData *params;	/* Data types and attributes of parameters */
     Tcl_Obj* nativeSql;		/* Native SQL statement to pass into
-				 * Postgre */
+				 * Postgres */
     char* stmtName;		/* Name identyfing the statement */
     Tcl_Obj* columnNames;	/* Column names in the result set */
     int flags;
@@ -153,9 +153,16 @@ typedef struct StatementData {
 	}					\
     } while(0)
 
+typedef struct MysqlDataType {
+    const char* name;		/* Type name */
+    int num;			/* Type number */
+} MysqlDataType;
+static const MysqlDataType dataTypes[] = {
+    { "varchar",    0 }
+};
 
 
-/* Configuration options for Postgre connections */
+/* Configuration options for Postgres connections */
 
 /* Data types of configuration options */
 
@@ -171,7 +178,7 @@ enum OptStringIndex {
     INDX_MAX
 };
 
-/* Names of string options for Postgre PGconnectdb() */
+/* Names of string options for Postgres PGconnectdb() */
 const char *  optStringNames[] = {
     "host", "hostaddr", "port", "dbname", "user",
     "password", "options", "tty", "service"
@@ -209,7 +216,7 @@ static const struct {
     { NULL,	    0,		    0,		0,			NULL,	NULL}
 };
 
-static void TransferPostgreError(Tcl_Interp* interp, PGconn * pgPtr);
+static void TransferPostgresError(Tcl_Interp* interp, PGconn * pgPtr);
 static int TransferResultError(Tcl_Interp* interp, PGresult * res);
 
 static Tcl_Obj* QueryConnectionOption(ConnectionData* cdata, Tcl_Interp* interp,
@@ -234,17 +241,17 @@ static int ConnectionCommitMethod(ClientData clientData, Tcl_Interp* interp,
 static int ConnectionConfigureMethod(ClientData clientData, Tcl_Interp* interp,
 				     Tcl_ObjectContext context,
 				     int objc, Tcl_Obj *const objv[]);
-static int ConnectionNeedCollationInfoMethod(ClientData clientData,
-					     Tcl_Interp* interp,
-					     Tcl_ObjectContext context,
-					     int objc, Tcl_Obj *const objv[]);
+//static int ConnectionNeedCollationInfoMethod(ClientData clientData,
+//					     Tcl_Interp* interp,
+//					     Tcl_ObjectContext context,
+//					     int objc, Tcl_Obj *const objv[]);
 static int ConnectionRollbackMethod(ClientData clientData, Tcl_Interp* interp,
 				    Tcl_ObjectContext context,
 				    int objc, Tcl_Obj *const objv[]);
-static int ConnectionSetCollationInfoMethod(ClientData clientData,
-					    Tcl_Interp* interp,
-					    Tcl_ObjectContext context,
-					    int objc, Tcl_Obj *const objv[]);
+//static int ConnectionSetCollationInfoMethod(ClientData clientData,
+//					    Tcl_Interp* interp,
+//					    Tcl_ObjectContext context,
+//					    int objc, Tcl_Obj *const objv[]);
 static int ConnectionTablesMethod(ClientData clientData, Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
@@ -350,6 +357,8 @@ const static Tcl_MethodType ConnectionConfigureMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
+#if 0 
 const static Tcl_MethodType ConnectionNeedCollationInfoMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -358,6 +367,8 @@ const static Tcl_MethodType ConnectionNeedCollationInfoMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+#endif
+
 const static Tcl_MethodType ConnectionRollbackMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -366,6 +377,8 @@ const static Tcl_MethodType ConnectionRollbackMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
+#if 0 
 const static Tcl_MethodType ConnectionSetCollationInfoMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -374,6 +387,8 @@ const static Tcl_MethodType ConnectionSetCollationInfoMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+#endif 
+
 const static Tcl_MethodType ConnectionTablesMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -438,17 +453,17 @@ const static Tcl_MethodType* StatementMethods[] = {
 /* Initialization script */
 
 static const char initScript[] =
-    "namespace eval ::tdbc::postgre {}\n"
-    "tcl_findLibrary tdbcpostgre " PACKAGE_VERSION " " PACKAGE_VERSION
-    " tdbcpostgre.tcl TDBCPOSTGRE_LIBRARY ::tdbc::postgre::Library";
+    "namespace eval ::tdbc::postgres {}\n"
+    "tcl_findLibrary tdbcpostgres " PACKAGE_VERSION " " PACKAGE_VERSION
+    " tdbcpostgres.tcl TDBCPOSTGRES_LIBRARY ::tdbc::postgres::Library";
 
     
 /*
  *-----------------------------------------------------------------------------
  *
- * TransferPostgreError --
+ * TransferPostgresError --
  *
- *	Obtains the connection related error message from the Postgre
+ *	Obtains the connection related error message from the Postgres
  *	client library and transfers them into the Tcl interpreter. 
  *	Unfortunately we cannot get error number or SQL state in 
  *	connection context. 
@@ -463,9 +478,9 @@ static const char initScript[] =
  */
 
 static void
-TransferPostgreError(
+TransferPostgresError(
     Tcl_Interp* interp,		/* Tcl interpreter */
-    PGconn* pgPtr		/* Postgre connection handle */
+    PGconn* pgPtr		/* Postgres connection handle */
 ) {
 
     //TODO generate PGResult * with PQmakeEmptyPGresult
@@ -475,7 +490,7 @@ TransferPostgreError(
 			     Tcl_NewStringObj("GENERAL_ERROR", -1));
     Tcl_ListObjAppendElement(NULL, errorCode,
 			     Tcl_NewStringObj("HY000", -1));
-    Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("POSTGRE", -1));
+    Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("POSTGRES", -1));
     Tcl_ListObjAppendElement(NULL, errorCode,
 			     Tcl_NewIntObj(-1));
     Tcl_SetObjErrorCode(interp, errorCode);
@@ -486,11 +501,11 @@ TransferPostgreError(
 /*
  *-----------------------------------------------------------------------------
  *
- * TransferPostgreError --
+ * TransferPostgresError --
  *
  *	Check if there is any error related to given PGresult object. 
  *	If there was an error it obtainss error message, SQL state
- *	and error number from the Postgre clien library and transfers
+ *	and error number from the Postgres clien library and transfers
  *	thenm into the Tcl interpreter. 
  *
  * Results:
@@ -520,7 +535,7 @@ static int TransferResultError(
 		Tcl_NewStringObj(Tdbc_MapSqlState(sqlstate), -1));
 	Tcl_ListObjAppendElement(NULL, errorCode,
 		Tcl_NewStringObj(sqlstate, -1));
-	Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("POSTGRE", 1));
+	Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("POSTGRES", 1));
 	Tcl_ListObjAppendElement(NULL, errorCode,
 		Tcl_NewIntObj(error));
 	Tcl_SetObjErrorCode(interp, errorCode);
@@ -559,7 +574,7 @@ QueryConnectionOption (
     if (ConnOptions[optionNum].queryF != NULL) {
 	value = ConnOptions[optionNum].queryF(cdata->pgPtr);
 	if (value == NULL) {
-	    TransferPostgreError(interp, cdata->pgPtr);
+	    TransferPostgresError(interp, cdata->pgPtr);
 	    return NULL; 
 	} else 
 	    return Tcl_NewStringObj(value, -1);
@@ -575,7 +590,7 @@ QueryConnectionOption (
 	value = (char*) PQparameterStatus(cdata->pgPtr,
 		optStringNames[ConnOptions[optionNum].info]);
 	if (value == NULL) {
-	    TransferPostgreError(interp, cdata->pgPtr);
+	    TransferPostgresError(interp, cdata->pgPtr);
 	    return NULL;
 	} else
 	    return Tcl_NewStringObj(value, -1);
@@ -688,7 +703,7 @@ ConfigureConnection(
 	    Tcl_AppendToObj(msg, "\" option cannot be changed dynamically", -1);
 	    Tcl_SetObjResult(interp, msg);
 	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000", 
-			     "POSTGRE", "-1", NULL);
+			     "POSTGRES", "-1", NULL);
 	    return TCL_ERROR;
 	}
 
@@ -735,7 +750,7 @@ ConfigureConnection(
 							  "be in range "
 							  "[0..65535]", -1));
 		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
-				 "POSTGRE", "-1", NULL);
+				 "POSTGRES", "-1", NULL);
 		return TCL_ERROR;
 	    }
 	    sprintf(portval, "%d", optionValue);
@@ -748,7 +763,7 @@ ConfigureConnection(
 	    }
 	    if (optionValue != 0) {
 		Tcl_SetObjResult(interp,
-				 Tcl_NewStringObj("Postgre does not support "
+				 Tcl_NewStringObj("Postgres does not support "
 						  "readonly connections", -1));
 		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
 				 "MYSQL", "-1", NULL);
@@ -789,12 +804,12 @@ ConfigureConnection(
 	    Tcl_SetObjResult(interp,
 			     Tcl_NewStringObj("PQconnectdb() failed, propably out of memory.", -1));
 	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY001", 
-			     "POSTGRE", "NULL", NULL);
+			     "POSTGRES", "NULL", NULL);
 	    return TCL_ERROR;
 	}
 
 	if (PQstatus(cdata->pgPtr) != CONNECTION_OK) { 
-	    TransferPostgreError(interp, cdata->pgPtr);
+	    TransferPostgresError(interp, cdata->pgPtr);
 	    return TCL_ERROR; 
 	}
 
@@ -811,7 +826,7 @@ ConfigureConnection(
  *
  * ConnectionConstructor --
  *
- *	Constructor for ::tdbc::postgre::connection, which represents a
+ *	Constructor for ::tdbc::postgres::connection, which represents a
  *	database connection.
  *
  * Results:
@@ -833,7 +848,7 @@ ConnectionConstructor(
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
     PerInterpData* pidata = (PerInterpData*) clientData;
-				/* Per-interp data for the POSTGRE package */
+				/* Per-interp data for the POSTGRES package */
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current object */
     int skip = Tcl_ObjectContextSkippedArgs(context);
@@ -868,7 +883,7 @@ ConnectionConstructor(
  *
  * ConnectionBegintransactionMethod --
  *
- *	Method that requests that following operations on an POSTGRE connection
+ *	Method that requests that following operations on an POSTGRES connection
  *	be executed as an atomic transaction.
  *
  * Usage:
@@ -894,8 +909,7 @@ ConnectionBegintransactionMethod(
     printf("not implemented\n");
     //looks like PGexec("BEGIN")
     //
-    
-//    return TCL_ERROR;
+    return TCL_ERROR;
 //    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
 				/* The current connection object */
  //   ConnectionData* cdata = (ConnectionData*)
@@ -911,7 +925,7 @@ ConnectionBegintransactionMethod(
 //    /* Reject attempts at nested transactions */
 
 //    if (cdata->flags & CONN_FLAG_IN_XCN) {
-//	Tcl_SetObjResult(interp, Tcl_NewStringObj("POSTGRE does not support "
+//	Tcl_SetObjResult(interp, Tcl_NewStringObj("POSTGRES does not support "
 //						  "nested transactions", -1));
 //	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HYC00",
 //			 "MYSQL", "-1", NULL);
@@ -919,7 +933,7 @@ ConnectionBegintransactionMethod(
 //    }
 //   cdata->flags |= CONN_FLAG_IN_XCN;
     
-//TODO check what about autocommit in POSTGRE
+//TODO check what about autocommit in POSTGRES
 //    /* Turn off autocommit for the duration of the transaction */
 //
 //  if (cdata->flags & CONN_FLAG_AUTOCOMMIT) {
@@ -932,6 +946,7 @@ ConnectionBegintransactionMethod(
 
 //    return TCL_OK;
 }
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -968,6 +983,9 @@ ConnectionCommitMethod(
 
 }
 
+
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1001,6 +1019,57 @@ ConnectionColumnsMethod(
     //SEEMS Like PQExec of SELECT * FROM ...
     //and then PQnfields x PQfname
     return TCL_ERROR;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionConfigureMethod --
+ *
+ *	Change configuration parameters on an open connection.
+ *
+ * Usage:
+ *	$connection configure ?-keyword? ?value? ?-keyword value ...?
+ *
+ * Parameters:
+ *	Keyword-value pairs (or a single keyword, or an empty set)
+ *	of configuration options.
+ *
+ * Options:
+ *	The following options are supported;
+ *	    -database
+ *		Name of the database to use by default in queries
+ *	    -encoding
+ *		Character encoding to use with the server. (Must be utf-8)
+ *	    -isolation
+ *		Transaction isolation level.
+ *	    -readonly
+ *		Read-only flag (must be a false Boolean value)
+ *	    -timeout
+ *		Timeout value (both wait_timeout and interactive_timeout)
+ *
+ *	Other options supported by the constructor are here in read-only
+ *	mode; any attempt to change them will result in an error.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int ConnectionConfigureMethod(
+     ClientData clientData, 
+     Tcl_Interp* interp,
+     Tcl_ObjectContext objectContext,
+     int objc, 
+     Tcl_Obj *const objv[]
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    int skip = Tcl_ObjectContextSkippedArgs(objectContext);
+				/* Number of arguments to skip */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    return ConfigureConnection(cdata, interp, objc, objv, skip);
 }
 
 
@@ -1116,7 +1185,7 @@ DeleteConnection(
  *
  * CloneConnection --
  *
- *	Attempts to clone an Postgre connection's metadata.
+ *	Attempts to clone an Postgres connection's metadata.
  *
  * Results:
  *	Returns the new metadata
@@ -1137,7 +1206,7 @@ CloneConnection(
     ClientData* newMetaData	/* Where to put the cloned metadata */
 ) {
     Tcl_SetObjResult(interp,
-		     Tcl_NewStringObj("Postgre connections are not clonable", -1));
+		     Tcl_NewStringObj("Postgres connections are not clonable", -1));
     return TCL_ERROR;
 }
 
@@ -1169,7 +1238,7 @@ DeleteCmd (
  *
  * CloneCmd --
  *
- *	Callback executed when any of the POSTGRE client methods is cloned.
+ *	Callback executed when any of the POSTGRES client methods is cloned.
  *
  * Results:
  *	Returns TCL_OK to allow the method to be copied.
@@ -1270,7 +1339,7 @@ NewStatement(
  *
  * AllocAndPrepareStatement --
  *
- *	Allocate space for a Postgre prepared statement, and prepare the
+ *	Allocate space for a Postgres prepared statement, and prepare the
  *	statement.
  *
  * Results:
@@ -1301,7 +1370,7 @@ AllocAndPrepareStatement(
     nativeSqlStr = Tcl_GetStringFromObj(sdata->nativeSql, &nativeSqlLen);
     res = PQprepare(cdata->pgPtr, sdata->stmtName, nativeSqlStr, 0, NULL);
     if (res == NULL) {
-        TransferPostgreError(interp, cdata->pgPtr);
+        TransferPostgresError(interp, cdata->pgPtr);
     }
     return res;
 }
@@ -1311,7 +1380,7 @@ AllocAndPrepareStatement(
  *
  * ResultDescToTcl --
  *
- *	Converts a Postgre result description for return as a Tcl list.
+ *	Converts a Postgres result description for return as a Tcl list.
  *
  * Results:
  *	Returns a Tcl object holding the result description
@@ -1368,7 +1437,7 @@ ResultDescToTcl(
  *
  * StatementConstructor --
  *
- *	C-level initialization for the object representing an Postgre prepared
+ *	C-level initialization for the object representing an Postgres prepared
  *	statement.
  *
  * Usage:
@@ -1376,7 +1445,7 @@ ResultDescToTcl(
  *	statement create name connection statementText
  *
  * Parameters:
- *      connection -- the Postgre connection object
+ *      connection -- the Postgres connection object
  *	statementText -- text of the statement to prepare.
  *
  * Results:
@@ -1434,7 +1503,7 @@ StatementConstructor(
 						    &connectionDataType);
     if (cdata == NULL) {
 	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
-			 " does not refer to a Postgre connection", NULL);
+			 " does not refer to a Postgres connection", NULL);
 	return TCL_ERROR;
     }
 
@@ -1453,7 +1522,7 @@ StatementConstructor(
     Tcl_IncrRefCount(tokens);
 
     /*
-     * Rewrite the tokenized statement to Postgre syntax. Reject the
+     * Rewrite the tokenized statement to Postgres syntax. Reject the
      * statement if it is actually multiple statements.
      */
 
@@ -1538,7 +1607,7 @@ StatementConstructor(
  *
  * StatementParamsMethod --
  *
- *	Lists the parameters in a Postgre statement.
+ *	Lists the parameters in a Postgres statement.
  *
  * Usage:
  *	$statement params
@@ -1627,7 +1696,7 @@ StatementParamsMethod(
  *
  * StatementParamtypeMethod --
  *
- *	Defines a parameter type in a Postgre statement.
+ *	Defines a parameter type in a Postgres statement.
  *
  * Usage:
  *	$statement paramtype paramName ?direction? type ?precision ?scale??
@@ -1759,23 +1828,96 @@ StatementParamtypeMethod(
     return TCL_ERROR;
 }
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DeleteStatementMetadata, DeleteStatement --
+ *
+ *	Cleans up when a MySQL statement is no longer required.
+ *
+ * Side effects:
+ *	Frees all resources associated with the statement.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+DeleteStatementMetadata(
+    ClientData clientData	/* Instance data for the connection */
+) {
+    DecrStatementRefCount((StatementData*)clientData);
+}
+static void
+DeleteStatement(
+    StatementData* sdata	/* Metadata for the statement */
+) {
+    if (sdata->columnNames != NULL) {
+	Tcl_DecrRefCount(sdata->columnNames);
+    }
+    if (sdata->stmtName != NULL) {
+	/* TODO: "Also, although there is no libpq function for
+	 * deleting a prepared statement, the SQL DEALLOCATE
+	 * statement can be used for that purpose. " */
+	ckfree(sdata->stmtName);
+    }
+    if (sdata->nativeSql != NULL) {
+	Tcl_DecrRefCount(sdata->nativeSql);
+    }
+    if (sdata->params != NULL) {
+	ckfree((char*)sdata->params);
+    }
+    Tcl_DecrRefCount(sdata->subVars);
+    DecrConnectionRefCount(sdata->cdata);
+    ckfree((char*)sdata);
+}
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Tdbcpostgre_Init --
+ * CloneStatement --
  *
- *	Initializes the TDBC-POSTGRE bridge when this library is loaded.
+ *	Attempts to clone a MySQL statement's metadata.
+ *
+ * Results:
+ *	Returns the new metadata
+ *
+ * At present, we don't attempt to clone statements - it's not obvious
+ * that such an action would ever even make sense.  Instead, we return NULL
+ * to indicate that the metadata should not be cloned. (Note that this
+ * action isn't right, either. What *is* right is to indicate that the object
+ * is not clonable, but the API gives us no way to do that.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+CloneStatement(
+    Tcl_Interp* interp,		/* Tcl interpreter for error reporting */
+    ClientData metadata,	/* Metadata to be cloned */
+    ClientData* newMetaData	/* Where to put the cloned metadata */
+) {
+    Tcl_SetObjResult(interp,
+		     Tcl_NewStringObj("POSTGRES statements are not clonable", -1));
+    return TCL_ERROR;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Tdbcpostgres_Init --
+ *
+ *	Initializes the TDBC-POSTGRES bridge when this library is loaded.
  *
  * Side effects:
- *	Creates the ::tdbc::postgre namespace and the commands that reside in it.
- *	Initializes the POSTGRE environment.
+ *	Creates the ::tdbc::postgres namespace and the commands that reside in it.
+ *	Initializes the POSTGRES environment.
  *
  *-----------------------------------------------------------------------------
  */
 
 extern DLLEXPORT int
-Tdbcpostgre_Init(
+Tdbcpostgres_Init(
     Tcl_Interp* interp		/* Tcl interpreter */
 ) {
 
@@ -1797,7 +1939,7 @@ Tdbcpostgre_Init(
 
     /* Provide the current package */
 
-    if (Tcl_PkgProvide(interp, "tdbc::postgre", PACKAGE_VERSION) == TCL_ERROR) {
+    if (Tcl_PkgProvide(interp, "tdbc::postgres", PACKAGE_VERSION) == TCL_ERROR) {
 	return TCL_ERROR;
     }
 
@@ -1836,7 +1978,7 @@ Tdbcpostgre_Init(
      * Find the connection class, and attach an 'init' method to it.
      */
 
-    nameObj = Tcl_NewStringObj("::tdbc::postgre::connection", -1);
+    nameObj = Tcl_NewStringObj("::tdbc::postgres::connection", -1);
 	Tcl_IncrRefCount(nameObj);
     if ((curClassObject = Tcl_GetObjectFromObj(interp, nameObj)) == NULL) {
 	Tcl_DecrRefCount(nameObj);

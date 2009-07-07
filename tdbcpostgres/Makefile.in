@@ -288,7 +288,7 @@ pkgIndex.tcl: Makefile
 	-@echo Creating pkgIndex.tcl
 	@( \
 	echo 'if {[catch {package require Tcl $(TCL_VERSION_REQ)}]} return'; \
-	echo 'package ifneeded tdbc::postgre $(PACKAGE_VERSION) \
+	echo 'package ifneeded tdbc::postgres $(PACKAGE_VERSION) \
 	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]' \
 	) > pkgIndex.tcl
 
@@ -327,16 +327,16 @@ dist: dist-clean
 
 #   Not written yet!
 #	mkdir $(DIST_DIR)/doc
-#	cp -p $(srcdir)/doc/tdbc_postgre.n $(DIST_DIR)/doc/
+#	cp -p $(srcdir)/doc/tdbc_postgres.n $(DIST_DIR)/doc/
 
 	mkdir $(DIST_DIR)/generic
-	cp -p $(srcdir)/generic/tdbcpostgre.c $(DIST_DIR)/generic/
+	cp -p $(srcdir)/generic/tdbcpostgres.c $(DIST_DIR)/generic/
 
 	mkdir $(DIST_DIR)/library
-	cp -p $(srcdir)/library/tdbcpostgre.tcl $(DIST_DIR)/library/
+	cp -p $(srcdir)/library/tdbcpostgres.tcl $(DIST_DIR)/library/
 
 	mkdir $(DIST_DIR)/tests
-	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/postgre.test \
+	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/postgres.test \
 		$(DIST_DIR)/tests/
 
 	(cd $(DIST_ROOT); $(COMPRESS);)
@@ -345,9 +345,9 @@ dist: dist-clean
 # How to rebuild the package's stub table.
 #========================================================================
 
-genstubs: $(srcdir)/tools/genStubs.tcl $(srcdir)/generic/tdbcpostgre.decls
-	@echo $(TCLSH_PROGRAM) $(srcdir)/tools/genStubs.tcl $(srcdir)/generic $(srcdir)/generic/tdbcpostgre.decls
-	@$(TCLSH) `@CYGPATH@ $(srcdir)/tools/genStubs.tcl` `@CYGPATH@ $(srcdir)/generic` `@CYGPATH@ $(srcdir)/generic/tdbcpostgre.decls`
+genstubs: $(srcdir)/tools/genStubs.tcl $(srcdir)/generic/tdbcpostgres.decls
+	@echo $(TCLSH_PROGRAM) $(srcdir)/tools/genStubs.tcl $(srcdir)/generic $(srcdir)/generic/tdbcpostgres.decls
+	@$(TCLSH) `@CYGPATH@ $(srcdir)/tools/genStubs.tcl` `@CYGPATH@ $(srcdir)/generic` `@CYGPATH@ $(srcdir)/generic/tdbcpostgres.decls`
 
 #========================================================================
 # End of user-definable section

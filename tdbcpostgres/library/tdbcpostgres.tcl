@@ -1,6 +1,6 @@
-# tdbcpostgre.tcl --
+# tdbcpostgres.tcl --
 #
-#	Class definitions and Tcl-level methods for the tdbc::postgre bridge.
+#	Class definitions and Tcl-level methods for the tdbc::postgres bridge.
 #
 # Copyright (c) 2009 by Slawomir Cygan
 # See the file "license.terms" for information on usage and redistribution
@@ -11,7 +11,7 @@
 
 package require tdbc
 
-::namespace eval ::tdbc::mypostgre {
+::namespace eval ::tdbc::mypostgres {
 
     namespace export connection datasources drivers
 
@@ -19,13 +19,13 @@ package require tdbc
 
 #------------------------------------------------------------------------------
 #
-# tdbc::postgre::connection --
+# tdbc::postgres::connection --
 #
 #	Class representing a connection to a database through MYSQL.
 #
 #-------------------------------------------------------------------------------
 
-::oo::class create ::tdbc::postgre::connection {
+::oo::class create ::tdbc::postgres::connection {
 
     superclass ::tdbc::connection
 
@@ -36,7 +36,7 @@ package require tdbc
     # The 'statementCreate' method delegates to the constructor of the
     # statement class
 
-    forward statementCreate ::tdbc::postgre::statement create
+    forward statementCreate ::tdbc::postgres::statement create
 
     # The 'columns' method returns a dictionary describing the tables
     # in the database
@@ -45,21 +45,21 @@ package require tdbc
 
 #------------------------------------------------------------------------------
 #
-# tdbc::postgre::statement --
+# tdbc::postgres::statement --
 #
-#	The class 'tdbc::postgre::statement' models one statement against a
+#	The class 'tdbc::postgres::statement' models one statement against a
 #       database accessed through an MYSQL connection
 #
 #------------------------------------------------------------------------------
 
-::oo::class create ::tdbc::postgre::statement {
+::oo::class create ::tdbc::postgres::statement {
 
     superclass ::tdbc::statement
 
     # The 'resultSetCreate' method forwards to the constructor of the
     # result set.
 
-    forward resultSetCreate ::tdbc::postgre::resultset create
+    forward resultSetCreate ::tdbc::postgres::resultset create
 
     # Methods implemented in C:
     #
@@ -78,14 +78,14 @@ package require tdbc
 
 #------------------------------------------------------------------------------
 #
-# tdbc::postgre::resultset --
+# tdbc::postgres::resultset --
 #
-#	The class 'tdbc::postgre::resultset' models the result set that is
+#	The class 'tdbc::postgres::resultset' models the result set that is
 #	produced by executing a statement against an MYSQL database.
 #
 #------------------------------------------------------------------------------
 
-::oo::class create ::tdbc::postgre::resultset {
+::oo::class create ::tdbc::postgres::resultset {
 
     superclass ::tdbc::resultset
 
