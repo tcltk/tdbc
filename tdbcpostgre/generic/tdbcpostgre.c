@@ -151,6 +151,8 @@ static const struct {
 };
 
 static void TransferPostgreError(Tcl_Interp* interp, PGconn * pgPtr);
+static void TransferResultError(Tcl_Interp* interp, PGresult * res);
+
 static Tcl_Obj* QueryConnectionOption(ConnectionData* cdata, Tcl_Interp* interp,
 				      int optionNum);
 
@@ -194,6 +196,10 @@ static void DeleteConnectionMetadata(ClientData clientData);
 static void DeleteConnection(ConnectionData* cdata);
 static int CloneConnection(Tcl_Interp* interp, ClientData oldClientData,
 			   ClientData* newClientData);
+
+static PGresult* AllocAndPrepareStatement(Tcl_Interp* interp,
+					    StatementData* sdata);
+static Tcl_Obj* ResultDescToTcl(MYSQL_RES* resultDesc, int flags);
 
 
 static int StatementConstructor(ClientData clientData, Tcl_Interp* interp,
@@ -418,6 +424,57 @@ TransferPostgreError(
 /*
  *-----------------------------------------------------------------------------
  *
+ * TransferPostgreError --
+ *
+ *	Check if there is any error related to given PGresult object. 
+ *	If there was an error it obtainss error message, SQL state
+ *	and error number from the Postgre clien library and transfers
+ *	thenm into the Tcl interpreter. 
+ *
+ * Results:
+ *	TCL_OK if no error exists or the error was non fatal,
+ *	otherwise TCL_ERROR is returned
+ *
+ * Side effects:
+ *	Sets the interpreter result and error code to describe the SQL connection error.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void TransferResultError(
+	Tcl_Interp* interp,
+	PGresult * res
+) {
+    ExecStatusType error = PQresultStatus(res);
+    const char* sqlstate;
+    Tcl_Obj* errorCode;
+
+    if (error == PGRES_EMPTY_QUERY || error == PGRES_BAD_RESPONSE ||
+	    error == PGRES_NONFATAL_ERROR || error == PGRES_FATAL_ERROR) {
+	Tcl_Obj* errorCode = Tcl_NewObj();
+	Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("TDBC", -1));
+
+	sqlstate = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+	Tcl_ListObjAppendElement(NULL, errorCode,
+		Tcl_NewStringObj(Tdbc_MapSqlState(sqlstate), -1));
+	Tcl_ListObjAppendElement(NULL, errorCode,
+		Tcl_NewStringObj(sqlstate, -1));
+	Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("POSTGRE", 1));
+	Tcl_ListObjAppendElement(NULL, errorCode,
+		Tcl_NewIntObj(error));
+	Tcl_SetObjErrorCode(interp, errorCode);
+    }
+    if (error == PGRES_EMPTY_QUERY || error == PGRES_BAD_RESPONSE ||
+	    error == PGRES_FATAL_ERROR) 
+	return TCL_ERROR;
+    else
+	return TCL_OK; 
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * QueryConnectionOption --
  *
  *	Determine the current value of a connection option.
@@ -437,13 +494,15 @@ QueryConnectionOption (
     int optionNum		/* Position of the option in the table */
 ) {
     Tcl_Obj* retval;		/* Return value */
+    char * value;		/* Return value as C string */
 
     if (ConnOptions[optionNum].queryF != NULL) {
-	retval = Tcl_NewStringObj(
-		ConnOptions[optionNum].queryF(cdata->pgPtr),-1);
-	if (retval == NULL)
+	value = ConnOptions[optionNum].queryF(cdata->pgPtr);
+	if (value == NULL) {
 	    TransferPostgreError(interp, cdata->pgPtr);
-	return retval;
+	    return NULL; 
+	} else 
+	    return Tcl_NewStringObj(value);
     }
     if (ConnOptions[optionNum].query != NULL){
         //TODO: SQL query, when no queryF given
@@ -453,13 +512,13 @@ QueryConnectionOption (
     if (ConnOptions[optionNum].type == TYPE_STRING &&
 	    ConnOptions[optionNum].info != -1) {
 	/* Fallback: try to get parameter value by generic function */
-	retval = Tcl_NewStringObj(
-		PQparameterStatus(cdata->pgPtr,
-		    optStringNames[ConnOptions[optionNum].info]),
-		-1);
-	if (retval == NULL)
+	value = PQparameterStatus(cdata->pgPtr,
+		optStringNames[ConnOptions[optionNum].info]);
+	if (value == NULL) {
 	    TransferPostgreError(interp, cdata->pgPtr);
-	return retval;
+	    return NULL;
+	} else
+	    return Tcl_NewStringObj(value);
     }
     return NULL; 
 }
@@ -1149,6 +1208,103 @@ NewStatement(
     return sdata;
 }
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AllocAndPrepareStatement --
+ *
+ *	Allocate space for a MySQL prepared statement, and prepare the
+ *	statement.
+ *
+ * Results:
+ *	Returns the Posgre result object if successeful, and NULL on failure.
+ *
+ * Side effects:
+ *	Prepares the statement.
+ *	Stores error message and error code in the interpreter on failure.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static PGresult*
+AllocAndPrepareStatement(
+    Tcl_Interp* interp,		/* Tcl interpreter for error reporting */
+    StatementData* sdata	/* Statement data */
+) {
+    ConnectionData* cdata = sdata->cdata;
+				/* Connection data */
+    const char* nativeSqlStr;	/* Native SQL statement to prepare */
+    int nativeSqlLen;		/* Length of the statement */
+    PGresult * res;		/* result of statement preparing*/
+
+
+
+    /* Prepare the statement */
+	
+    nativeSqlStr = Tcl_GetStringFromObj(sdata->nativeSql, &nativeSqlLen);
+    res = PQprepare(cdata->pqPtr, sdata->stmtName, nativeSqlStr, 0, NULL);
+    if (res == NULL) {
+        TransferPostgreError(interp, cdata->pqPtr);
+    }
+    return res;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ResultDescToTcl --
+ *
+ *	Converts a Postgre result description for return as a Tcl list.
+ *
+ * Results:
+ *	Returns a Tcl object holding the result description
+ *
+ * If any column names are duplicated, they are disambiguated by
+ * appending '#n' where n increments once for each occurrence of the
+ * column name.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Tcl_Obj*
+ResultDescToTcl(
+    PGresult* result,		/* Result set description */
+    int flags			/* Flags governing the conversion */
+) {
+    Tcl_Obj* retval = Tcl_NewObj();
+    Tcl_HashTable names;	/* Hash table to resolve name collisions */
+    char * fieldName; 
+    Tcl_InitHashTable(&names, TCL_STRING_KEYS);
+    if (result != NULL) {
+	unsigned int fieldCount = PQnfields(result);
+	unsigned int i;
+	char numbuf[16];
+	for (i = 0; i < fieldCount; ++i) {
+	    fieldName = PQfname(result, i);
+	    Tcl_Obj* nameObj = Tcl_NewStringObj(fieldName, -1);
+	    Tcl_IncrRefCount(nameObj);
+	    int new;
+	    Tcl_HashEntry* entry =
+		Tcl_CreateHashEntry(&names, fieldName, &new);
+	    int count = 1;
+	    while (!new) {
+		count = (int) Tcl_GetHashValue(entry);
+		++count;
+		Tcl_SetHashValue(entry, (ClientData) count);
+		sprintf(numbuf, "#%d", count);
+		Tcl_AppendToObj(nameObj, numbuf, -1);
+		entry = Tcl_CreateHashEntry(&names, Tcl_GetString(nameObj),
+					    &new);
+	    }
+	    Tcl_SetHashValue(entry, (ClientData) count);
+	    Tcl_ListObjAppendElement(NULL, retval, nameObj);
+	    Tcl_DecrRefCount(nameObj);
+	}
+    }
+    Tcl_DeleteHashTable(&names);
+    return retval;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1282,18 +1438,13 @@ StatementConstructor(
 
     /* Prepare the statement */
 
-    sdata->stmtPtr = AllocAndPrepareStatement(interp, sdata);
-    if (sdata->stmtPtr == NULL) {
+    res = AllocAndPrepareStatement(interp, sdata);
+    if (res = NULL) 
 	goto freeSData;
-    }
-
-    /* Get result set metadata */
-
-    sdata->metadataPtr = mysql_stmt_result_metadata(sdata->stmtPtr);
-    if (mysql_stmt_errno(sdata->stmtPtr)) {
-	TransferMysqlStmtError(interp, sdata->stmtPtr);
+    
+    if (TransferResultError(res) != TCL_OK)
 	goto freeSData;
-    }
+
     sdata->columnNames = ResultDescToTcl(sdata->metadataPtr, 0);
     Tcl_IncrRefCount(sdata->columnNames);
 
@@ -1323,6 +1474,231 @@ StatementConstructor(
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StatementParamsMethod --
+ *
+ *	Lists the parameters in a MySQL statement.
+ *
+ * Usage:
+ *	$statement params
+ *
+ * Results:
+ *	Returns a standard Tcl result containing a dictionary. The keys
+ *	of the dictionary are parameter names, and the values are parameter
+ *	types, themselves expressed as dictionaries containing the keys,
+ *	'name', 'direction', 'type', 'precision', 'scale' and 'nullable'.
+ *
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StatementParamsMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    StatementData* sdata	/* The current statement */
+	= (StatementData*) Tcl_ObjectGetMetadata(thisObject,
+						 &statementDataType);
+    ConnectionData* cdata = sdata->cdata;
+    PerInterpData* pidata = cdata->pidata; /* Per-interp data */
+    Tcl_Obj** literals = pidata->literals; /* Literal pool */
+    int nParams;		/* Number of parameters to the statement */
+    Tcl_Obj* paramName;		/* Name of a parameter */
+    Tcl_Obj* paramDesc;		/* Description of one parameter */
+    Tcl_Obj* dataTypeName;	/* Name of a parameter's data type */
+    Tcl_Obj* retVal;		/* Return value from this command */
+    Tcl_HashEntry* typeHashEntry;
+    int i;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+
+    retVal = Tcl_NewObj();
+    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
+    for (i = 0; i < nParams; ++i) {
+	paramDesc = Tcl_NewObj();
+	Tcl_ListObjIndex(NULL, sdata->subVars, i, &paramName);
+	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_NAME], paramName);
+	switch (sdata->params[i].flags & (PARAM_IN | PARAM_OUT)) {
+	case PARAM_IN:
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_DIRECTION], 
+			   literals[LIT_IN]);
+	    break;
+	case PARAM_OUT:
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_DIRECTION], 
+			   literals[LIT_OUT]);
+	    break;
+	case PARAM_IN | PARAM_OUT:
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_DIRECTION], 
+			   literals[LIT_INOUT]);
+	    break;
+	default:
+	    break;
+	}
+	typeHashEntry =
+	    Tcl_FindHashEntry(&(pidata->typeNumHash),
+			      (const char*) (sdata->params[i].dataType));
+	if (typeHashEntry != NULL) {
+	    dataTypeName = (Tcl_Obj*) Tcl_GetHashValue(typeHashEntry);
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_TYPE], dataTypeName);
+	}
+	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_PRECISION],
+		       Tcl_NewIntObj(sdata->params[i].precision));
+	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_SCALE],
+		       Tcl_NewIntObj(sdata->params[i].scale));
+	Tcl_DictObjPut(NULL, retVal, paramName, paramDesc);
+    }
+	
+    Tcl_SetObjResult(interp, retVal);
+    return TCL_OK;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StatementParamtypeMethod --
+ *
+ *	Defines a parameter type in a MySQL statement.
+ *
+ * Usage:
+ *	$statement paramtype paramName ?direction? type ?precision ?scale??
+ *
+ * Results:
+ *	Returns a standard Tcl result.
+ *
+ * Side effects:
+ *	Updates the description of the given parameter.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StatementParamtypeMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    StatementData* sdata	/* The current statement */
+	= (StatementData*) Tcl_ObjectGetMetadata(thisObject,
+						 &statementDataType);
+    struct {
+	const char* name;
+	int flags;
+    } directions[] = {
+	{ "in", 	PARAM_IN },
+	{ "out",	PARAM_OUT },
+	{ "inout",	PARAM_IN | PARAM_OUT },
+	{ NULL,		0 }
+    };
+    int direction;
+    int typeNum;		/* Data type number of a parameter */
+    int precision;		/* Data precision */
+    int scale;			/* Data scale */
+
+    int nParams;		/* Number of parameters to the statement */
+    const char* paramName;	/* Name of the parameter being set */
+    Tcl_Obj* targetNameObj;	/* Name of the ith parameter in the statement */
+    const char* targetName;	/* Name of a candidate parameter in the
+				 * statement */
+    int matchCount = 0;		/* Number of parameters matching the name */
+    Tcl_Obj* errorObj;		/* Error message */
+
+    int i;
+
+    /* Check parameters */
+
+    if (objc < 4) {
+	goto wrongNumArgs;
+    }
+    
+    i = 3;
+    if (Tcl_GetIndexFromObjStruct(interp, objv[i], directions, 
+				  sizeof(directions[0]), "direction",
+				  TCL_EXACT, &direction) != TCL_OK) {
+	direction = PARAM_IN;
+	Tcl_ResetResult(interp);
+    } else {
+	++i;
+    }
+    if (i >= objc) goto wrongNumArgs;
+    if (Tcl_GetIndexFromObjStruct(interp, objv[i], dataTypes,
+				  sizeof(dataTypes[0]), "SQL data type",
+				  TCL_EXACT, &typeNum) == TCL_OK) {
+	++i;
+    } else {
+	return TCL_ERROR;
+    }
+    if (i < objc) {
+	if (Tcl_GetIntFromObj(interp, objv[i], &precision) == TCL_OK) {
+	    ++i;
+	} else {
+	    return TCL_ERROR;
+	}
+    }
+    if (i < objc) {
+	if (Tcl_GetIntFromObj(interp, objv[i], &scale) == TCL_OK) {
+	    ++i;
+	} else {
+	    return TCL_ERROR;
+	}
+    }
+    if (i != objc) {
+	goto wrongNumArgs;
+    }
+
+    /* Look up parameters by name. */
+
+    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
+    paramName = Tcl_GetString(objv[2]);
+    for (i = 0; i < nParams; ++i) {
+	Tcl_ListObjIndex(NULL, sdata->subVars, i, &targetNameObj);
+	targetName = Tcl_GetString(targetNameObj);
+	if (!strcmp(paramName, targetName)) {
+	    ++matchCount;
+	    sdata->params[i].flags = direction;
+	    sdata->params[i].dataType = dataTypes[typeNum].num;
+	    sdata->params[i].precision = precision;
+	    sdata->params[i].scale = scale;
+	}
+    }
+    if (matchCount == 0) {
+	errorObj = Tcl_NewStringObj("unknown parameter \"", -1);
+	Tcl_AppendToObj(errorObj, paramName, -1);
+	Tcl_AppendToObj(errorObj, "\": must be ", -1);
+	for (i = 0; i < nParams; ++i) {
+	    Tcl_ListObjIndex(NULL, sdata->subVars, i, &targetNameObj);
+	    Tcl_AppendObjToObj(errorObj, targetNameObj);
+	    if (i < nParams-2) {
+		Tcl_AppendToObj(errorObj, ", ", -1);
+	    } else if (i == nParams-2) {
+		Tcl_AppendToObj(errorObj, " or ", -1);
+	    }
+	}
+	Tcl_SetObjResult(interp, errorObj);
+	return TCL_ERROR;
+    }
+
+    return TCL_OK;
+
+ wrongNumArgs:
+    Tcl_WrongNumArgs(interp, 2, objv,
+		     "name ?direction? type ?precision ?scale??");
+    return TCL_ERROR;
+}
 
 
 /*
