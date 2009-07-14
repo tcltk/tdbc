@@ -9,6 +9,8 @@
 #include <libpq-fe.h>
 
 
+#define debug_no_error  Tcl_SetObjErrorCode(interp, Tcl_NewStringObj("EVERYTHING OK", -1))
+
 
 const char* LiteralValues[] = {
     "",
@@ -25,6 +27,7 @@ const char* LiteralValues[] = {
     "type",
     NULL
 };
+
 enum LiteralIndex {
     LIT_EMPTY,
     LIT_0,
@@ -95,29 +98,6 @@ typedef struct ConnectionData {
 	}					\
     } while(0)
 
-
-
-/*
- * Structure describing the data types of substituted parameters in
- * a SQL statement.
- */
-
-typedef struct ParamData {
-    int flags;			/* Flags regarding the parameters - see below */
-    int dataType;		/* Data type */
-    int precision;		/* Size of the expected data */
-    int scale;			/* Digits after decimal point of the
-				 * expected data */
-} ParamData;
-
-#define PARAM_KNOWN	1<<0	/* Something is known about the parameter */
-#define PARAM_IN 	1<<1	/* Parameter is an input parameter */
-#define PARAM_OUT 	1<<2	/* Parameter is an output parameter */
-				/* (Both bits are set if parameter is
-				 * an INOUT parameter) */
-#define PARAM_BINARY	1<<3	/* Parameter is binary */
-
-
 /*
  * Structure that carries the data for a Postgres prepared statement.
  *
@@ -153,12 +133,62 @@ typedef struct StatementData {
 	}					\
     } while(0)
 
+
+/*
+ * Structure describing the data types of substituted parameters in
+ * a SQL statement.
+ */
+
+typedef struct ParamData {
+    int flags;			/* Flags regarding the parameters - see below */
+    int dataType;		/* Data type */
+    int precision;		/* Size of the expected data */
+    int scale;			/* Digits after decimal point of the
+				 * expected data */
+} ParamData;
+
+#define PARAM_KNOWN	1<<0	/* Something is known about the parameter */
+#define PARAM_IN 	1<<1	/* Parameter is an input parameter */
+#define PARAM_OUT 	1<<2	/* Parameter is an output parameter */
+				/* (Both bits are set if parameter is
+				 * an INOUT parameter) */
+#define PARAM_BINARY	1<<3	/* Parameter is binary */
+
+/*
+ * Structure describing a MySQL result set.  The object that the Tcl
+ * API terms a "result set" actually has to be represented by a MySQL
+ * "statement", since a MySQL statement can have only one set of results
+ * at any given time.
+ */
+
+typedef struct ResultSetData {
+    int refCount;		/* Reference count */
+    StatementData* sdata;	/* Statement that generated this result set */
+    Tcl_Obj* paramValues;	/* List of parameter values */
+    unsigned long* paramLengths;/* Parameter lengths */
+				/* Byte lengths of retrieved columns */
+} ResultSetData;
+#define IncrResultSetRefCount(x)		\
+    do {					\
+	++((x)->refCount);			\
+    } while (0)
+#define DecrResultSetRefCount(x)		\
+    do {					\
+	ResultSetData* rs = (x);		\
+	if (--(rs->refCount) <= 0) {		\
+	    DeleteResultSet(rs);		\
+	}					\
+    } while(0)
+
+
+
 typedef struct MysqlDataType {
     const char* name;		/* Type name */
     int num;			/* Type number */
 } MysqlDataType;
 static const MysqlDataType dataTypes[] = {
-    { "varchar",    0 }
+    { "varchar",    0 },
+    { NULL, 0 }
 };
 
 
@@ -241,17 +271,17 @@ static int ConnectionCommitMethod(ClientData clientData, Tcl_Interp* interp,
 static int ConnectionConfigureMethod(ClientData clientData, Tcl_Interp* interp,
 				     Tcl_ObjectContext context,
 				     int objc, Tcl_Obj *const objv[]);
-//static int ConnectionNeedCollationInfoMethod(ClientData clientData,
-//					     Tcl_Interp* interp,
-//					     Tcl_ObjectContext context,
-//					     int objc, Tcl_Obj *const objv[]);
+static int ConnectionNeedCollationInfoMethod(ClientData clientData,
+					     Tcl_Interp* interp,
+					     Tcl_ObjectContext context,
+					     int objc, Tcl_Obj *const objv[]);
 static int ConnectionRollbackMethod(ClientData clientData, Tcl_Interp* interp,
 				    Tcl_ObjectContext context,
 				    int objc, Tcl_Obj *const objv[]);
-//static int ConnectionSetCollationInfoMethod(ClientData clientData,
-//					    Tcl_Interp* interp,
-//					    Tcl_ObjectContext context,
-//					    int objc, Tcl_Obj *const objv[]);
+static int ConnectionSetCollationInfoMethod(ClientData clientData,
+					    Tcl_Interp* interp,
+					    Tcl_ObjectContext context,
+					    int objc, Tcl_Obj *const objv[]);
 static int ConnectionTablesMethod(ClientData clientData, Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
@@ -284,6 +314,25 @@ static int CloneStatement(Tcl_Interp* interp, ClientData oldClientData,
 ClientData* newClientData);
 
 
+static int ResultSetConstructor(ClientData clientData, Tcl_Interp* interp,
+				Tcl_ObjectContext context,
+				int objc, Tcl_Obj *const objv[]);
+static int ResultSetColumnsMethod(ClientData clientData, Tcl_Interp* interp,
+				  Tcl_ObjectContext context,
+				  int objc, Tcl_Obj *const objv[]);
+static int ResultSetNextrowMethod(ClientData clientData, Tcl_Interp* interp,
+				  Tcl_ObjectContext context,
+				  int objc, Tcl_Obj *const objv[]);
+static int ResultSetRowcountMethod(ClientData clientData, Tcl_Interp* interp,
+				   Tcl_ObjectContext context,
+				   int objc, Tcl_Obj *const objv[]);
+
+static void DeleteResultSetMetadata(ClientData clientData);
+static void DeleteResultSet(ResultSetData* rdata);
+static int CloneResultSet(Tcl_Interp* interp, ClientData oldClientData,
+			  ClientData* newClientData);
+
+
 
 static void DeleteCmd(ClientData clientData);
 static int CloneCmd(Tcl_Interp* interp,
@@ -310,6 +359,49 @@ const static Tcl_ObjectMetadataType statementDataType = {
     DeleteStatementMetadata,	/* deleteProc */
     CloneStatement		/* cloneProc - should cause an error
 				 * 'cuz statements aren't clonable */
+};
+
+/* Method types of the result set methods that are implemented in C */
+
+const static Tcl_MethodType ResultSetConstructorType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "CONSTRUCTOR",		/* name */
+    ResultSetConstructor,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ResultSetColumnsMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */    "columns",			/* name */
+    ResultSetColumnsMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ResultSetNextrowMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "nextrow",			/* name */
+    ResultSetNextrowMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+const static Tcl_MethodType ResultSetRowcountMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "rowcount",			/* name */
+    ResultSetRowcountMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+
+
+/* Methods to create on the result set class */
+
+const static Tcl_MethodType* ResultSetMethods[] = {
+    &ResultSetColumnsMethodType,
+    &ResultSetRowcountMethodType,
+    NULL
 };
 
 
@@ -358,7 +450,6 @@ const static Tcl_MethodType ConnectionConfigureMethodType = {
     NULL			/* cloneProc */
 };
 
-#if 0 
 const static Tcl_MethodType ConnectionNeedCollationInfoMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -367,7 +458,6 @@ const static Tcl_MethodType ConnectionNeedCollationInfoMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#endif
 
 const static Tcl_MethodType ConnectionRollbackMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
@@ -378,7 +468,6 @@ const static Tcl_MethodType ConnectionRollbackMethodType = {
     NULL			/* cloneProc */
 };
 
-#if 0 
 const static Tcl_MethodType ConnectionSetCollationInfoMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -387,7 +476,6 @@ const static Tcl_MethodType ConnectionSetCollationInfoMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#endif 
 
 const static Tcl_MethodType ConnectionTablesMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
@@ -403,9 +491,9 @@ const static Tcl_MethodType* ConnectionMethods[] = {
     &ConnectionColumnsMethodType,
     &ConnectionCommitMethodType,
     &ConnectionConfigureMethodType,
-//    &ConnectionNeedCollationInfoMethodType,
+    &ConnectionNeedCollationInfoMethodType,
     &ConnectionRollbackMethodType,
-//    &ConnectionSetCollationInfoMethodType,
+    &ConnectionSetCollationInfoMethodType,
     &ConnectionTablesMethodType,
     NULL
 };
@@ -535,10 +623,13 @@ static int TransferResultError(
 		Tcl_NewStringObj(Tdbc_MapSqlState(sqlstate), -1));
 	Tcl_ListObjAppendElement(NULL, errorCode,
 		Tcl_NewStringObj(sqlstate, -1));
-	Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("POSTGRES", 1));
+	Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("POSTGRES", -1));
 	Tcl_ListObjAppendElement(NULL, errorCode,
 		Tcl_NewIntObj(error));
 	Tcl_SetObjErrorCode(interp, errorCode);
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(
+		    PQresultErrorField(res, PG_DIAG_MESSAGE_PRIMARY),
+		    -1));
     }
     if (error == PGRES_EMPTY_QUERY || error == PGRES_BAD_RESPONSE ||
 	    error == PGRES_FATAL_ERROR) 
@@ -1072,6 +1163,38 @@ static int ConnectionConfigureMethod(
     return ConfigureConnection(cdata, interp, objc, objv, skip);
 }
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionNeedCollationInfoMethod --
+ *
+ *	Internal method that determines whether the collation lengths
+ *	are known yet.
+ *
+ * Usage:
+ *	$connection NeedCollationInfo
+ *
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns a Boolean value.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionNeedCollationInfoMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("not implemented\n");
+    return TCL_ERROR; 
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1106,6 +1229,45 @@ ConnectionRollbackMethod(
     //Looks like PQexec("ROLLBACK");
     return TCL_ERROR; 
 }
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionSetCollationInfoMethod --
+ *
+ *	Internal method that saves the character lengths of the collations
+ *
+ * Usage:
+ *	$connection SetCollationInfo {collationNum size} ...
+ *
+ * Parameters:
+ *	One or more pairs of collation number and character length,
+ *	ordered in decreasing sequence by collation number.
+ *
+ * Results:
+ *	None.
+ *
+ * The [$connection columns $table] method needs to know the sizes
+ * of characters in a given column's collation and character set.
+ * This information is available by querying INFORMATION_SCHEMA, which
+ * is easier to do from Tcl than C. This method passes in the results.
+ * 
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionSetCollationInfoMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("not implemented\n");
+    return TCL_ERROR;
+}
+
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1532,6 +1694,7 @@ StatementConstructor(
     nativeSql = Tcl_NewObj();
     Tcl_IncrRefCount(nativeSql);
     j=0;
+
     for (i = 0; i < tokenc; ++i) {
 	tokenStr = Tcl_GetStringFromObj(tokenv[i], &tokenLen);
 	
@@ -1548,7 +1711,7 @@ StatementConstructor(
 
 	case ';':
 	    Tcl_SetObjResult(interp,
-			     Tcl_NewStringObj("tdbc::mysql"
+			     Tcl_NewStringObj("tdbc::postgres"
 					      " does not support semicolons "
 					      "in statements", -1));
 	    goto freeNativeSql;
@@ -1580,7 +1743,8 @@ StatementConstructor(
     sdata->params = (ParamData*) ckalloc(nParams * sizeof(ParamData));
     for (i = 0; i < nParams; ++i) {
 	sdata->params[i].flags = PARAM_IN;
-//	sdata->params[i].dataType = VARCHAROID;
+	//TODO: when settled thoughts about types, fix it:
+	sdata->params[i].dataType = 0;
 	sdata->params[i].precision = 0;
 	sdata->params[i].scale = 0;
     }
@@ -1588,6 +1752,10 @@ StatementConstructor(
     /* Attach the current statement data as metadata to the current object */
 
     Tcl_ObjectSetMetadata(thisObject, &statementDataType, (ClientData) sdata);
+
+    printf("everithing ok");fflush(stdout);
+    debug_no_error;
+
     return TCL_OK;
 
     /* On error, unwind all the resource allocations */
@@ -1630,6 +1798,7 @@ StatementParamsMethod(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
+    printf("StatementParamsMethod()\n");fflush(stdout);
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current statement object */
     StatementData* sdata	/* The current statement */
@@ -1718,6 +1887,7 @@ StatementParamtypeMethod(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
+    printf("StatementParamtypeMethod()\n"); fflush(stdout);
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current statement object */
     StatementData* sdata	/* The current statement */
@@ -1833,7 +2003,7 @@ StatementParamtypeMethod(
  *
  * DeleteStatementMetadata, DeleteStatement --
  *
- *	Cleans up when a MySQL statement is no longer required.
+ *	Cleans up when a Postgres statement is no longer required.
  *
  * Side effects:
  *	Frees all resources associated with the statement.
@@ -1876,7 +2046,7 @@ DeleteStatement(
  *
  * CloneStatement --
  *
- *	Attempts to clone a MySQL statement's metadata.
+ *	Attempts to clone a Postgres statement's metadata.
  *
  * Results:
  *	Returns the new metadata
@@ -1897,10 +2067,44 @@ CloneStatement(
     ClientData* newMetaData	/* Where to put the cloned metadata */
 ) {
     Tcl_SetObjResult(interp,
-		     Tcl_NewStringObj("POSTGRES statements are not clonable", -1));
+		     Tcl_NewStringObj("Postgres statements are not clonable", -1));
     return TCL_ERROR;
 }
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ResultSetConstructor --
+ *
+ *	Constructs a new result set.
+ *
+ * Usage:
+ *	$resultSet new statement ?dictionary?
+ *	$resultSet create name statement ?dictionary?
+ *
+ * Parameters:
+ *	statement -- Statement handle to which this resultset belongs
+ *	dictionary -- Dictionary containing the substitutions for named
+ *		      parameters in the given statement.
+ *
+ * Results:
+ *	Returns a standard Tcl result.  On error, the interpreter result
+ *	contains an appropriate message.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ResultSetConstructor(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("Not Implemented yet\n");
+    return TCL_ERROR;
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -2003,7 +2207,7 @@ Tdbcpostgres_Init(
 
     /* Look up the 'statement' class */
 
-    nameObj = Tcl_NewStringObj("::tdbc::mysql::statement", -1);
+    nameObj = Tcl_NewStringObj("::tdbc::postgres::statement", -1);
     Tcl_IncrRefCount(nameObj);
     if ((curClassObject = Tcl_GetObjectFromObj(interp, nameObj)) == NULL) {
 	Tcl_DecrRefCount(nameObj);
@@ -2028,6 +2232,45 @@ Tdbcpostgres_Init(
 			   (ClientData) NULL);
 	Tcl_DecrRefCount(nameObj);
     }
+
+    /* Look up the 'resultSet' class */
+
+    nameObj = Tcl_NewStringObj("::tdbc::mysql::resultset", -1);
+    Tcl_IncrRefCount(nameObj);
+    if ((curClassObject = Tcl_GetObjectFromObj(interp, nameObj)) == NULL) {
+	Tcl_DecrRefCount(nameObj);
+	return TCL_ERROR;
+    }
+    Tcl_DecrRefCount(nameObj);
+    curClass = Tcl_GetObjectAsClass(curClassObject);
+
+    /* Attach the constructor to the 'resultSet' class */
+
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &ResultSetConstructorType,
+					  (ClientData) NULL));
+
+    /* Attach the methods to the 'resultSet' class */
+
+    for (i = 0; ResultSetMethods[i] != NULL; ++i) {
+	nameObj = Tcl_NewStringObj(ResultSetMethods[i]->name, -1);
+	Tcl_IncrRefCount(nameObj);
+	Tcl_NewMethod(interp, curClass, nameObj, 1, ResultSetMethods[i],
+			   (ClientData) NULL);
+	Tcl_DecrRefCount(nameObj);
+    }
+    nameObj = Tcl_NewStringObj("nextlist", -1);
+    Tcl_IncrRefCount(nameObj);
+    Tcl_NewMethod(interp, curClass, nameObj, 1, &ResultSetNextrowMethodType,
+		  (ClientData) 1);
+    Tcl_DecrRefCount(nameObj);
+    nameObj = Tcl_NewStringObj("nextdict", -1);
+    Tcl_IncrRefCount(nameObj);
+    Tcl_NewMethod(interp, curClass, nameObj, 1, &ResultSetNextrowMethodType,
+		  (ClientData) 0);
+    Tcl_DecrRefCount(nameObj);
+
 
     return TCL_OK;
 }
