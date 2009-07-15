@@ -2400,7 +2400,7 @@ Tdbcpostgres_Init(
 
     /* Look up the 'resultSet' class */
 
-    nameObj = Tcl_NewStringObj("::tdbc::mysql::resultset", -1);
+    nameObj = Tcl_NewStringObj("::tdbc::postgres::resultset", -1);
     Tcl_IncrRefCount(nameObj);
     if ((curClassObject = Tcl_GetObjectFromObj(interp, nameObj)) == NULL) {
 	Tcl_DecrRefCount(nameObj);
