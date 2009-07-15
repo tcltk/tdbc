@@ -11,7 +11,7 @@ lappend pathlist {*}[glob -types d \
 lappend pathlist sqlite33.6.4
 lappend pathlist tcl8/8.6/tdbc
 
-set distdir /tmp/dist/tdbc${ver}-win32
+set distdir d:/tmp/dist/tdbc${ver}-win32
 file mkdir $distdir
 set f [open [file join $distdir INSTALL.tcl] w]
 puts $f {
