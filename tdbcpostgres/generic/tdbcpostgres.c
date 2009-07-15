@@ -2106,6 +2106,171 @@ ResultSetConstructor(
     return TCL_ERROR;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ResultSetColumnsMethod --
+ *
+ *	Retrieves the list of columns from a result set.
+ *
+ * Usage:
+ *	$resultSet columns
+ *
+ * Results:
+ *	Returns the count of columns
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ResultSetColumnsMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("Not Implemented yet\n");
+    return TCL_ERROR;
+}
+
+
+
+
+    
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ResultSetNextrowMethod --
+ *
+ *	Retrieves the next row from a result set.
+ *
+ * Usage:
+ *	$resultSet nextrow ?-as lists|dicts? ?--? variableName
+ *
+ * Options:
+ *	-as	Selects the desired form for returning the results.
+ *
+ * Parameters:
+ *	variableName -- Variable in which the results are to be returned
+ *
+ * Results:
+ *	Returns a standard Tcl result.  The interpreter result is 1 if there
+ *	are more rows remaining, and 0 if no more rows remain.
+ *
+ * Side effects:
+ *	Stores in the given variable either a list or a dictionary
+ *	containing one row of the result set.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ResultSetNextrowMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("Not Implemented yet\n");
+    return TCL_ERROR;
+}
+
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DeleteResultSetMetadata, DeleteResultSet --
+ *
+ *	Cleans up when a MySQL result set is no longer required.
+ *
+ * Side effects:
+ *	Frees all resources associated with the result set.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+DeleteResultSetMetadata(
+    ClientData clientData	/* Instance data for the connection */
+) {
+    DecrResultSetRefCount((ResultSetData*)clientData);
+}
+static void
+DeleteResultSet(
+    ResultSetData* rdata	/* Metadata for the result set */
+) {
+    StatementData* sdata = rdata->sdata;
+    int i;
+    int nParams;
+    int nColumns;
+    printf("Not Implemented yet\n");
+    return TCL_ERROR;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CloneResultSet --
+ *
+ *	Attempts to clone a MySQL result set's metadata.
+ *
+ * Results:
+ *	Returns the new metadata
+ *
+ * At present, we don't attempt to clone result sets - it's not obvious
+ * that such an action would ever even make sense.  Instead, we throw an
+ * error.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+CloneResultSet(
+    Tcl_Interp* interp,		/* Tcl interpreter for error reporting */
+    ClientData metadata,	/* Metadata to be cloned */
+    ClientData* newMetaData	/* Where to put the cloned metadata */
+) {
+    Tcl_SetObjResult(interp,
+		     Tcl_NewStringObj("MySQL result sets are not clonable",
+				      -1));
+    return TCL_ERROR;
+}
+    
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ResultSetRowcountMethod --
+ *
+ *	Returns (if known) the number of rows affected by a MySQL statement.
+ *
+ * Usage:
+ *	$resultSet rowcount
+ *
+ * Results:
+ *	Returns a standard Tcl result giving the number of affected rows.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ResultSetRowcountMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    printf("Not Implemented yet\n");
+    return TCL_ERROR;
+}
+
+
+	
 /*
  *-----------------------------------------------------------------------------
  *
