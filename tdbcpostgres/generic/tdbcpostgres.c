@@ -9,7 +9,7 @@
 #include <libpq-fe.h>
 
 
-#define debug_no_error  Tcl_SetObjErrorCode(interp, Tcl_NewStringObj("EVERYTHING OK", -1))
+#define not_implemented fprintf(stderr,"%s,%s(): Not implemented (yet)\n", __FILE__,__FUNCTION__); return TCL_ERROR
 
 
 const char* LiteralValues[] = {
@@ -133,6 +133,9 @@ typedef struct StatementData {
 	}					\
     } while(0)
 
+/* Flags in the 'StatementData->flags' word */
+
+#define STMT_FLAG_BUSY		0x1	/* Statement handle is in use */
 
 /*
  * Structure describing the data types of substituted parameters in
@@ -164,9 +167,8 @@ typedef struct ParamData {
 typedef struct ResultSetData {
     int refCount;		/* Reference count */
     StatementData* sdata;	/* Statement that generated this result set */
-    Tcl_Obj* paramValues;	/* List of parameter values */
-    unsigned long* paramLengths;/* Parameter lengths */
-				/* Byte lengths of retrieved columns */
+    PGresult* execResult;	/* Structure containing result of prepared statement execution */
+    char* stmtName;		/* Name identyfing the statement */
 } ResultSetData;
 #define IncrResultSetRefCount(x)		\
     do {					\
@@ -293,8 +295,12 @@ static void DeleteConnection(ConnectionData* cdata);
 static int CloneConnection(Tcl_Interp* interp, ClientData oldClientData,
 			   ClientData* newClientData);
 
+static char* GenStatementName(ConnectionData* cdata);
+static StatementData* NewStatement(ConnectionData* cdata);
+//TODO: is this function really allocating anything? maybe it's the right time to name it "PrepareStatement"?
 static PGresult* AllocAndPrepareStatement(Tcl_Interp* interp,
-					    StatementData* sdata);
+					    StatementData* sdata, char* stmtName);
+
 static Tcl_Obj* ResultDescToTcl(PGresult* resultDesc, int flags);
 
 
@@ -360,6 +366,18 @@ const static Tcl_ObjectMetadataType statementDataType = {
     CloneStatement		/* cloneProc - should cause an error
 				 * 'cuz statements aren't clonable */
 };
+
+/* Metadata type for result set data */
+
+const static Tcl_ObjectMetadataType resultSetDataType = {
+    TCL_OO_METADATA_VERSION_CURRENT,
+				/* version */
+    "ResultSetData",		/* name */
+    DeleteResultSetMetadata,	/* deleteProc */
+    CloneResultSet		/* cloneProc - should cause an error
+				 * 'cuz result sets aren't clonable */
+};
+
 
 /* Method types of the result set methods that are implemented in C */
 
@@ -997,10 +1015,9 @@ ConnectionBegintransactionMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("not implemented\n");
+    not_implemented;
     //looks like PGexec("BEGIN")
     //
-    return TCL_ERROR;
 //    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
 				/* The current connection object */
  //   ConnectionData* cdata = (ConnectionData*)
@@ -1068,10 +1085,8 @@ ConnectionCommitMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("not implemented");
+    not_implemented;
     // Looks like PQExec("COMMIT");
-    return TCL_ERROR; 
-
 }
 
 
@@ -1105,11 +1120,9 @@ ConnectionColumnsMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("not implemented, yet\n");
-
+    not_implemented;
     //SEEMS Like PQExec of SELECT * FROM ...
     //and then PQnfields x PQfname
-    return TCL_ERROR;
 }
 
 
@@ -1191,8 +1204,7 @@ ConnectionNeedCollationInfoMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("not implemented\n");
-    return TCL_ERROR; 
+    not_implemented;
 }
 
 
@@ -1225,9 +1237,8 @@ ConnectionRollbackMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("not implemented\n");
+    not_implemented;
     //Looks like PQexec("ROLLBACK");
-    return TCL_ERROR; 
 }
 
 /*
@@ -1263,8 +1274,7 @@ ConnectionSetCollationInfoMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("not implemented\n");
-    return TCL_ERROR;
+    not_implemented;
 }
 
 
@@ -1298,8 +1308,7 @@ ConnectionTablesMethod(
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
     //$tableList = pg_exec($dbconn, "select * from pg_tables");
-    printf("not implemented\n");
-    return TCL_ERROR;
+    not_implemented;
 }
 
 
@@ -1422,41 +1431,28 @@ CloneCmd(
     return TCL_OK;
 }
 
+
 /*
  *-----------------------------------------------------------------------------
  *
- * DeletePerInterpData --
+ * GenStatementName --
  *
- *	Delete per-interpreter data when the MYSQL package is finalized
+ *	Generates a unique name for a Postgre  statement
  *
- * Side effects:
- *	Releases the (presumably last) reference on the environment handle,
- *	cleans up the literal pool, and deletes the per-interp data structure.
+ * Results:
+ *	Null terminated, free-able,  string containg the name.
  *
  *-----------------------------------------------------------------------------
  */
 
-static void
-DeletePerInterpData(
-    PerInterpData* pidata	/* Data structure to clean up */
+static char*
+GenStatementName(
+    ConnectionData* cdata	/* Instance data for the connection */
 ) {
-    int i;
-
-    Tcl_HashSearch search;
-    Tcl_HashEntry *entry;
-    for (entry = Tcl_FirstHashEntry(&(pidata->typeNumHash), &search);
-	 entry != NULL;
-	 entry = Tcl_NextHashEntry(&search)) {
-	Tcl_Obj* nameObj = (Tcl_Obj*) Tcl_GetHashValue(entry);
-	Tcl_DecrRefCount(nameObj);
-    }
-    Tcl_DeleteHashTable(&(pidata->typeNumHash));
-
-    for (i = 0; i < LIT__END; ++i) {
-	Tcl_DecrRefCount(pidata->literals[i]);
-    } 
-    ckfree((char *) pidata);
-
+    char stmtName[30];
+    cdata->stmtCounter += 1;
+    snprintf(stmtName, 30, "statement%d", cdata->stmtCounter);
+    return strdup(stmtName);
 }
 
 
@@ -1477,7 +1473,6 @@ static StatementData*
 NewStatement(
     ConnectionData* cdata	/* Instance data for the connection */
 ) {
-    char stmtName[30];
     StatementData* sdata = (StatementData*) ckalloc(sizeof(StatementData));
     sdata->refCount = 1;
     sdata->cdata = cdata;
@@ -1488,10 +1483,7 @@ NewStatement(
     sdata->nativeSql = NULL;
     sdata->columnNames = NULL;
     sdata->flags = 0;
-
-    cdata->stmtCounter += 1;
-    snprintf(stmtName, 30, "statement%d", cdata->stmtCounter);
-    sdata->stmtName = strdup(stmtName);
+    sdata->stmtName = GenStatementName(cdata);
 
     return sdata;
 }
@@ -1502,7 +1494,7 @@ NewStatement(
  * AllocAndPrepareStatement --
  *
  *	Allocate space for a Postgres prepared statement, and prepare the
- *	statement.
+ *	statement. When stmtName equals to NULL, satement name is taken from sdata strucure.
  *
  * Results:
  *	Returns the Posgre result object if successeful, and NULL on failure.
@@ -1517,7 +1509,8 @@ NewStatement(
 static PGresult*
 AllocAndPrepareStatement(
     Tcl_Interp* interp,		/* Tcl interpreter for error reporting */
-    StatementData* sdata	/* Statement data */
+    StatementData* sdata,	/* Statement data */
+    char * stmtName		/* Overriding name of the statement */
 ) {
     ConnectionData* cdata = sdata->cdata;
 				/* Connection data */
@@ -1526,11 +1519,14 @@ AllocAndPrepareStatement(
     PGresult * res;		/* result of statement preparing*/
 
 
+    if (stmtName == NULL) {
+	stmtName = sdata->stmtName;
+    }
 
     /* Prepare the statement */
 	
     nativeSqlStr = Tcl_GetStringFromObj(sdata->nativeSql, &nativeSqlLen);
-    res = PQprepare(cdata->pgPtr, sdata->stmtName, nativeSqlStr, 0, NULL);
+    res = PQprepare(cdata->pgPtr, stmtName, nativeSqlStr, 0, NULL);
     if (res == NULL) {
         TransferPostgresError(interp, cdata->pgPtr);
     }
@@ -1728,7 +1724,7 @@ StatementConstructor(
 
     /* Prepare the statement */
 
-    res = AllocAndPrepareStatement(interp, sdata);
+    res = AllocAndPrepareStatement(interp, sdata, NULL);
     if (res == NULL) 
 	goto freeSData;
     
@@ -1753,8 +1749,6 @@ StatementConstructor(
 
     Tcl_ObjectSetMetadata(thisObject, &statementDataType, (ClientData) sdata);
 
-    printf("everithing ok");fflush(stdout);
-    debug_no_error;
 
     return TCL_OK;
 
@@ -1798,7 +1792,6 @@ StatementParamsMethod(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("StatementParamsMethod()\n");fflush(stdout);
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current statement object */
     StatementData* sdata	/* The current statement */
@@ -1887,7 +1880,6 @@ StatementParamtypeMethod(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("StatementParamtypeMethod()\n"); fflush(stdout);
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current statement object */
     StatementData* sdata	/* The current statement */
@@ -2102,7 +2094,142 @@ ResultSetConstructor(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("Not Implemented yet\n");
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current result set object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* Number of args to skip */
+    Tcl_Object statementObject;	/* The current statement object */
+//    PerInterpData* pidata;	/* The per-interpreter data for this package */
+    ConnectionData* cdata;	/* The MySQL connection object's data */
+
+    StatementData* sdata;	/* The statement object's data */
+    ResultSetData* rdata;	/* THe result set object's data */
+    int nParams;		/* The parameter count on the statement */
+    int nColumns;		/* Number of columns in the result set */
+    Tcl_Obj* paramNameObj;	/* Name of the current parameter */
+    const char* paramName;	/* Name of the current parameter */
+    Tcl_Obj* paramValObj;	/* Value of the current parameter */
+
+    const char** paramValues;		/* Table of values */
+    int* paramLengths;		/* Table of parameter lengths */
+    int* paramFormats;		/* Table of parameter type oid-s */
+    PGresult* res;		/* Temporary result */
+    int i;
+
+    /* Check parameter count */
+
+    if (objc != skip+1 && objc != skip+2) {
+	Tcl_WrongNumArgs(interp, skip, objv, "statement ?dictionary?");
+	return TCL_ERROR;
+    }
+
+    /* Initialize the base classes */
+
+    Tcl_ObjectContextInvokeNext(interp, context, skip, objv, skip);
+
+    /* Find the statement object, and get the statement data */
+
+    statementObject = Tcl_GetObjectFromObj(interp, objv[skip]);
+    if (statementObject == NULL) {
+	return TCL_ERROR;
+    }
+    sdata = (StatementData*) Tcl_ObjectGetMetadata(statementObject,
+						   &statementDataType);
+    if (sdata == NULL) {
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
+			 " does not refer to a MySQL statement", NULL);
+	return TCL_ERROR;
+    }
+    Tcl_ListObjLength(NULL, sdata->columnNames, &nColumns);
+    cdata = sdata->cdata;
+
+//TODO autocommit- what?
+
+    rdata = (ResultSetData*) ckalloc(sizeof(ResultSetData));
+    rdata->refCount = 1;
+    rdata->sdata = sdata;
+    rdata->stmtName = NULL;
+    rdata->execResult = NULL;
+    IncrStatementRefCount(sdata);
+    Tcl_ObjectSetMetadata(thisObject, &resultSetDataType, (ClientData) rdata);
+
+
+
+    /*
+     * Find a statement handle that we can use to execute the SQL code.
+     * If the main statement handle associated with the statement
+     * is idle, we can use it.  Otherwise, we have to allocate and
+     * prepare a fresh one.
+     */
+
+    if (sdata->flags & STMT_FLAG_BUSY) {
+	rdata->stmtName = GenStatementName(cdata);
+	res = AllocAndPrepareStatement(interp, sdata, rdata->stmtName);
+	if (res == NULL) {
+	    goto freeRData;
+	}
+	if (TransferResultError(interp, res) != TCL_OK) {
+	    goto freeRData;
+	}
+    } else {
+	rdata->stmtName = sdata->stmtName;
+	sdata->flags |= STMT_FLAG_BUSY;
+    }
+
+    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
+    
+    paramValues = (const char**) ckalloc(nParams * sizeof(char* ));
+    paramLengths = (int*) ckalloc(nParams * sizeof(int*)); 
+//TODO : prepare paramFormats table also
+//    paramFormats = ckalloc(nParams * sizeof(int*));
+    paramFormats = NULL;
+
+    for (i=0; i<nParams; i++) {
+	Tcl_ListObjIndex(NULL, sdata->subVars, i, &paramNameObj);
+	paramName = Tcl_GetString(paramNameObj);
+	if (objc == skip+2) {
+	    /* Param from a dictionary */
+
+	    if (Tcl_DictObjGet(interp, objv[skip+1],
+			       paramNameObj, &paramValObj) != TCL_OK) {
+		goto freeParamTables;
+	    }
+	} else {
+	    /* Param from a variable */
+
+	    paramValObj = Tcl_GetVar2Ex(interp, paramName, NULL, 
+					TCL_LEAVE_ERR_MSG);
+
+	}
+	/* At this point, paramValObj contains the parameter value */
+	if (paramValObj != NULL) {
+	    //TODO: add type handling case here
+	    paramValues[i]=Tcl_GetStringFromObj(paramValObj, &paramLengths[i]);
+
+	} //else {
+	    //TODO add some MYSQL NULL type here
+//	}
+
+
+    }
+
+    /* Execute the statement */
+
+    rdata->execResult = PQexecPrepared(cdata->pgPtr, rdata->stmtName, nParams, paramValues, paramLengths, paramFormats, 0);
+
+    
+    ckfree((char*)paramValues);
+    ckfree((char*)paramLengths);
+//    ckfree((char*)paramFormats);
+    return TCL_OK;
+    
+    /* On error, unwind all the resource allocations */
+ freeParamTables:
+    ckfree((char*)paramValues);
+    ckfree((char*)paramLengths);
+//    ckfree((char*)paramFormats);
+ freeRData:
+    DecrResultSetRefCount(rdata);
     return TCL_ERROR;
 }
 
@@ -2131,8 +2258,20 @@ ResultSetColumnsMethod(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("Not Implemented yet\n");
-    return TCL_ERROR;
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current result set object */
+    ResultSetData* rdata = (ResultSetData*)
+	Tcl_ObjectGetMetadata(thisObject, &resultSetDataType);
+    StatementData* sdata = (StatementData*) rdata->sdata;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
+	return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, sdata->columnNames);
+
+    return TCL_OK;
 }
 
 
@@ -2174,8 +2313,8 @@ ResultSetNextrowMethod(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("Not Implemented yet\n");
-    return TCL_ERROR;
+    return 0;
+//    not_implemented;
 }
 
 
@@ -2204,11 +2343,23 @@ DeleteResultSet(
     ResultSetData* rdata	/* Metadata for the result set */
 ) {
     StatementData* sdata = rdata->sdata;
-    int i;
-    int nParams;
-    int nColumns;
-    printf("Not Implemented yet\n");
-    return TCL_ERROR;
+    
+    if (rdata->stmtName != NULL) {
+	if (rdata->stmtName != sdata->stmtName) {
+	/* TODO: "Also, although there is no libpq function for
+	 * deleting a prepared statement, the SQL DEALLOCATE
+	 * statement can be used for that purpose. " */
+	    ckfree(rdata->stmtName);
+	} else {
+	    sdata->flags &= ~ STMT_FLAG_BUSY;
+	}
+    }
+    if (rdata->execResult != NULL) { 
+	PQclear(rdata->execResult);
+    }
+    DecrStatementRefCount(rdata->sdata);
+    ckfree((char*)rdata);
+
 }
 
 
@@ -2217,7 +2368,7 @@ DeleteResultSet(
  *
  * CloneResultSet --
  *
- *	Attempts to clone a MySQL result set's metadata.
+ *	Attempts to clone a PostreSQL result set's metadata.
  *
  * Results:
  *	Returns the new metadata
@@ -2236,7 +2387,7 @@ CloneResultSet(
     ClientData* newMetaData	/* Where to put the cloned metadata */
 ) {
     Tcl_SetObjResult(interp,
-		     Tcl_NewStringObj("MySQL result sets are not clonable",
+		     Tcl_NewStringObj("Postgres result sets are not clonable",
 				      -1));
     return TCL_ERROR;
 }
@@ -2265,8 +2416,20 @@ ResultSetRowcountMethod(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    printf("Not Implemented yet\n");
-    return TCL_ERROR;
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current result set object */
+    ResultSetData* rdata = (ResultSetData*)
+	Tcl_ObjectGetMetadata(thisObject, &resultSetDataType);
+				/* Data pertaining to the current result set */
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp,
+		     Tcl_NewWideIntObj((Tcl_WideInt)(PQntuples(
+				 rdata->execResult))));
+    return TCL_OK;
 }
 
 
@@ -2439,4 +2602,43 @@ Tdbcpostgres_Init(
 
     return TCL_OK;
 }
+
+
+/*
+*-----------------------------------------------------------------------------
+*
+* DeletePerInterpData --
+*
+*	Delete per-interpreter data when the MYSQL package is finalized
+*
+* Side effects:
+*	Releases the (presumably last) reference on the environment handle,
+*	cleans up the literal pool, and deletes the per-interp data structure.
+*
+*-----------------------------------------------------------------------------
+*/
+
+static void
+DeletePerInterpData(
+   PerInterpData* pidata	/* Data structure to clean up */
+) {
+   int i;
+
+   Tcl_HashSearch search;
+   Tcl_HashEntry *entry;
+   for (entry = Tcl_FirstHashEntry(&(pidata->typeNumHash), &search);
+	entry != NULL;
+	entry = Tcl_NextHashEntry(&search)) {
+       Tcl_Obj* nameObj = (Tcl_Obj*) Tcl_GetHashValue(entry);
+       Tcl_DecrRefCount(nameObj);
+   }
+   Tcl_DeleteHashTable(&(pidata->typeNumHash));
+
+   for (i = 0; i < LIT__END; ++i) {
+       Tcl_DecrRefCount(pidata->literals[i]);
+   } 
+   ckfree((char *) pidata);
+
+}
+
 
