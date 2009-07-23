@@ -26,7 +26,7 @@ if {[info exists env(TEST_USER)]} {
     lappend connFlags -user $env(TEST_USER)
 }
 if {[info exists env(TEST_PASSWD)]} {
-    lappend connFlags -passwd $env(TEST_PASSWD)
+    lappend connFlags -password $env(TEST_PASSWD)
 }
 if {[info exists env(TEST_DB)]} {
     lappend connFlags -db $env(TEST_DB)
