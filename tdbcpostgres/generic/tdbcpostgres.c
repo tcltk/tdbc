@@ -169,6 +169,7 @@ typedef struct ResultSetData {
     StatementData* sdata;	/* Statement that generated this result set */
     PGresult* execResult;	/* Structure containing result of prepared statement execution */
     char* stmtName;		/* Name identyfing the statement */
+    int rowCount;		/* Number of already retreived rows */
 } ResultSetData;
 #define IncrResultSetRefCount(x)		\
     do {					\
@@ -2150,6 +2151,7 @@ ResultSetConstructor(
     rdata->sdata = sdata;
     rdata->stmtName = NULL;
     rdata->execResult = NULL;
+    rdata->rowCount = 0;
     IncrStatementRefCount(sdata);
     Tcl_ObjectSetMetadata(thisObject, &resultSetDataType, (ClientData) rdata);
 
@@ -2166,10 +2168,10 @@ ResultSetConstructor(
 	rdata->stmtName = GenStatementName(cdata);
 	res = AllocAndPrepareStatement(interp, sdata, rdata->stmtName);
 	if (res == NULL) {
-	    goto freeRData;
+	    return TCL_ERROR;
 	}
 	if (TransferResultError(interp, res) != TCL_OK) {
-	    goto freeRData;
+	    return TCL_ERROR;
 	}
     } else {
 	rdata->stmtName = sdata->stmtName;
@@ -2216,6 +2218,9 @@ ResultSetConstructor(
     /* Execute the statement */
 
     rdata->execResult = PQexecPrepared(cdata->pgPtr, rdata->stmtName, nParams, paramValues, paramLengths, paramFormats, 0);
+    if (TransferResultError(interp, rdata->execResult) != TCL_OK) {
+	goto freeParamTables;
+    }
 
     
     ckfree((char*)paramValues);
@@ -2228,8 +2233,6 @@ ResultSetConstructor(
     ckfree((char*)paramValues);
     ckfree((char*)paramLengths);
 //    ckfree((char*)paramFormats);
- freeRData:
-    DecrResultSetRefCount(rdata);
     return TCL_ERROR;
 }
 
@@ -2313,8 +2316,101 @@ ResultSetNextrowMethod(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    return 0;
-//    not_implemented;
+    int lists = (int) clientData;
+
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current result set object */
+    ResultSetData* rdata = (ResultSetData*)
+	Tcl_ObjectGetMetadata(thisObject, &resultSetDataType);
+				/* Data pertaining to the current result set */
+    StatementData* sdata = (StatementData*) rdata->sdata;
+				/* Statement that yielded the result set */
+    ConnectionData* cdata = (ConnectionData*) sdata->cdata;
+				/* Connection that opened the statement */
+    PerInterpData* pidata = (PerInterpData*) cdata->pidata;
+				/* Per interpreter data */
+    Tcl_Obj** literals = pidata->literals;
+
+    int nColumns = 0;		/* Number of columns in the result set */
+    Tcl_Obj* colObj;		/* Column obtained from the row */
+    Tcl_Obj* colName;		/* Name of the current column */
+    Tcl_Obj* resultRow;		/* Row of the result set under construction */
+
+    int status = TCL_ERROR;	/* Status return from this command */
+
+    char * buffer;		/* buffer containing field value */
+    int buffSize;		/* size of buffer containing field value */
+    int i; 
+    
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "varName");
+	return TCL_ERROR;
+    }
+
+
+    /* Get the column names in the result set. */
+
+    Tcl_ListObjLength(NULL, sdata->columnNames, &nColumns);
+    if (nColumns == 0) {
+	Tcl_SetObjResult(interp, literals[LIT_0]);
+	return TCL_OK;
+    }
+ 
+    resultRow = Tcl_NewObj();
+    Tcl_IncrRefCount(resultRow);
+
+
+    /* Retrieve one column at a time. */
+
+    for (i = 0; i < nColumns; ++i) {
+	colObj = NULL; 
+	if (PQgetisnull(rdata->execResult, rdata->rowCount, i) == 0) { 
+	    buffSize = PQgetlength(rdata->execResult, rdata->rowCount, i); 
+	    buffer = PQgetvalue(rdata->execResult, rdata->rowCount, i);
+
+	    switch (PQfformat(rdata->execResult, i)) {
+		case 0:	/* textual format */
+		    colObj = Tcl_NewStringObj(buffer, buffSize);
+		    break;
+		default:	/* binary format */
+		    colObj = Tcl_NewByteArrayObj((unsigned char*)buffer, buffSize);
+
+	    }
+	}
+
+	if (lists) {
+	    if (colObj == NULL) {
+		colObj = Tcl_NewObj();
+	    }
+	    Tcl_ListObjAppendElement(NULL, resultRow, colObj);
+	} else { 
+	    if (colObj != NULL) {
+		Tcl_ListObjIndex(NULL, sdata->columnNames, i, &colName);
+		Tcl_DictObjPut(NULL, resultRow, colName, colObj);
+	    }
+	}
+    }
+
+
+    /* Advance to the next row */
+    rdata->rowCount += 1; 
+
+    /* Save the row in the given variable */
+
+    if (Tcl_SetVar2Ex(interp, Tcl_GetString(objv[2]), NULL,
+		      resultRow, TCL_LEAVE_ERR_MSG) == NULL) {
+	goto cleanup;
+    }
+
+
+    Tcl_SetObjResult(interp, literals[LIT_1]);
+    status = TCL_OK;
+
+cleanup:
+    Tcl_DecrRefCount(resultRow);
+    return status;
+
+
 }
 
 
@@ -2426,9 +2522,9 @@ ResultSetRowcountMethod(
 	Tcl_WrongNumArgs(interp, 2, objv, "");
 	return TCL_ERROR;
     }
+
     Tcl_SetObjResult(interp,
-		     Tcl_NewWideIntObj((Tcl_WideInt)(PQntuples(
-				 rdata->execResult))));
+	    Tcl_NewStringObj(PQcmdTuples(rdata->execResult), -1));
     return TCL_OK;
 }
 
