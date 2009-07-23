@@ -158,9 +158,9 @@ typedef struct ParamData {
 #define PARAM_BINARY	1<<3	/* Parameter is binary */
 
 /*
- * Structure describing a MySQL result set.  The object that the Tcl
- * API terms a "result set" actually has to be represented by a MySQL
- * "statement", since a MySQL statement can have only one set of results
+ * Structure describing a Postgres result set.  The object that the Tcl
+ * API terms a "result set" actually has to be represented by a Postgres
+ * "statement", since a Postgres statement can have only one set of results
  * at any given time.
  */
 
@@ -185,11 +185,11 @@ typedef struct ResultSetData {
 
 
 
-typedef struct MysqlDataType {
+typedef struct PostgresDataType {
     const char* name;		/* Type name */
     int num;			/* Type number */
-} MysqlDataType;
-static const MysqlDataType dataTypes[] = {
+} PostgresDataType;
+static const PostgresDataType dataTypes[] = {
     { "varchar",    0 },
     { NULL, 0 }
 };
@@ -830,7 +830,7 @@ ConfigureConnection(
 		return TCL_ERROR;
 	    }
 	    if (optionValue) {
-		mysqlFlags |= ConnOptions[optionIndex].info;
+		postgresFlags |= ConnOptions[optionIndex].info;
 	    }
 	    break;
 	case TYPE_ENCODING:
@@ -840,7 +840,7 @@ ConfigureConnection(
 						  "encoding is supported.\n",
 						  -1));
 		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
-				 "MYSQL", "-1", NULL);
+				 "POSTGRES", "-1", NULL);
 		return TCL_ERROR;
 	    }
 	    break;
@@ -876,7 +876,7 @@ ConfigureConnection(
 				 Tcl_NewStringObj("Postgres does not support "
 						  "readonly connections", -1));
 		Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
-				 "MYSQL", "-1", NULL);
+				 "POSTGRES", "-1", NULL);
 		return TCL_ERROR;
 	    }
 	    break;
@@ -1037,7 +1037,7 @@ ConnectionBegintransactionMethod(
 //	Tcl_SetObjResult(interp, Tcl_NewStringObj("POSTGRES does not support "
 //						  "nested transactions", -1));
 //	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HYC00",
-//			 "MYSQL", "-1", NULL);
+//			 "POSTGRES", "-1", NULL);
 //	return TCL_ERROR;
 //    }
 //   cdata->flags |= CONN_FLAG_IN_XCN;
@@ -1046,8 +1046,8 @@ ConnectionBegintransactionMethod(
 //    /* Turn off autocommit for the duration of the transaction */
 //
 //  if (cdata->flags & CONN_FLAG_AUTOCOMMIT) {
-//	if (mysql_autocommit(cdata->mysqlPtr, 0)) {
-//	    TransferMysqlError(interp, cdata->mysqlPtr);
+//	if (postgres_autocommit(cdata->postgresPtr, 0)) {
+//	    TransferPostgresError(interp, cdata->postgresPtr);
 //	    return TCL_ERROR;
 //	}
 //	cdata->flags &= ~CONN_FLAG_AUTOCOMMIT;
@@ -1392,7 +1392,7 @@ CloneConnection(
  *
  * Side effects:
  *	Dismisses the environment, which has the effect of shutting
- *	down MYSQL when it is no longer required.
+ *	down POSTGRES when it is no longer required.
  *
  *-----------------------------------------------------------------------------
  */
@@ -2101,7 +2101,7 @@ ResultSetConstructor(
 				/* Number of args to skip */
     Tcl_Object statementObject;	/* The current statement object */
 //    PerInterpData* pidata;	/* The per-interpreter data for this package */
-    ConnectionData* cdata;	/* The MySQL connection object's data */
+    ConnectionData* cdata;	/* The Postgres connection object's data */
 
     StatementData* sdata;	/* The statement object's data */
     ResultSetData* rdata;	/* THe result set object's data */
@@ -2138,7 +2138,7 @@ ResultSetConstructor(
 						   &statementDataType);
     if (sdata == NULL) {
 	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
-			 " does not refer to a MySQL statement", NULL);
+			 " does not refer to a Postgres statement", NULL);
 	return TCL_ERROR;
     }
     Tcl_ListObjLength(NULL, sdata->columnNames, &nColumns);
@@ -2209,7 +2209,7 @@ ResultSetConstructor(
 	    paramValues[i]=Tcl_GetStringFromObj(paramValObj, &paramLengths[i]);
 
 	} //else {
-	    //TODO add some MYSQL NULL type here
+	    //TODO add some POSTGRES NULL type here
 //	}
 
 
@@ -2420,7 +2420,7 @@ cleanup:
  *
  * DeleteResultSetMetadata, DeleteResultSet --
  *
- *	Cleans up when a MySQL result set is no longer required.
+ *	Cleans up when a Postgres result set is no longer required.
  *
  * Side effects:
  *	Frees all resources associated with the result set.
@@ -2493,7 +2493,7 @@ CloneResultSet(
  *
  * ResultSetRowcountMethod --
  *
- *	Returns (if known) the number of rows affected by a MySQL statement.
+ *	Returns (if known) the number of rows affected by a Postgres statement.
  *
  * Usage:
  *	$resultSet rowcount
@@ -2705,7 +2705,7 @@ Tdbcpostgres_Init(
 *
 * DeletePerInterpData --
 *
-*	Delete per-interpreter data when the MYSQL package is finalized
+*	Delete per-interpreter data when the POSTGRES package is finalized
 *
 * Side effects:
 *	Releases the (presumably last) reference on the environment handle,
