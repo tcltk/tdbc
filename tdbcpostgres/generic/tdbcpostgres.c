@@ -82,9 +82,14 @@ typedef struct ConnectionData {
     int stmtCounter;		/* Counter for naming statements */
 //    int nCollations;		/* Number of collations defined */
 //    int* collationSizes;	/* Character lengths indexed by collation ID */
-//    int flags;
+    int flags;
 } ConnectionData;
 
+/*
+ * Flags for the state of an POSTGRES connection
+ */
+
+#define CONN_FLAG_IN_XCN	0x1 	/* Transaction is in progress */
 
 #define IncrConnectionRefCount(x) \
     do {			  \
@@ -591,7 +596,7 @@ TransferPostgresError(
     PGconn* pgPtr		/* Postgres connection handle */
 ) {
 
-    //TODO generate PGResult * with PQmakeEmptyPGresult
+    //TODO generate PGresult * with PQmakeEmptyPGresult
     Tcl_Obj* errorCode = Tcl_NewObj();
     Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("TDBC", -1));
     Tcl_ListObjAppendElement(NULL, errorCode,
@@ -1017,44 +1022,34 @@ ConnectionBegintransactionMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    not_implemented;
-    //looks like PGexec("BEGIN")
-    //
-//    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
 				/* The current connection object */
- //   ConnectionData* cdata = (ConnectionData*)
-//	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+    PGresult* res;		/* Result of Postgres operation */
 
     /* Check parameters */
 
- //   if (objc != 2) {
-//	Tcl_WrongNumArgs(interp, 2, objv, "");
-//	return TCL_ERROR;
-//    }
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
 
-//    /* Reject attempts at nested transactions */
+    /* Reject attempts at nested transactions */
 
-//    if (cdata->flags & CONN_FLAG_IN_XCN) {
-//	Tcl_SetObjResult(interp, Tcl_NewStringObj("POSTGRES does not support "
-//						  "nested transactions", -1));
-//	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HYC00",
-//			 "POSTGRES", "-1", NULL);
-//	return TCL_ERROR;
-//    }
-//   cdata->flags |= CONN_FLAG_IN_XCN;
+    if (cdata->flags & CONN_FLAG_IN_XCN) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("Postgres does not support "
+						  "nested transactions", -1));
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HYC00",
+			 "POSTGRES", "-1", NULL);
+	return TCL_ERROR;
+    }
+   cdata->flags |= CONN_FLAG_IN_XCN;
     
-//TODO check what about autocommit in POSTGRES
-//    /* Turn off autocommit for the duration of the transaction */
-//
-//  if (cdata->flags & CONN_FLAG_AUTOCOMMIT) {
-//	if (postgres_autocommit(cdata->postgresPtr, 0)) {
-//	    TransferPostgresError(interp, cdata->postgresPtr);
-//	    return TCL_ERROR;
-//	}
-//	cdata->flags &= ~CONN_FLAG_AUTOCOMMIT;
-//   }
+   /* Execute begin trasnaction block command */
 
-//    return TCL_OK;
+   res = PQexec(cdata->pgPtr, "BEGIN");
+   return TransferResultError(interp, res);
 }
 
 
@@ -1087,8 +1082,34 @@ ConnectionCommitMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    not_implemented;
-    // Looks like PQExec("COMMIT");
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    PGresult* res;		/* Result of libpq command */
+    /* Check parameters */
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+
+    /* Reject the request if no transaction is in progress */
+
+    if (!(cdata->flags & CONN_FLAG_IN_XCN)) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("no transaction is in "
+						  "progress", -1));
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY010",
+			 "POSTGRES", "-1", NULL);
+	return TCL_ERROR;
+    }
+
+    cdata->flags &= ~ CONN_FLAG_IN_XCN;
+    
+    /* Execute commit SQL command */
+    res = PQexec(cdata->pgPtr, "COMMIT");
+    return TransferResultError(interp, res);
 }
 
 
@@ -1239,8 +1260,35 @@ ConnectionRollbackMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    not_implemented;
-    //Looks like PQexec("ROLLBACK");
+   Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    PGresult* res;		/* Libpq call result */
+
+    /* Check parameters */
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+
+    /* Reject the request if no transaction is in progress */
+
+    if (!(cdata->flags & CONN_FLAG_IN_XCN)) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("no transaction is in "
+						  "progress", -1));
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY010",
+			 "POSTGRES", "-1", NULL);
+	return TCL_ERROR;
+    }
+
+    cdata->flags &= ~CONN_FLAG_IN_XCN;
+
+    /* Send end transaction SQL command */
+    res = PQexec(cdata->pgPtr, "ROLLBACK"); 
+    return TransferResultError(interp, res);
 }
 
 /*
