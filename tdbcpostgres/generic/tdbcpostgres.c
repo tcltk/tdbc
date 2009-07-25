@@ -2342,6 +2342,11 @@ ResultSetNextrowMethod(
 	return TCL_ERROR;
     }
 
+    /* Check if row counter haven't already rech the last row */
+    if (rdata->rowCount >= PQntuples(rdata->execResult)) {
+	Tcl_SetObjResult(interp, literals[LIT_0]);
+	return TCL_OK;
+    }
 
     /* Get the column names in the result set. */
 
@@ -2354,7 +2359,6 @@ ResultSetNextrowMethod(
 
     resultRow = Tcl_NewObj();
     Tcl_IncrRefCount(resultRow);
-
 
     /* Retrieve one column at a time. */
     for (i = 0; i < nColumns; ++i) {
