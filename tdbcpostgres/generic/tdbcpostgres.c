@@ -1452,9 +1452,12 @@ GenStatementName(
     ConnectionData* cdata	/* Instance data for the connection */
 ) {
     char stmtName[30];
+    char* retval;
     cdata->stmtCounter += 1;
     snprintf(stmtName, 30, "statement%d", cdata->stmtCounter);
-    return strdup(stmtName);
+    retval = ckalloc(strlen(stmtName) + 1);
+    strcpy(retval, stmtName);
+    return retval;
 }
 
 
