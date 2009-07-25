@@ -185,12 +185,13 @@ typedef struct ResultSetData {
 
 
 
+
 typedef struct PostgresDataType {
     const char* name;		/* Type name */
     int num;			/* Type number */
 } PostgresDataType;
 static const PostgresDataType dataTypes[] = {
-    { "varchar",    0 },
+    { "varchar",    0  },
     { NULL, 0 }
 };
 
@@ -1527,6 +1528,8 @@ AllocAndPrepareStatement(
     /* Prepare the statement */
 	
     nativeSqlStr = Tcl_GetStringFromObj(sdata->nativeSql, &nativeSqlLen);
+//TODO: delete ths printf.
+//    printf("nativeSqlStr=%s\n", nativeSqlStr);
     res = PQprepare(cdata->pgPtr, stmtName, nativeSqlStr, 0, NULL);
     if (res == NULL) {
         TransferPostgresError(interp, cdata->pgPtr);
@@ -1625,7 +1628,6 @@ StatementConstructor(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current statement object */
     int skip = Tcl_ObjectContextSkippedArgs(context);
@@ -1645,6 +1647,7 @@ StatementConstructor(
     PGresult* res;		/* Temporary result of libpq calls */
     char tmpstr[30];		/* Temporary array for strings */
     int i,j;
+
 
     /* Find the connection object, and get its data. */
 
@@ -1691,7 +1694,7 @@ StatementConstructor(
     nativeSql = Tcl_NewObj();
     Tcl_IncrRefCount(nativeSql);
     j=0;
-
+    
     for (i = 0; i < tokenc; ++i) {
 	tokenStr = Tcl_GetStringFromObj(tokenv[i], &tokenLen);
 	
@@ -1701,7 +1704,7 @@ StatementConstructor(
 	case '@':
 	    j+=1;
 	    snprintf(tmpstr, 30, "$%d", j);
-	    Tcl_AppendToObj(nativeSql, tmpstr, 1);
+	    Tcl_AppendToObj(nativeSql, tmpstr, -1);
 	    Tcl_ListObjAppendElement(NULL, sdata->subVars, 
 				     Tcl_NewStringObj(tokenStr+1, tokenLen-1));
 	    break;
@@ -1732,9 +1735,7 @@ StatementConstructor(
     if (TransferResultError(interp, res) != TCL_OK)
 	goto freeSData;
 
-    sdata->columnNames = ResultDescToTcl(res, 0);
     PQclear(res);
-    Tcl_IncrRefCount(sdata->columnNames);
 
     Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
     sdata->params = (ParamData*) ckalloc(nParams * sizeof(ParamData));
@@ -1749,7 +1750,6 @@ StatementConstructor(
     /* Attach the current statement data as metadata to the current object */
 
     Tcl_ObjectSetMetadata(thisObject, &statementDataType, (ClientData) sdata);
-
 
     return TCL_OK;
 
@@ -1982,7 +1982,6 @@ StatementParamtypeMethod(
 	Tcl_SetObjResult(interp, errorObj);
 	return TCL_ERROR;
     }
-
     return TCL_OK;
 
  wrongNumArgs:
@@ -2106,14 +2105,12 @@ ResultSetConstructor(
     StatementData* sdata;	/* The statement object's data */
     ResultSetData* rdata;	/* THe result set object's data */
     int nParams;		/* The parameter count on the statement */
-    int nColumns;		/* Number of columns in the result set */
     Tcl_Obj* paramNameObj;	/* Name of the current parameter */
     const char* paramName;	/* Name of the current parameter */
     Tcl_Obj* paramValObj;	/* Value of the current parameter */
 
     const char** paramValues;		/* Table of values */
     int* paramLengths;		/* Table of parameter lengths */
-    int* paramFormats;		/* Table of parameter type oid-s */
     PGresult* res;		/* Temporary result */
     int i;
 
@@ -2141,7 +2138,6 @@ ResultSetConstructor(
 			 " does not refer to a Postgres statement", NULL);
 	return TCL_ERROR;
     }
-    Tcl_ListObjLength(NULL, sdata->columnNames, &nColumns);
     cdata = sdata->cdata;
 
 //TODO autocommit- what?
@@ -2182,9 +2178,6 @@ ResultSetConstructor(
     
     paramValues = (const char**) ckalloc(nParams * sizeof(char* ));
     paramLengths = (int*) ckalloc(nParams * sizeof(int*)); 
-//TODO : prepare paramFormats table also
-//    paramFormats = ckalloc(nParams * sizeof(int*));
-    paramFormats = NULL;
 
     for (i=0; i<nParams; i++) {
 	Tcl_ListObjIndex(NULL, sdata->subVars, i, &paramNameObj);
@@ -2208,31 +2201,33 @@ ResultSetConstructor(
 	    //TODO: add type handling case here
 	    paramValues[i]=Tcl_GetStringFromObj(paramValObj, &paramLengths[i]);
 
-	} //else {
+	} else {
 	    //TODO add some POSTGRES NULL type here
-//	}
+	    paramValues[i] = NULL;
+	}
 
 
     }
 
     /* Execute the statement */
 
-    rdata->execResult = PQexecPrepared(cdata->pgPtr, rdata->stmtName, nParams, paramValues, paramLengths, paramFormats, 0);
+    rdata->execResult = PQexecPrepared(cdata->pgPtr, rdata->stmtName, 
+	    nParams, paramValues, paramLengths, NULL, 0);
     if (TransferResultError(interp, rdata->execResult) != TCL_OK) {
 	goto freeParamTables;
     }
 
-    
+    sdata->columnNames = ResultDescToTcl(rdata->execResult, 0);
+    Tcl_IncrRefCount(sdata->columnNames);
+
     ckfree((char*)paramValues);
     ckfree((char*)paramLengths);
-//    ckfree((char*)paramFormats);
     return TCL_OK;
     
     /* On error, unwind all the resource allocations */
  freeParamTables:
     ckfree((char*)paramValues);
     ckfree((char*)paramLengths);
-//    ckfree((char*)paramFormats);
     return TCL_ERROR;
 }
 
@@ -2356,12 +2351,12 @@ ResultSetNextrowMethod(
 	return TCL_OK;
     }
  
+
     resultRow = Tcl_NewObj();
     Tcl_IncrRefCount(resultRow);
 
 
     /* Retrieve one column at a time. */
-
     for (i = 0; i < nColumns; ++i) {
 	colObj = NULL; 
 	if (PQgetisnull(rdata->execResult, rdata->rowCount, i) == 0) { 
@@ -2390,7 +2385,6 @@ ResultSetNextrowMethod(
 	    }
 	}
     }
-
 
     /* Advance to the next row */
     rdata->rowCount += 1; 
@@ -2512,19 +2506,30 @@ ResultSetRowcountMethod(
     int objc, 			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
+    char * nTuples;
     Tcl_Object thisObject = Tcl_ObjectContextObject(context);
 				/* The current result set object */
     ResultSetData* rdata = (ResultSetData*)
 	Tcl_ObjectGetMetadata(thisObject, &resultSetDataType);
 				/* Data pertaining to the current result set */
+    StatementData* sdata = rdata->sdata;
+				/* The current statement */
+    ConnectionData* cdata = sdata->cdata;
+    PerInterpData* pidata = cdata->pidata; /* Per-interp data */
+    Tcl_Obj** literals = pidata->literals; /* Literal pool */
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 2, objv, "");
 	return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp,
-	    Tcl_NewStringObj(PQcmdTuples(rdata->execResult), -1));
+    nTuples = PQcmdTuples(rdata->execResult);
+    if (strlen(nTuples) == 0) { 
+	Tcl_SetObjResult(interp, literals[LIT_0]);
+    } else {
+	Tcl_SetObjResult(interp,
+	    Tcl_NewStringObj(nTuples, -1));
+    }
     return TCL_OK;
 }
 

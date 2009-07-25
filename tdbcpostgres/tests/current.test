@@ -248,7 +248,7 @@ test tdbc::postgres-3.6 {result set: trying to create against a non-statement} {
 	tdbc::postgres::resultset create rs db
     }
     -returnCodes error
-    -result {db does not refer to a MySQL statement}
+    -result {db does not refer to a Postgres statement}
 }
 
 #-------------------------------------------------------------------------------
@@ -296,7 +296,8 @@ test tdbc::postgres-4.2 {execute an insert with variable parameters} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
 	}]
-	$stmt paramtype idnum integer
+#	$stmt paramtype idnum integer
+#TODO: change to integers, when types are implemented
 	$stmt paramtype name varchar 40
 	set idnum 1
 	set name fred
@@ -317,3 +318,432 @@ test tdbc::postgres-4.2 {execute an insert with variable parameters} {*}{
 	}
     }
 }
+
+test tdbc::postgres-4.3 {execute an insert with dictionary parameters} {*}{
+    -body {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+#	$stmt paramtype idnum integer
+#TODO : uncomment this
+	$stmt paramtype name varchar 40
+	set rs [$stmt execute {idnum 1 name fred}]
+	list [$rs rowcount] [$rs columns] [$rs nextrow nothing]
+    }
+    -result {1 {} 0}
+    -cleanup {
+	catch {
+	    rename $rs {}
+	    rename $stmt {}
+	    set stmt [::db prepare {
+		DELETE FROM people
+	    }]
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    rename $stmt {}
+	}
+    }
+}
+
+test tdbc::postgres-4.4 {bad dictionary} {*}{
+    -body {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name) values(:idnum, :name)
+	}]
+#	$stmt paramtype idnum integer
+#TODO:	uncomment this
+	$stmt paramtype name varchar 40
+	$stmt execute {idnum 1 name}
+    }
+    -returnCodes error
+    -result {missing value to go with key}
+    -cleanup {
+	catch {
+	    rename $stmt {}
+	    set stmt [::db prepare {
+		DELETE FROM people
+	    }]
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    rename $stmt {}
+	}
+    }
+}
+
+test tdbc::postgres-4.5 {missing parameter variable} {*}{
+    -constraints !sqlite
+    -setup {
+	catch {unset idnum}
+    }
+    -body {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+#	$stmt paramtype idnum integer
+#TODO	uncomment this
+	$stmt paramtype name varchar 40
+	set name fred
+	$stmt execute
+    }
+    -returnCodes error
+    -match glob
+    -result {*violates not-null constraint*}
+    -cleanup {
+	catch {
+	    rename $stmt {}
+	    set stmt [::db prepare {
+		DELETE FROM people
+	    }]
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    rename $stmt {}
+	}
+    }
+}
+
+test tdbc::postgres-4.6 {missing parameter in dictionary} {*}{
+    -constraints !sqlite
+    -body {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+#	$stmt paramtype idnum integer
+#TODO	uncomment this
+	$stmt paramtype name varchar 40
+	$stmt execute {name fred}
+    }
+    -returnCodes error
+    -match glob
+    -result {*violates not-null constraint*}
+    -cleanup {
+	catch {
+	    rename $stmt {}
+	    set stmt [::db prepare {
+		DELETE FROM people
+	    }]
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    rename $stmt {}
+	}
+    }
+}
+
+test tdbc::postgres-4.7 {missing parameter - nullable} {*}{
+    -setup {
+	catch {unset info}
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, :info)
+	}]
+#TODO: uncomment integers
+#	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+#	$stmt paramtype info integer
+	set stmt2 [::db prepare {
+	    SELECT name, info FROM people WHERE idnum = :idnum
+	}]
+#	$stmt2 paramtype idnum integer
+    }
+    -body {
+	set name "mr. gravel"
+	set idnum 100
+	set rs [$stmt execute]
+	rename $rs {}
+	set rs [$stmt2 execute]
+	$rs nextrow -as dicts row
+	set row
+    }
+    -result {name {mr. gravel}}
+    -cleanup {
+	catch {rename $rs {}}
+	catch {
+	    rename $stmt {}
+	    rename $stmt2 {}
+	    set stmt [::db prepare {
+		DELETE FROM people
+	    }]
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    rename $stmt {}
+	}
+    }
+}
+
+test tdbc::postgres-4.8 {missing parameter in dictionary - nullable} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, :info)
+	}]
+	#TODO: integer
+#	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+#	$stmt paramtype info integer
+	set stmt2 [::db prepare {
+	    SELECT name, info FROM people WHERE idnum = :idnum
+	}]
+#	$stmt2 paramtype idnum integer
+    }
+    -body {
+	set rs [$stmt execute {name {gary granite} idnum 200}]
+	rename $rs {}
+	set rs [$stmt2 execute {idnum 200}]
+	$rs nextrow -as dicts row
+	set row
+    }
+    -result {name {gary granite}}
+    -cleanup {
+	catch {rename $rs {}}
+	catch {
+	    rename $stmt {}
+	    rename $stmt2 {}
+	    set stmt [::db prepare {
+		DELETE FROM people
+	    }]
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    rename $stmt {}
+	}
+    }
+}
+
+test tdbc::postgres-4.9 {two result sets open against the same statement} {*}{
+    -body {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+	#TODO: integer
+#	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set rs1 [$stmt execute {idnum 1 name fred}]
+	set rs2 [$stmt execute {idnum 2 name wilma}]
+	list [$rs1 rowcount] [$rs1 columns] [$rs1 nextrow nothing] \
+	    [$rs2 rowcount] [$rs2 columns] [$rs2 nextrow nothing]
+    }
+    -result {1 {} 0 1 {} 0}
+    -cleanup {
+	catch {
+	    rename $rs1 {}
+	    rename $rs2 {}
+	    rename $stmt {}
+	    set stmt [::db prepare {
+		DELETE FROM people
+	    }]
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    rename $stmt {}
+	}
+    }
+}
+
+test tdbc::postgres-4.10 {failed execution} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+	#TODO: integer
+#	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set rs [$stmt execute {idnum 1 name fred}]
+	rename $rs {}
+    }
+    -body {
+	set status [catch {$stmt execute {idnum 1 name barney}} result]
+	list $status $::errorCode
+    }
+    -cleanup {
+	rename $stmt {}
+	set stmt [::db prepare {
+	    DELETE FROM people
+	}]
+	set rs [$stmt execute]
+	rename $rs {}
+	rename $stmt {}
+    }
+    -match glob
+    -result {1 {TDBC CONSTRAINT_VIOLATION 23* POSTGRES *}}
+}
+
+test tdbc::postgres-5.1 {paramtype - too few args} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+    }
+    -body {
+	$stmt paramtype idnum
+    }
+    -cleanup {
+	rename $stmt {}
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+}
+
+test tdbc::postgres-5.2 {paramtype - just a direction} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+    }
+    -body {
+	$stmt paramtype idnum in
+    }
+    -cleanup {
+	rename $stmt {}
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+}
+    
+test tdbc::postgres-5.3 {paramtype - bad type} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+    }
+    -body {
+	$stmt paramtype idnum rubbish
+    }
+    -cleanup {
+	rename $stmt {}
+    }
+    -returnCodes error
+    -match glob
+    -result {bad SQL data type "rubbish":*}
+}
+
+test tdbc::postgres-5.6 {paramtype - unknown parameter} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+    }
+    -body {
+    #TODO: originally was integer here, not varchar.
+	$stmt paramtype rubbish varchar
+    }
+    -cleanup {
+	rename $stmt {}
+    }
+    -returnCodes error
+    -match glob
+    -result {unknown parameter "rubbish":*}
+}
+
+test tdbc::postgres-6.1 {rowcount - wrong args} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+	#TODO integer
+#	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set rs [$stmt execute {idnum 1 name fred}]
+    }
+    -body {
+	$rs rowcount rubbish
+    }
+    -cleanup {
+	rename $rs {}
+	rename $stmt {}
+	set stmt [::db prepare {
+	    DELETE FROM people
+	}]
+	set rs [$stmt execute]
+	rename $rs {}
+	rename $stmt {}
+    }
+    -returnCodes error
+    -match glob
+    -result "wrong \# args*"
+}
+
+
+#-------------------------------------------------------------------------------
+#
+# next tests require data in the database
+
+catch {
+    set stmt [db prepare {
+	INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+    }]
+    $stmt paramtype idnum integer
+    $stmt paramtype name varchar 40
+    set idnum 1
+    foreach name {fred wilma pebbles barney betty bam-bam} {
+	set rs [$stmt execute]
+	rename $rs {}
+	incr idnum
+    }
+    rename $stmt {}
+}
+
+#-------------------------------------------------------------------------------
+
+test tdbc::postgres-7.1 {columns - bad args} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    SELECT * FROM people
+	}]
+	set rs [$stmt execute]
+    }
+    -body {
+	$rs columns rubbish
+    }
+    -cleanup {
+	rename $rs {}
+	rename $stmt {}
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+}
+
+test tdbc::postgres-7.2 {columns - get column names} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    SELECT * FROM people
+	}]
+	set rs [$stmt execute]
+    }
+    -body {
+	$rs columns
+    }
+    -cleanup {
+	rename $rs {}
+	rename $stmt {}
+    }
+    -result {idnum name info}
+}
+
+
+test tdbc::postgres-8.1 {nextrow - as dicts} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    SELECT idnum, name FROM people ORDER BY idnum
+	}]
+	set rs [$stmt execute]
+    }
+    -body {
+	set idnum 1
+	set names {}
+	while {[$rs nextrow -- row]} {
+	    if {$idnum != [dict get $row idnum]} {
+		binary scan [dict get $row idnum] c* v; puts $v
+		binary scan [dict get $row name] c* v; puts $v
+		error [list bad idnum [dict get $row idnum] should be $idnum]
+	    }
+	    lappend names [dict get $row name]
+	    incr idnum
+	}
+	set names
+    }
+    -cleanup {
+	rename $rs {}
+	rename $stmt {}
+    }
+    -result {fred wilma pebbles barney betty bam-bam}
+}
+    
+
