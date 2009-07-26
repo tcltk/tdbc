@@ -2493,5 +2493,30 @@ test tdbc::postgres-16.2 {database tables - empty set} {
 -result {}
 }
 
+test tdbc::postgres-16.3 {enumerate database tables} {*}{
+    -body {
+	set dict [::db tables]
+	list [dict exists $dict people] [dict exists $dict property]
+    } 
+    -result {1 0}
+}
+
+test tdbc::postgres-16.4 {enumerate database tables} {*}{
+    -body {
+	set dict [::db tables p%]
+	list [dict exists $dict people] [dict exists $dict property]
+    } 
+    -result {1 0}
+}
+
+
+test tdbc::postgres-17.1 {database columns - wrong # args} {*}{
+    -body {
+	set dict [::db columns people % rubbish]
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+}
 
 

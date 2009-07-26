@@ -304,8 +304,7 @@ static int CloneConnection(Tcl_Interp* interp, ClientData oldClientData,
 
 static char* GenStatementName(ConnectionData* cdata);
 static StatementData* NewStatement(ConnectionData* cdata);
-//TODO: is this function really allocating anything? maybe it's the right time to name it "PrepareStatement"?
-static PGresult* AllocAndPrepareStatement(Tcl_Interp* interp,
+static PGresult* PrepareStatement(Tcl_Interp* interp,
 					    StatementData* sdata, char* stmtName);
 
 static Tcl_Obj* ResultDescToTcl(PGresult* resultDesc, int flags);
@@ -980,7 +979,7 @@ ConnectionConstructor(
     cdata->stmtCounter = 0;
 //    cdata->nCollations = 0;
  //   cdata->collationSizes = NULL;
- //   cdata->flags = 0;
+   cdata->flags = 0;
     IncrPerInterpRefCount(pidata);
     Tcl_ObjectSetMetadata(thisObject, &connectionDataType, (ClientData) cdata);
     
@@ -1027,6 +1026,7 @@ ConnectionBegintransactionMethod(
     ConnectionData* cdata = (ConnectionData*)
 	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
     PGresult* res;		/* Result of Postgres operation */
+    int status;
 
     /* Check parameters */
 
@@ -1049,7 +1049,9 @@ ConnectionBegintransactionMethod(
    /* Execute begin trasnaction block command */
 
    res = PQexec(cdata->pgPtr, "BEGIN");
-   return TransferResultError(interp, res);
+   status = TransferResultError(interp, res);
+   PQclear(res);
+   return status;
 }
 
 
@@ -1088,6 +1090,8 @@ ConnectionCommitMethod(
 	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
 				/* Instance data */
     PGresult* res;		/* Result of libpq command */
+    int status;			/* Return status */
+    
     /* Check parameters */
 
     if (objc != 2) {
@@ -1109,7 +1113,9 @@ ConnectionCommitMethod(
     
     /* Execute commit SQL command */
     res = PQexec(cdata->pgPtr, "COMMIT");
-    return TransferResultError(interp, res);
+    status =  TransferResultError(interp, res);
+    PQclear(res);
+    return status;
 }
 
 
@@ -1143,7 +1149,30 @@ ConnectionColumnsMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    PerInterpData* pidata = cdata->pidata;
+				/* Per-interpreter data */
+    Tcl_Obj** literals = pidata->literals;
+				/* Literal pool */
+    const char* patternStr;	/* Pattern to match table names */
+
+    /* Check parameters */
+
+    if (objc == 3) {
+	patternStr = NULL;
+    } else if (objc == 4) {
+	patternStr = Tcl_GetString(objv[3]);
+    } else {
+	Tcl_WrongNumArgs(interp, 2, objv, "table ?pattern?");
+	return TCL_ERROR;
+    }
     not_implemented;
+
+    
     //SEEMS Like PQExec of SELECT * FROM ...
     //and then PQnfields x PQfname
 }
@@ -1266,6 +1295,7 @@ ConnectionRollbackMethod(
 	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
 				/* Instance data */
     PGresult* res;		/* Libpq call result */
+    int status;			/* Return status */
 
     /* Check parameters */
 
@@ -1288,7 +1318,9 @@ ConnectionRollbackMethod(
 
     /* Send end transaction SQL command */
     res = PQexec(cdata->pgPtr, "ROLLBACK"); 
-    return TransferResultError(interp, res);
+    status =  TransferResultError(interp, res);
+    PQclear(res);
+    return status;
 }
 
 /*
@@ -1357,8 +1389,91 @@ ConnectionTablesMethod(
     int objc,			/* Parameter count */
     Tcl_Obj *const objv[]	/* Parameter vector */
 ) {
-    //$tableList = pg_exec($dbconn, "select * from pg_tables");
-    not_implemented;
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    Tcl_Obj** literals = cdata->pidata->literals;
+				/* Literal pool */
+    const char* patternStr;	/* Pattern to match table names */
+    PGresult* res;		/* Result of libpq call */
+    char * field;		/* Field value from SQL result */
+    Tcl_Obj* retval;		/* List of table names */    
+    int i; 
+
+
+    /* Check parameters */
+
+    if (objc == 2) {
+	patternStr = NULL;
+    } else if (objc == 3) {
+	patternStr = Tcl_GetString(objv[2]);
+    } else {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+   
+    if (patternStr) {
+
+	/* Prepare statement asking for list of tables */
+    
+	res = PQprepare(cdata->pgPtr, "", 
+		"SELECT tablename FROM pg_tables WHERE tablename LIKE $1 AND schemaname = 'public'",
+		1, NULL); 
+        if (res == NULL) {
+	    TransferPostgresError(interp, cdata->pgPtr);
+	    return TCL_ERROR;
+	} 
+	if (TransferResultError(interp, res) != TCL_OK) {
+	    PQclear(res);
+	    return TCL_ERROR;
+	}
+
+	/* Provide table name pattern and execute statement */
+	
+	res = PQexecPrepared(cdata->pgPtr, "", 1, &patternStr, NULL, NULL, 0); 
+	if (res == NULL) {
+	    TransferPostgresError(interp, cdata->pgPtr);
+	    return TCL_ERROR;
+	} 
+	if (TransferResultError(interp, res) != TCL_OK) {
+	    PQclear(res);
+	    return TCL_ERROR;
+	}
+    } else {
+	
+	/* No pattern string */
+	
+	res = PQexec(cdata ->pgPtr,
+		"SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+	if (res == NULL) {
+	    TransferPostgresError(interp, cdata->pgPtr);
+	    return TCL_ERROR;
+	} 
+	if (TransferResultError(interp, res) != TCL_OK) {
+	    PQclear(res);
+	    return TCL_ERROR;
+	}
+    }
+    retval = Tcl_NewObj();
+    Tcl_IncrRefCount(retval);
+    for (i = 0; i < PQntuples(res); i+=1) {
+	if (!PQgetisnull(res, i, 0)) { 
+	    field = PQgetvalue(res, i, 0); 
+	    if (field) {
+		Tcl_ListObjAppendElement(NULL, retval,
+			Tcl_NewStringObj(field, -1));
+		Tcl_ListObjAppendElement(NULL, retval, literals[LIT_EMPTY]);
+	    }
+	}
+    }
+
+    PQclear(res);
+
+    Tcl_SetObjResult(interp, retval);
+    Tcl_DecrRefCount(retval);
+    return TCL_OK;
 }
 
 
@@ -1544,10 +1659,9 @@ NewStatement(
 /*
  *-----------------------------------------------------------------------------
  *
- * AllocAndPrepareStatement --
+ * PrepareStatement --
  *
- *	Allocate space for a Postgres prepared statement, and prepare the
- *	statement. When stmtName equals to NULL, satement name is taken from sdata strucure.
+ *	Prepare the postgres stored statement. When stmtName equals to NULL, satement name is taken from sdata strucure.
  *
  * Results:
  *	Returns the Posgre result object if successeful, and NULL on failure.
@@ -1560,7 +1674,7 @@ NewStatement(
  */
 
 static PGresult*
-AllocAndPrepareStatement(
+PrepareStatement(
     Tcl_Interp* interp,		/* Tcl interpreter for error reporting */
     StatementData* sdata,	/* Statement data */
     char * stmtName		/* Overriding name of the statement */
@@ -1579,8 +1693,6 @@ AllocAndPrepareStatement(
     /* Prepare the statement */
 	
     nativeSqlStr = Tcl_GetStringFromObj(sdata->nativeSql, &nativeSqlLen);
-//TODO: delete ths printf.
-//    printf("nativeSqlStr=%s\n", nativeSqlStr);
     res = PQprepare(cdata->pgPtr, stmtName, nativeSqlStr, 0, NULL);
     if (res == NULL) {
         TransferPostgresError(interp, cdata->pgPtr);
@@ -1779,7 +1891,7 @@ StatementConstructor(
 
     /* Prepare the statement */
 
-    res = AllocAndPrepareStatement(interp, sdata, NULL);
+    res = PrepareStatement(interp, sdata, NULL);
     if (res == NULL) 
 	goto freeSData;
     
@@ -2191,8 +2303,6 @@ ResultSetConstructor(
     }
     cdata = sdata->cdata;
 
-//TODO autocommit- what?
-
     rdata = (ResultSetData*) ckalloc(sizeof(ResultSetData));
     rdata->refCount = 1;
     rdata->sdata = sdata;
@@ -2213,7 +2323,7 @@ ResultSetConstructor(
 
     if (sdata->flags & STMT_FLAG_BUSY) {
 	rdata->stmtName = GenStatementName(cdata);
-	res = AllocAndPrepareStatement(interp, sdata, rdata->stmtName);
+	res = PrepareStatement(interp, sdata, rdata->stmtName);
 	if (res == NULL) {
 	    return TCL_ERROR;
 	}

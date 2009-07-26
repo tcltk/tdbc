@@ -49,84 +49,7 @@ test tdbc::postgres-5.5 {paramtype - bad precision} {*}{
 ############### FUTURE tests:
 
 
-
-test tdbc::postgres-15.6 {return in transaction commits it} {*}{
-    -setup {
-	set stmt1 [db prepare {
-	    INSERT INTO people(idnum, name, info)
-	    VALUES(10, 'nelson stoneyfeller', 0)
-	}]
-	set stmt2 [db prepare {
-	    SELECT idnum FROM people WHERE name = 'nelson stoneyfeller'
-	}]
-	proc tdbcpostgres-15.6 {stmt1} {
-	    ::db transaction {
-		set rs [$stmt1 execute]
-		rename $rs {}
-		return
-	    }
-	}
-    }
-    -body {
-	tdbcpostgres-15.6 $stmt1
-	set rs [$stmt2 execute]
-	while {[$rs nextrow -as lists row]} {
-	    set id [lindex $row 0]
-	}
-	rename $rs {}
-	set id
-    }
-    -cleanup {
-	rename $stmt1 {}
-	rename $stmt2 {}
-	rename tdbcpostgres-15.6 {}
-    }
-    -result 10
-}
-
-
-
-test tdbc::postgres-16.1 {database tables, wrong # args} {
-    -body {
-	set dict [::db tables % rubbish]
-    }
-    -returnCodes error
-    -match glob
-    -result {wrong # args*}
-}
-
-test tdbc::postgres-16.2 {database tables - empty set} {
-    -body {
-	::db tables q%
-    }
-    -result {}
-}
-
-test tdbc::postgres-16.3 {enumerate database tables} {*}{
-    -body {
-	set dict [::db tables]
-	list [dict exists $dict people] [dict exists $dict property]
-    } 
-    -result {1 0}
-}
-
-test tdbc::postgres-16.4 {enumerate database tables} {*}{
-    -body {
-	set dict [::db tables p%]
-	list [dict exists $dict people] [dict exists $dict property]
-    } 
-    -result {1 0}
-}
-
-test tdbc::postgres-17.1 {database columns - wrong # args} {*}{
-    -body {
-	set dict [::db columns people % rubbish]
-    }
-    -returnCodes error
-    -match glob
-    -result {wrong # args*}
-}
-
+#Columns tests delayed - i don't understand collations.
 test tdbc::postgres-17.2 {database columns - no such table} {*}{
     -body {
 	::db columns rubbish
@@ -135,6 +58,8 @@ test tdbc::postgres-17.2 {database columns - no such table} {*}{
     -match glob
     -result {Table * doesn't exist}
 }
+
+
 
 test tdbc::postgres-17.3 {database columns - no match pattern} {*}{
     -body {
