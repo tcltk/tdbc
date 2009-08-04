@@ -1,6 +1,4 @@
-//TODO: 
-// - TranferResultError should check if res==NULL and call TransferPostgresError if so. Than prettify the code to use this festure. 
-//
+//TODO
 // - -timeout only sets connect_timeout. improve it someway.
 //
 #include <tcl.h>
@@ -259,11 +257,12 @@ static const struct {
     { "-tty",	    TYPE_STRING,    INDX_TTY,	0,			PQtty,	    NULL},
     { "-service",   TYPE_STRING,    INDX_SERV,	0,			NULL,	    NULL},
     { "-timeout",   TYPE_STRING,    INDX_TOUT,	0,			NULL,	    NULL},
-    { "-encoding",  TYPE_ENCODING,  0,		0,			NULL,	    NULL},
-    { "-isolation", TYPE_ISOLATION, 0,		0, 
- NULL,	    NULL},
-    { "-readonly",  TYPE_READONLY,  0,		0, 
- NULL,	    NULL},
+    { "-encoding",  TYPE_ENCODING,  0,		CONN_OPT_FLAG_MOD,
+ NULL,	     NULL},
+    { "-isolation", TYPE_ISOLATION, 0,		CONN_OPT_FLAG_MOD, 
+ NULL,	     NULL},
+    { "-readonly",  TYPE_READONLY,  0,		CONN_OPT_FLAG_MOD, 
+ NULL,	     NULL},
     { NULL,	    0,		    0,		0,			NULL,	    NULL}
 };
 
@@ -651,8 +650,6 @@ TransferPostgresError(
     Tcl_Interp* interp,		/* Tcl interpreter */
     PGconn* pgPtr		/* Postgres connection handle */
 ) {
-
-    //TODO generate PGresult * with PQmakeEmptyPGresult
     Tcl_Obj* errorCode = Tcl_NewObj();
     Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("TDBC", -1));
     Tcl_ListObjAppendElement(NULL, errorCode,
@@ -2298,9 +2295,11 @@ DeleteStatement(
 	Tcl_DecrRefCount(sdata->columnNames);
     }
     if (sdata->stmtName != NULL) {
-	/* TODO: "Also, although there is no libpq function for
-	 * deleting a prepared statement, the SQL DEALLOCATE
-	 * statement can be used for that purpose. " */
+	Tcl_Obj * sqlQuery = Tcl_NewStringObj("DEALLOCATE ", -1);
+	Tcl_IncrRefCount(sqlQuery);
+	Tcl_AppendToObj(sqlQuery, sdata->stmtName, -1);
+	PQexec(sdata->cdata->pgPtr, Tcl_GetString(sqlQuery));
+	Tcl_DecrRefCount(sqlQuery);
 	ckfree(sdata->stmtName);
     }
     if (sdata->nativeSql != NULL) {
@@ -2719,9 +2718,11 @@ DeleteResultSet(
     
     if (rdata->stmtName != NULL) {
 	if (rdata->stmtName != sdata->stmtName) {
-	/* TODO: "Also, although there is no libpq function for
-	 * deleting a prepared statement, the SQL DEALLOCATE
-	 * statement can be used for that purpose. " */
+	    Tcl_Obj * sqlQuery = Tcl_NewStringObj("DEALLOCATE ", -1);
+	    Tcl_IncrRefCount(sqlQuery);
+	    Tcl_AppendToObj(sqlQuery, rdata->stmtName, -1);
+	    PQexec(sdata->cdata->pgPtr, Tcl_GetString(sqlQuery));
+	    Tcl_DecrRefCount(sqlQuery);
 	    ckfree(rdata->stmtName);
 	} else {
 	    sdata->flags &= ~ STMT_FLAG_BUSY;

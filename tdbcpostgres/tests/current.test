@@ -604,6 +604,40 @@ test tdbc::postgres-5.3 {paramtype - bad type} {*}{
     -result {bad SQL data type "rubbish":*}
 }
 
+test tdbc::postgres-5.4 {paramtype - bad scale} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+    }
+    -body {
+	$stmt paramtype idnum decimal rubbish
+    }
+    -cleanup {
+	rename $stmt {}
+    }
+    -returnCodes error
+    -match glob
+    -result {expected integer but got "rubbish"}
+}
+
+test tdbc::postgres-5.5 {paramtype - bad precision} {*}{
+    -setup {
+	set stmt [::db prepare {
+	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
+	}]
+    }
+    -body {
+	$stmt paramtype idnum decimal 12 rubbish
+    }
+    -cleanup {
+	rename $stmt {}
+    }
+    -returnCodes error
+    -match glob
+    -result {expected integer but got "rubbish"}
+}
+
 test tdbc::postgres-5.6 {paramtype - unknown parameter} {*}{
     -setup {
 	set stmt [::db prepare {
@@ -2623,11 +2657,11 @@ test tdbc::postgres-19.1 {$connection configure - no args} \
     } \
     -match glob \
     -result [list \
-		 -database * -encoding utf-8 \
-		 -host * -interactive * -isolation repeatableread \
-		 -password {} -port * -readonly 0 -socket * \
-		 -ssl_ca * -ssl_capath * -ssl_cert * -ssl_cipher * \
-		 -ssl_key * -timeout * -user *]
+		 -host * -hostaddr * -port * \
+		 -database * -user * -password {} \
+		 -options {} -tty {} -service {} -timeout {} \
+		 -encoding SQL_ASCII -isolation readcommitted \
+		 -readonly 0 ]
 
 test tdbc::postgres-19.2 {$connection configure - unknown arg} {*}{
     -body {
@@ -2655,4 +2689,146 @@ test tdbc::postgres-19.4 {$connection configure - set unknown arg} {*}{
     -result {1 {bad option "-rubbish": must be *} {TCL LOOKUP INDEX option -rubbish}}
 }
 
+test tdbc::postgres-19.5 {$connection configure - set inappropriate arg} {*}{
+    -body {
+	list [catch {::db configure -host rubbish} result] \
+	    $result $::errorCode
+    }
+    -result {1 {"-host" option cannot be changed dynamically} {TDBC GENERAL_ERROR HY000 POSTGRES -1}}
+}
 
+test tdbc::postgres-19.6 {$connection configure - wrong # args} {*}{
+    -body {
+	::db configure -parent . -junk
+    }
+    -returnCodes error
+    -match glob
+    -result "wrong # args*"
+}
+
+test tdbc::postgres-19.9 {$connection configure - -encoding} {*}{
+    -body {
+	::db configure -encoding
+    }
+    -result SQL_ASCII
+}
+
+
+test tdbc::postgres-19.10 {$connection configure - -isolation} {*}{
+    -body {
+	::db configure -isolation junk
+    }
+    -returnCodes error
+    -match glob
+    -result {bad isolation level "junk"*}
+}
+
+test tdbc::postgres-19.11 {$connection configure - -isolation} {*}{
+    -body {
+	list [::db configure -isolation readuncommitted] \
+	    [::db configure -isolation] \
+	    [::db configure -isolation readcommitted] \
+	    [::db configure -isolation] \
+	    [::db configure -isolation serializable] \
+	    [::db configure -isolation] \
+	    [::db configure -isolation repeatableread] \
+	    [::db configure -isolation]
+    }
+    -result {{} readuncommitted {} readcommitted {} serializable {} repeatableread}
+}
+
+test tdbc::postgres-19.12 {$connection configure - -readonly set inappropriate arg } {*}{
+    -body {
+	::db configure -readonly junk
+    }
+    -returnCodes error
+    -result {expected boolean value but got "junk"}
+}
+
+test tdbc::postgres-19.13 {$connection configure - -readonly} {*}{
+    -body {
+	list [::db configure -readonly] \
+	    [::db configure -readonly 1] \
+	    [::db configure -readonly] \
+	    [::db configure -readonly 0] \
+	    [::db configure -readonly] 
+    }
+    -result {0 {} 1 {} 0}
+}
+
+test tdbc::postgres-19.14 {$connection configure - -timeout} {*}{
+    -body {
+	::db configure -timeout junk
+    }
+    -returnCodes error
+    -result {"-timeout" option cannot be changed dynamically}
+}
+
+
+test tdbc::postgres-19.15 {$connection configure - -db} {*}{
+    -body {
+	 ::db configure -db information_schema
+    }
+    -returnCodes error
+    -result {"-db" option cannot be changed dynamically}
+}
+
+test tdbc::postgres-19.16 {$connection configure - -user} \
+    -body {
+	::db configure -user nobody
+    } \
+    -returnCodes error \
+    -result {"-user" option cannot be changed dynamically} \
+
+
+test tdbc::postgres-22.1 {duplicate column name} {*}{
+    -body {
+	set stmt [::db prepare {
+	    SELECT a.idnum, b.idnum 
+	    FROM people a, people b
+	    WHERE a.name = 'hud rockstone' 
+	    AND b.info = a.info
+	}]
+	set rs [$stmt execute]
+	$rs columns
+    }
+    -result {idnum idnum#2}
+    -cleanup {
+	$rs close
+	$stmt close
+    }
+}
+
+test tdbc::postgres-20.1 {bit values} {*}{
+    -setup {
+	catch {db allrows {DROP TABLE bittest}}
+	db allrows {
+	    CREATE TABLE bittest (
+		bitstring BIT(14)
+	    )
+	}
+	db allrows {INSERT INTO bittest(bitstring) VALUES(b'11010001010110')}
+    }
+    -body {
+	db allrows {SELECT bitstring FROM bittest}
+    }
+    -result {{bitstring 13398}}
+    -cleanup {
+	db allrows {DROP TABLE bittest}
+    }
+}
+
+
+
+#-------------------------------------------------------------------------------
+
+# Test cleanup. Get rid of the test database
+
+catch {rename ::db {}}
+
+cleanupTests
+return
+
+# Local Variables:
+# mode: tcl
+# End:

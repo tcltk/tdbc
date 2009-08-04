@@ -8,118 +8,7 @@ test tdbc::postgres-1.4 {create a connection, bad flag} {*}{
     -result {expected boolean value but got "rubbish"}
 }
 
-
-#Theese two test are delayed, cause only varchar type is implemented as for now
-test tdbc::postgres-5.4 {paramtype - bad scale} {*}{
-    -setup {
-	set stmt [::db prepare {
-	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
-	}]
-    }
-    -body {
-	$stmt paramtype idnum decimal rubbish
-    }
-    -cleanup {
-	rename $stmt {}
-    }
-    -returnCodes error
-    -match glob
-    -result {expected integer but got "rubbish"}
-}
-
-test tdbc::postgres-5.5 {paramtype - bad precision} {*}{
-    -setup {
-	set stmt [::db prepare {
-	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
-	}]
-    }
-    -body {
-	$stmt paramtype idnum decimal 12 rubbish
-    }
-    -cleanup {
-	rename $stmt {}
-    }
-    -returnCodes error
-    -match glob
-    -result {expected integer but got "rubbish"}
-}
-
-
-
-############### FUTURE tests:
-
-
-test tdbc::postgres-19.5 {$connection configure - set inappropriate arg} {*}{
-    -body {
-	list [catch {::db configure -encoding ebcdic} result] \
-	    $result $::errorCode
-    }
-    -result {1 {"-encoding" option cannot be changed dynamically} {TDBC GENERAL_ERROR HY000 POSTGRES -1}}
-}
-
-test tdbc::postgres-19.6 {$connection configure - wrong # args} {*}{
-    -body {
-	::db configure -parent . -junk
-    }
-    -returnCodes error
-    -match glob
-    -result "wrong # args*"
-}
-
-test tdbc::postgres-19.9 {$connection configure - -encoding} {*}{
-    -body {
-	::db configure -encoding
-    }
-    -result utf-8
-}
-
-
-test tdbc::postgres-19.10 {$connection configure - -isolation} {*}{
-    -body {
-	::db configure -isolation junk
-    }
-    -returnCodes error
-    -match glob
-    -result {bad isolation level "junk"*}
-}
-
-test tdbc::postgres-19.11 {$connection configure - -isolation} {*}{
-    -body {
-	list [::db configure -isolation readuncommitted] \
-	    [::db configure -isolation] \
-	    [::db configure -isolation readcommitted] \
-	    [::db configure -isolation] \
-	    [::db configure -isolation serializable] \
-	    [::db configure -isolation] \
-	    [::db configure -isolation repeatableread] \
-	    [::db configure -isolation]
-    }
-    -result {{} readuncommitted {} readcommitted {} serializable {} repeatableread}
-}
-
-test tdbc::postgres-19.12 {$connection configure - -readonly} {*}{
-    -body {
-	::db configure -readonly junk
-    }
-    -returnCodes error
-    -result {"-readonly" option cannot be changed dynamically}
-}
-
-test tdbc::postgres-19.13 {$connection configure - -readonly} {*}{
-    -body {
-	::db configure -readonly
-    }
-    -result 0
-}
-
-test tdbc::postgres-19.14 {$connection configure - -timeout} {*}{
-    -body {
-	::db configure -timeout junk
-    }
-    -returnCodes error
-    -result {expected integer but got "junk"}
-}
-
+#"-timeout" option cannot be changed dynamically
 test tdbc::postgres-19.15 {$connection configure - -timeout} {*}{
     -body {
 	set x [::db configure -timeout]
@@ -128,6 +17,8 @@ test tdbc::postgres-19.15 {$connection configure - -timeout} {*}{
     }
     -result {{} 5000 {}}
 }
+
+############### FUTURE tests:
 
 test tdbc::postgres-19.16 {$connection configure - -db} {*}{
     -body {
