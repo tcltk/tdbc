@@ -38,29 +38,7 @@ package require tdbc
 
     forward statementCreate ::tdbc::postgres::statement create
 
-    # The 'columns' method returns a dictionary describing the tables
-    # in the database
-
-    method columns {table {pattern %}} {
-
-	# To return correct lengths of CHARACTER and BINARY columns,
-	# we need to know the maximum lengths of characters in each
-	# collation. We cache this information only once, on the first
-	# call to 'columns'.
-
-	if {[my NeedCollationInfo]} {
-	    my SetCollationInfo {*}[my allrows -as lists {
-		SELECT coll.id, cs.maxlen
-		FROM INFORMATION_SCHEMA.COLLATIONS coll,
-		     INFORMATION_SCHEMA.CHARACTER_SETS cs
-		WHERE cs.CHARACTER_SET_NAME = coll.CHARACTER_SET_NAME
-		ORDER BY coll.id DESC
-	    }]
-	}
-
-	return [my Columns $table $pattern]
-    }
-
+    
     # The 'prepareCall' method gives a portable interface to prepare
     # calls to stored procedures.  It delegates to 'prepare' to do the
     # actual work.
@@ -76,8 +54,7 @@ package require tdbc
     }
 
     # The 'init', 'begintransaction', 'commit, 'rollback', 'tables' 
-    # 'NeedCollationInfo', 'SetCollationInfo', and 'Columns' methods 
-    # are implemented in C.
+    #  and 'columns' methods are implemented in C.
 
 }
 

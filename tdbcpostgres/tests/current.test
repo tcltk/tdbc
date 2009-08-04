@@ -296,8 +296,7 @@ test tdbc::postgres-4.2 {execute an insert with variable parameters} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
 	}]
-#	$stmt paramtype idnum integer
-#TODO: change to integers, when types are implemented
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
 	set idnum 1
 	set name fred
@@ -324,8 +323,7 @@ test tdbc::postgres-4.3 {execute an insert with dictionary parameters} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
 	}]
-#	$stmt paramtype idnum integer
-#TODO : uncomment this
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
 	set rs [$stmt execute {idnum 1 name fred}]
 	list [$rs rowcount] [$rs columns] [$rs nextrow nothing]
@@ -350,8 +348,7 @@ test tdbc::postgres-4.4 {bad dictionary} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name) values(:idnum, :name)
 	}]
-#	$stmt paramtype idnum integer
-#TODO:	uncomment this
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
 	$stmt execute {idnum 1 name}
     }
@@ -379,8 +376,7 @@ test tdbc::postgres-4.5 {missing parameter variable} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
 	}]
-#	$stmt paramtype idnum integer
-#TODO	uncomment this
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
 	set name fred
 	$stmt execute
@@ -407,8 +403,7 @@ test tdbc::postgres-4.6 {missing parameter in dictionary} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
 	}]
-#	$stmt paramtype idnum integer
-#TODO	uncomment this
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
 	$stmt execute {name fred}
     }
@@ -434,14 +429,13 @@ test tdbc::postgres-4.7 {missing parameter - nullable} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, :info)
 	}]
-#TODO: uncomment integers
-#	$stmt paramtype idnum integer
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
-#	$stmt paramtype info integer
+	$stmt paramtype info integer
 	set stmt2 [::db prepare {
 	    SELECT name, info FROM people WHERE idnum = :idnum
 	}]
-#	$stmt2 paramtype idnum integer
+	$stmt2 paramtype idnum integer
     }
     -body {
 	set name "mr. gravel"
@@ -473,14 +467,13 @@ test tdbc::postgres-4.8 {missing parameter in dictionary - nullable} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, :info)
 	}]
-	#TODO: integer
-#	$stmt paramtype idnum integer
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
-#	$stmt paramtype info integer
+	$stmt paramtype info integer
 	set stmt2 [::db prepare {
 	    SELECT name, info FROM people WHERE idnum = :idnum
 	}]
-#	$stmt2 paramtype idnum integer
+	$stmt2 paramtype idnum integer
     }
     -body {
 	set rs [$stmt execute {name {gary granite} idnum 200}]
@@ -510,8 +503,7 @@ test tdbc::postgres-4.9 {two result sets open against the same statement} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
 	}]
-	#TODO: integer
-#	$stmt paramtype idnum integer
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
 	set rs1 [$stmt execute {idnum 1 name fred}]
 	set rs2 [$stmt execute {idnum 2 name wilma}]
@@ -539,8 +531,7 @@ test tdbc::postgres-4.10 {failed execution} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
 	}]
-	#TODO: integer
-#	$stmt paramtype idnum integer
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
 	set rs [$stmt execute {idnum 1 name fred}]
 	rename $rs {}
@@ -620,8 +611,7 @@ test tdbc::postgres-5.6 {paramtype - unknown parameter} {*}{
 	}]
     }
     -body {
-    #TODO: originally was integer here, not varchar.
-	$stmt paramtype rubbish varchar
+	$stmt paramtype rubbish integer
     }
     -cleanup {
 	rename $stmt {}
@@ -636,8 +626,7 @@ test tdbc::postgres-6.1 {rowcount - wrong args} {*}{
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
 	}]
-	#TODO integer
-#	$stmt paramtype idnum integer
+	$stmt paramtype idnum integer
 	$stmt paramtype name varchar 40
 	set rs [$stmt execute {idnum 1 name fred}]
     }
@@ -668,8 +657,7 @@ catch {
     set stmt [db prepare {
 	INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
     }]
-    #TODO: integer
-#   $stmt paramtype idnum integer
+    $stmt paramtype idnum integer
     $stmt paramtype name varchar 40
     set idnum 1
     foreach name {fred wilma pebbles barney betty bam-bam} {
@@ -2098,8 +2086,7 @@ test tdbc::postgres-13.2 {resultsets - various statements and results} {*}{
 	    set stmts($i) [::db prepare {
 		SELECT name FROM people WHERE idnum = :idnum
 	    }]
-#TODO: integer
-#	    $stmts($i) paramtype idnum integer
+	    $stmts($i) paramtype idnum integer
 	    for {set j 0} {$j < $i} {incr j} {
 		set resultsets($i,$j) [$stmts($i) execute [list idnum $j]]
 	    }
@@ -2143,8 +2130,7 @@ catch {
     set stmt [db prepare {
 	INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
     }]
-#TODO: integers!
-#    $stmt paramtype idnum integer
+    $stmt paramtype idnum integer
     $stmt paramtype name varchar 40
     set idnum 1
     foreach name {fred wilma pebbles barney betty bam-bam} {
@@ -2297,8 +2283,7 @@ catch {
     set stmt [db prepare {
 	INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
     }]
-#TODO: integers
-#    $stmt paramtype idnum integer
+    $stmt paramtype idnum integer
     $stmt paramtype name varchar 40
     set idnum 1
     foreach name {fred wilma pebbles barney betty bam-bam} {
@@ -2517,6 +2502,157 @@ test tdbc::postgres-17.1 {database columns - wrong # args} {*}{
     -returnCodes error
     -match glob
     -result {wrong # args*}
+}
+
+test tdbc::postgres-17.2 {database columns - no such table} {*}{
+    -body {
+	::db columns rubbish
+    }
+    -returnCodes error
+    -match glob
+    -result {relation * does not exist}
+}
+
+
+
+test tdbc::postgres-17.3 {database columns - no match pattern} {*}{
+    -body {
+	set result {}
+	dict for {colname attrs} [::db columns people] {
+	    lappend result $colname \
+		[dict get $attrs type] \
+		[expr {[dict exists $attrs precision] ?
+		       [dict get $attrs precision] : {NULL}}] \
+		[expr {[dict exists $attrs scale] ?
+		       [dict get $attrs scale] : {NULL}}] \
+		[dict get $attrs nullable]
+	}
+	set result
+    }
+    -match glob
+    -result {idnum integer * 0 0 name varchar 40 * info integer * 0 1}
+}
+
+# TODO: precision not a number of bytes?!
+#    -result {idnum integer 11 0 0 info integer 11 0 1}
+
+test tdbc::postgres-17.4 {database columns - match pattern} {*}{
+    -constraints !sqlite
+    -body {
+	set result {}
+	dict for {colname attrs} [::db columns people i%] {
+	    lappend result $colname \
+		[dict get $attrs type] \
+		[expr {[dict exists $attrs precision] ?
+		       [dict get $attrs precision] : {NULL}}] \
+		[expr {[dict exists $attrs scale] ?
+		       [dict get $attrs scale] : {NULL}}] \
+		[dict get $attrs nullable]
+	}
+	set result
+    }
+    -result {idnum integer 32 0 0 info integer 32 0 1}
+}
+
+test tdbc::postgres-18.1 {$statement params - excess arg} {*}{
+    -setup {
+	set s [::db prepare {
+	    SELECT name FROM people 
+	    WHERE name LIKE :pattern
+	    AND idnum >= :minid
+	}]
+	$s paramtype minid numeric 10 0
+	$s paramtype pattern varchar 40
+    }
+    -body {
+	$s params excess
+    } 
+    -cleanup {
+	rename $s {}
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+}
+
+test tdbc::postgres-18.2 {$statement params - no params} {*}{
+    -setup {
+	set s [::db prepare {
+	    SELECT name FROM people 
+	}]
+    }
+    -body {
+	$s params
+    } 
+    -cleanup {
+	rename $s {}
+    }
+    -result {}
+}
+
+test tdbc::postgres-18.3 {$statement params - try a few data types} {*}{
+    -setup {
+	set s [::db prepare {
+	    SELECT name FROM people 
+	    WHERE name LIKE :pattern
+	    AND idnum >= :minid
+	}]
+	$s paramtype minid decimal 10 0
+	$s paramtype pattern varchar 40
+    }
+    -body {
+	set d [$s params]
+	list \
+	    [dict get $d minid direction] \
+	    [dict get $d minid type] \
+	    [dict get $d minid precision] \
+	    [dict get $d minid scale] \
+	    [dict get $d pattern direction] \
+	    [dict get $d pattern type] \
+	    [dict get $d pattern precision]
+    } 
+    -cleanup {
+	rename $s {}
+    }
+    -result {in decimal 10 0 in varchar 40}
+}
+
+test tdbc::postgres-19.1 {$connection configure - no args} \
+    -body {
+	::db configure
+    } \
+    -match glob \
+    -result [list \
+		 -database * -encoding utf-8 \
+		 -host * -interactive * -isolation repeatableread \
+		 -password {} -port * -readonly 0 -socket * \
+		 -ssl_ca * -ssl_capath * -ssl_cert * -ssl_cipher * \
+		 -ssl_key * -timeout * -user *]
+
+test tdbc::postgres-19.2 {$connection configure - unknown arg} {*}{
+    -body {
+	::db configure -junk
+    }
+    -returnCodes error
+    -match glob
+    -result "bad option *"
+}
+
+test tdbc::postgres-19.3 {$connection configure - unknown arg} {*}{
+    -body {
+	list [catch {::db configure -rubbish} result] $result $::errorCode
+    }
+    -match glob
+    -result {1 {bad option "-rubbish": must be *} {TCL LOOKUP INDEX option -rubbish}}
+}
+
+test tdbc::postgres-19.4 {$connection configure - set unknown arg} {*}{
+    -body {
+	list [catch {::db configure -rubbish rubbish} result] \
+	    $result $::errorCode
+    }
+    -match glob
+    -result {1 {bad option "-rubbish": must be *} {TCL LOOKUP INDEX option -rubbish}}
 }
 
 
