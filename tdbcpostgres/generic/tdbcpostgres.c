@@ -2618,12 +2618,6 @@ ResultSetConstructor(
 		    paramFormats[i]=0;
 		    paramValues[i]=Tcl_GetStringFromObj(paramValObj, &paramLengths[i]);
 		    break;
-		default:
-//		    printf("!!!!!!!!!!!!!! FATAL ERROR: no type set for arg %d\n",i);
-		    paramFormats[i]=0;
-		    paramValues[i]=Tcl_GetStringFromObj(paramValObj, &paramLengths[i]);
-
-		    //TODO: delete it :) 
 	    }
 	} else {
 	    paramValues[i] = NULL;
