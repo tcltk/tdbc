@@ -1,4 +1,3 @@
-//TODO
 // - -timeout only sets connect_timeout. improve it someway.
 //
 #include <tcl.h>
@@ -7,8 +6,10 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #include <libpq-fe.h>
+#include <netinet/in.h>
 
 const char* LiteralValues[] = {
     "",
@@ -117,11 +118,15 @@ typedef struct StatementData {
     Tcl_Obj* subVars;	        /* List of variables to be substituted, in the
 				 * order in which they appear in the 
 				 * statement */
-    struct ParamData *params;	/* Data types and attributes of parameters */
     Tcl_Obj* nativeSql;		/* Native SQL statement to pass into
 				 * Postgres */
     char* stmtName;		/* Name identyfing the statement */
     Tcl_Obj* columnNames;	/* Column names in the result set */
+    
+    struct ParamData *params;	/* Attributes of parameters */
+    int nParams;		/* Number of parameters */
+    Oid* paramDataTypes;		/* Param data types list */
+    int paramTypesChanged;	/* Indicator of changed param types */
     int flags;
 } StatementData;
 #define IncrStatementRefCount(x)		\
@@ -147,7 +152,6 @@ typedef struct StatementData {
 
 typedef struct ParamData {
     int flags;			/* Flags regarding the parameters - see below */
-    Oid dataType;		/* Data type */
     int precision;		/* Size of the expected data */
     int scale;			/* Digits after decimal point of the
 				 * expected data */
@@ -186,20 +190,45 @@ typedef struct ResultSetData {
 	}					\
     } while(0)
 
-
-#define INT4OID                 23
-#define VARCHAROID              1043
-#define NUMERICOID              1700
+#define UNTYPEDOID	0
+#define BYTEAOID	17
+#define INT8OID		20
+#define INT2OID         21
+#define INT4OID         23
+#define TEXTOID		25
+#define FLOAT4OID	700
+#define FLOAT8OID	701
+#define BPCHAROID	1042
+#define VARCHAROID      1043
+#define DATEOID		1082
+#define TIMEOID		1083
+#define TIMESTAMPOID	1114
+#define BITOID		1560
+#define NUMERICOID      1700
 
 typedef struct PostgresDataType {
     const char* name;		/* Type name */
     Oid oid;			/* Type number */
 } PostgresDataType;
 static const PostgresDataType dataTypes[] = {
-    { "varchar",    VARCHAROID } ,
+///    { "tinyint",    },
+    { "NULL",	    UNTYPEDOID},
+    { "smallint",   INT2OID },
     { "integer",    INT4OID }, 
+    { "float",	    FLOAT8OID },
+    { "real",	    FLOAT4OID },
+    { "double",	    FLOAT8OID },
+    { "timestamp",  TIMESTAMPOID },
+    { "bigint",	    INT8OID },
+    { "date",	    DATEOID },
+    { "time",	    TIMEOID },
+    { "bit",	    BITOID },
     { "numeric",    NUMERICOID },
     { "decimal",    NUMERICOID },
+    { "text",	    TEXTOID },
+    { "varbinary",  BYTEAOID },
+    { "varchar",    VARCHAROID } ,
+    { "char",	    BPCHAROID },
     { NULL, 0 }
 };
 
@@ -332,6 +361,7 @@ static int CloneConnection(Tcl_Interp* interp, ClientData oldClientData,
 			   ClientData* newClientData);
 
 static char* GenStatementName(ConnectionData* cdata);
+static void UnallocateStatement(PGconn* pgPtr, char* stmtName);
 static StatementData* NewStatement(ConnectionData* cdata);
 static PGresult* PrepareStatement(Tcl_Interp* interp,
 					    StatementData* sdata, char* stmtName);
@@ -1345,7 +1375,8 @@ ConnectionColumnsMethod(
 	    j = PQfnumber(resType, columnName); 
 	    if (j >= 0) {
 		typeOid = PQftype(resType, j);
-//TODO: bsearch or sthing
+
+    //TODO: bsearch or sthing
 		j = 0 ;
 		while (dataTypes[j].name != NULL && dataTypes[j].oid != typeOid) {
 		    j+=1; 
@@ -1738,6 +1769,34 @@ GenStatementName(
     return retval;
 }
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UnallocateStatement --
+ *
+ *	Tries tu unallocate prepared statement using SQL query. No 
+ *	errors are reported on failure.
+ *
+ * Results:
+ *	Nothing.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+UnallocateStatement(
+	PGconn * pgPtr,	    /* Connection handle */
+	char* stmtName	    /* Statement name */
+) {
+    Tcl_Obj * sqlQuery = Tcl_NewStringObj("DEALLOCATE ", -1);
+    Tcl_IncrRefCount(sqlQuery);
+    Tcl_AppendToObj(sqlQuery, stmtName, -1);
+    PQexec(pgPtr, Tcl_GetString(sqlQuery));
+    Tcl_DecrRefCount(sqlQuery);
+}
+
+
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1767,6 +1826,7 @@ NewStatement(
     sdata->columnNames = NULL;
     sdata->flags = 0;
     sdata->stmtName = GenStatementName(cdata);
+    sdata->paramTypesChanged = 0;
 
     return sdata;
 }
@@ -1808,7 +1868,7 @@ PrepareStatement(
     /* Prepare the statement */
 	
     nativeSqlStr = Tcl_GetStringFromObj(sdata->nativeSql, &nativeSqlLen);
-    res = PQprepare(cdata->pgPtr, stmtName, nativeSqlStr, 0, NULL);
+    res = PQprepare(cdata->pgPtr, stmtName, nativeSqlStr, sdata->nParams, sdata->paramDataTypes);
     if (res == NULL) {
         TransferPostgresError(interp, cdata->pgPtr);
     }
@@ -1921,7 +1981,6 @@ StatementConstructor(
     Tcl_Obj* nativeSql;		/* SQL statement mapped to native form */
     char* tokenStr;		/* Token string */
     int tokenLen;		/* Length of a token */
-    int nParams;		/* Number of parameters of the statement */
     PGresult* res;		/* Temporary result of libpq calls */
     char tmpstr[30];		/* Temporary array for strings */
     int i,j;
@@ -2004,6 +2063,17 @@ StatementConstructor(
     sdata->nativeSql = nativeSql;
     Tcl_DecrRefCount(tokens);
 
+
+    Tcl_ListObjLength(NULL, sdata->subVars, &sdata->nParams);
+    sdata->params = (ParamData*) ckalloc(sdata->nParams * sizeof(ParamData));
+    sdata->paramDataTypes = (Oid*) ckalloc(sdata->nParams * sizeof(Oid));
+    for (i = 0; i < sdata->nParams; ++i) {
+	sdata->params[i].flags = PARAM_IN;
+	sdata->paramDataTypes[i] = UNTYPEDOID ;
+	sdata->params[i].precision = 0;
+	sdata->params[i].scale = 0;
+    }
+
     /* Prepare the statement */
 
     res = PrepareStatement(interp, sdata, NULL);
@@ -2015,15 +2085,7 @@ StatementConstructor(
 
     PQclear(res);
 
-    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
-    sdata->params = (ParamData*) ckalloc(nParams * sizeof(ParamData));
-    for (i = 0; i < nParams; ++i) {
-	sdata->params[i].flags = PARAM_IN;
-	//TODO: when settled thoughts about types, fix it:
-	sdata->params[i].dataType = 0;
-	sdata->params[i].precision = 0;
-	sdata->params[i].scale = 0;
-    }
+
 
     /* Attach the current statement data as metadata to the current object */
 
@@ -2079,7 +2141,6 @@ StatementParamsMethod(
     ConnectionData* cdata = sdata->cdata;
     PerInterpData* pidata = cdata->pidata; /* Per-interp data */
     Tcl_Obj** literals = pidata->literals; /* Literal pool */
-    int nParams;		/* Number of parameters to the statement */
     Tcl_Obj* paramName;		/* Name of a parameter */
     Tcl_Obj* paramDesc;		/* Description of one parameter */
     Tcl_Obj* dataTypeName;	/* Name of a parameter's data type */
@@ -2093,8 +2154,7 @@ StatementParamsMethod(
     }
 
     retVal = Tcl_NewObj();
-    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
-    for (i = 0; i < nParams; ++i) {
+    for (i = 0; i < sdata->nParams; ++i) {
 	paramDesc = Tcl_NewObj();
 	Tcl_ListObjIndex(NULL, sdata->subVars, i, &paramName);
 	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_NAME], paramName);
@@ -2116,7 +2176,7 @@ StatementParamsMethod(
 	}
 	typeHashEntry =
 	    Tcl_FindHashEntry(&(pidata->typeNumHash),
-			      (const char*) (sdata->params[i].dataType));
+			      (const char*) (sdata->paramDataTypes[i]));
 	if (typeHashEntry != NULL) {
 	    dataTypeName = (Tcl_Obj*) Tcl_GetHashValue(typeHashEntry);
 	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_TYPE], dataTypeName);
@@ -2178,7 +2238,6 @@ StatementParamtypeMethod(
     int precision;		/* Data precision */
     int scale;			/* Data scale */
 
-    int nParams;		/* Number of parameters to the statement */
     const char* paramName;	/* Name of the parameter being set */
     Tcl_Obj* targetNameObj;	/* Name of the ith parameter in the statement */
     const char* targetName;	/* Name of a candidate parameter in the
@@ -2231,15 +2290,17 @@ StatementParamtypeMethod(
 
     /* Look up parameters by name. */
 
-    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
     paramName = Tcl_GetString(objv[2]);
-    for (i = 0; i < nParams; ++i) {
+    for (i = 0; i < sdata->nParams; ++i) {
 	Tcl_ListObjIndex(NULL, sdata->subVars, i, &targetNameObj);
 	targetName = Tcl_GetString(targetNameObj);
 	if (!strcmp(paramName, targetName)) {
 	    ++matchCount;
 	    sdata->params[i].flags = direction;
-	    sdata->params[i].dataType = dataTypes[typeNum].oid;
+	    if (sdata->paramDataTypes[i] != dataTypes[typeNum].oid) {
+		sdata->paramTypesChanged = 1;
+	    }
+	    sdata->paramDataTypes[i] = dataTypes[typeNum].oid;
 	    sdata->params[i].precision = precision;
 	    sdata->params[i].scale = scale;
 	}
@@ -2248,12 +2309,12 @@ StatementParamtypeMethod(
 	errorObj = Tcl_NewStringObj("unknown parameter \"", -1);
 	Tcl_AppendToObj(errorObj, paramName, -1);
 	Tcl_AppendToObj(errorObj, "\": must be ", -1);
-	for (i = 0; i < nParams; ++i) {
+	for (i = 0; i < sdata->nParams; ++i) {
 	    Tcl_ListObjIndex(NULL, sdata->subVars, i, &targetNameObj);
 	    Tcl_AppendObjToObj(errorObj, targetNameObj);
-	    if (i < nParams-2) {
+	    if (i < sdata->nParams-2) {
 		Tcl_AppendToObj(errorObj, ", ", -1);
-	    } else if (i == nParams-2) {
+	    } else if (i == sdata->nParams-2) {
 		Tcl_AppendToObj(errorObj, " or ", -1);
 	    }
 	}
@@ -2295,11 +2356,7 @@ DeleteStatement(
 	Tcl_DecrRefCount(sdata->columnNames);
     }
     if (sdata->stmtName != NULL) {
-	Tcl_Obj * sqlQuery = Tcl_NewStringObj("DEALLOCATE ", -1);
-	Tcl_IncrRefCount(sqlQuery);
-	Tcl_AppendToObj(sqlQuery, sdata->stmtName, -1);
-	PQexec(sdata->cdata->pgPtr, Tcl_GetString(sqlQuery));
-	Tcl_DecrRefCount(sqlQuery);
+	UnallocateStatement(sdata->cdata->pgPtr, sdata->stmtName);
 	ckfree(sdata->stmtName);
     }
     if (sdata->nativeSql != NULL) {
@@ -2307,6 +2364,9 @@ DeleteStatement(
     }
     if (sdata->params != NULL) {
 	ckfree((char*)sdata->params);
+    }
+    if (sdata->paramDataTypes != NULL) {
+	ckfree((char*)sdata->paramDataTypes);
     }
     Tcl_DecrRefCount(sdata->subVars);
     DecrConnectionRefCount(sdata->cdata);
@@ -2384,13 +2444,14 @@ ResultSetConstructor(
 
     StatementData* sdata;	/* The statement object's data */
     ResultSetData* rdata;	/* THe result set object's data */
-    int nParams;		/* The parameter count on the statement */
     Tcl_Obj* paramNameObj;	/* Name of the current parameter */
     const char* paramName;	/* Name of the current parameter */
     Tcl_Obj* paramValObj;	/* Value of the current parameter */
 
     const char** paramValues;		/* Table of values */
     int* paramLengths;		/* Table of parameter lengths */
+    int* paramFormats;		/* Table of parameter formats (binary or string) */
+
     PGresult* res;		/* Temporary result */
     int i;
 
@@ -2450,14 +2511,32 @@ ResultSetConstructor(
     } else {
 	rdata->stmtName = sdata->stmtName;
 	sdata->flags |= STMT_FLAG_BUSY;
+
+	/* We need to check if parameter types changed since the
+	 * statement was prepared. If so, the statement is no longer
+	 * usable, so we prepare it once again */
+
+	if (sdata->paramTypesChanged) {
+	    UnallocateStatement(cdata->pgPtr, sdata->stmtName);
+	    ckfree(sdata->stmtName);
+	    sdata->stmtName = GenStatementName(cdata);
+	    rdata->stmtName = sdata->stmtName;
+	    res = PrepareStatement(interp, sdata, NULL);
+	    if (res == NULL) {
+		return TCL_ERROR;
+	    }
+	    if (TransferResultError(interp, res) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    sdata->paramTypesChanged = 0; 
+	}
     }
-
-    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
     
-    paramValues = (const char**) ckalloc(nParams * sizeof(char* ));
-    paramLengths = (int*) ckalloc(nParams * sizeof(int*)); 
+    paramValues = (const char**) ckalloc(sdata->nParams * sizeof(char* ));
+    paramLengths = (int*) ckalloc(sdata->nParams * sizeof(int*)); 
+    paramFormats = (int*) ckalloc(sdata->nParams * sizeof(int*)); 
 
-    for (i=0; i<nParams; i++) {
+    for (i=0; i<sdata->nParams; i++) {
 	Tcl_ListObjIndex(NULL, sdata->subVars, i, &paramNameObj);
 	paramName = Tcl_GetString(paramNameObj);
 	if (objc == skip+2) {
@@ -2476,21 +2555,85 @@ ResultSetConstructor(
 	}
 	/* At this point, paramValObj contains the parameter value */
 	if (paramValObj != NULL) {
-	    //TODO: add type handling case here
-	    paramValues[i]=Tcl_GetStringFromObj(paramValObj, &paramLengths[i]);
+	    char * bufPtr; 
+	    int32_t tmp32;
+	    int16_t tmp16;
+	    int64_t tmp64;
+	    
 
+	    switch (sdata->paramDataTypes[i]) {
+		case INT2OID:
+		    bufPtr = ckalloc(sizeof(int));
+		    if (Tcl_GetIntFromObj(interp, paramValObj,
+					  (int*) bufPtr) != TCL_OK) {
+			return TCL_ERROR;
+		    }
+		    paramValues[i]=ckalloc(sizeof(int16_t));
+		    tmp16 = *(int*) bufPtr;
+		    ckfree(bufPtr);
+		    *(int16_t*)(paramValues[i])=htons(tmp16);
+		    paramFormats[i]=1;
+		    paramLengths[i]=sizeof(int16_t);
+		    break;
+
+		case INT4OID:
+		    bufPtr = ckalloc(sizeof(long));
+		    if (Tcl_GetLongFromObj(interp, paramValObj,
+					  (long*) bufPtr) != TCL_OK) {
+			return TCL_ERROR;
+		    }
+		    paramValues[i]=ckalloc(sizeof(int32_t));
+		    tmp32 = *(long*) bufPtr;
+		    ckfree(bufPtr);
+		    *((int32_t*)(paramValues[i]))=htonl(tmp32);
+		    paramFormats[i]=1;
+		    paramLengths[i]=sizeof(int32_t);
+		    break;
+
+	    case INT8OID:
+		    bufPtr = ckalloc(sizeof(Tcl_WideInt));
+		    if (Tcl_GetWideIntFromObj(interp, paramValObj,
+					  (Tcl_WideInt*) bufPtr) != TCL_OK) {
+			return TCL_ERROR;
+		    }
+		    paramValues[i]=ckalloc(sizeof(int64_t));
+		    tmp64=*(Tcl_WideInt*) bufPtr;
+		    *(int64_t*)(paramValues[i])=tmp64; //TODO: bswap to network?
+		    paramFormats[i]=1;
+		    paramLengths[i]=sizeof(int64_t);
+		    ckfree(bufPtr);
+		    break; 
+		case FLOAT4OID:
+		case FLOAT8OID:
+		case TIMESTAMPOID:
+		case DATEOID:
+		case TIMEOID:
+		case BITOID:
+		case NUMERICOID:
+		case TEXTOID:
+		case BYTEAOID:
+		case VARCHAROID:
+		case BPCHAROID:
+		case UNTYPEDOID:
+		    paramFormats[i]=0;
+		    paramValues[i]=Tcl_GetStringFromObj(paramValObj, &paramLengths[i]);
+		    break;
+		default:
+//		    printf("!!!!!!!!!!!!!! FATAL ERROR: no type set for arg %d\n",i);
+		    paramFormats[i]=0;
+		    paramValues[i]=Tcl_GetStringFromObj(paramValObj, &paramLengths[i]);
+
+		    //TODO: delete it :) 
+	    }
 	} else {
-	    //TODO add some POSTGRES NULL type here
 	    paramValues[i] = NULL;
+	    paramFormats[i] = 0;
 	}
-
-
     }
 
     /* Execute the statement */
-
     rdata->execResult = PQexecPrepared(cdata->pgPtr, rdata->stmtName, 
-	    nParams, paramValues, paramLengths, NULL, 0);
+	    sdata->nParams, paramValues, paramLengths, paramFormats, 0);
     if (TransferResultError(interp, rdata->execResult) != TCL_OK) {
 	goto freeParamTables;
     }
@@ -2500,6 +2643,8 @@ ResultSetConstructor(
 
     ckfree((char*)paramValues);
     ckfree((char*)paramLengths);
+    ckfree((char*)paramFormats);
+
     return TCL_OK;
     
     /* On error, unwind all the resource allocations */
@@ -2689,8 +2834,6 @@ cleanup:
 
 }
 
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2718,11 +2861,7 @@ DeleteResultSet(
     
     if (rdata->stmtName != NULL) {
 	if (rdata->stmtName != sdata->stmtName) {
-	    Tcl_Obj * sqlQuery = Tcl_NewStringObj("DEALLOCATE ", -1);
-	    Tcl_IncrRefCount(sqlQuery);
-	    Tcl_AppendToObj(sqlQuery, rdata->stmtName, -1);
-	    PQexec(sdata->cdata->pgPtr, Tcl_GetString(sqlQuery));
-	    Tcl_DecrRefCount(sqlQuery);
+	    UnallocateStatement(sdata->cdata->pgPtr, rdata->stmtName);
 	    ckfree(rdata->stmtName);
 	} else {
 	    sdata->flags &= ~ STMT_FLAG_BUSY;

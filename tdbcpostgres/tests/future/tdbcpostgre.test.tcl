@@ -20,48 +20,6 @@ test tdbc::postgres-19.15 {$connection configure - -timeout} {*}{
 
 ############### FUTURE tests:
 
-test tdbc::postgres-19.16 {$connection configure - -db} {*}{
-    -body {
-	set x [::db configure -db]
-	list [::db configure -db information_schema] \
-	    [::db configure -db] \
-	    [::db configure -db $x]
-    }
-    -result {{} information_schema {}}
-}
-
-test tdbc::postgres-19.17 {$connection configure - -user} \
-    -body {
-	set flags $::connFlags
-	dict unset flags -host
-	catch [dict unset flags -port]
-	catch [dict unset flags -socket]
-	set flags2 $flags
-	dict set flags -db information_schema
-	list [::db configure {*}$flags] [::db configure -db] \
-	    [::db configure {*}$flags2] [::db configure -db]
-    } \
-    -result [list {} information_schema {} [dict get $connFlags -db]]
-
-test tdbc::postgres-20.1 {bit values} {*}{
-    -setup {
-	catch {db allrows {DROP TABLE bittest}}
-	db allrows {
-	    CREATE TABLE bittest (
-		bitstring BIT(14)
-	    )
-	}
-	db allrows {INSERT INTO bittest(bitstring) VALUES(b'11010001010110')}
-    }
-    -body {
-	db allrows {SELECT bitstring FROM bittest}
-    }
-    -result {{bitstring 13398}}
-    -cleanup {
-	db allrows {DROP TABLE bittest}
-    }
-}
-
 test tdbc::postgres-20.2 {direct value transfers} {*}{
     -setup {
 	set bigtext [string repeat a 200]
@@ -242,33 +200,4 @@ test tdbc::postgres-21.2 {transfers of binary data} {*}{
     }
 }
 
-test tdbc::postgres-22.1 {duplicate column name} {*}{
-    -body {
-	set stmt [::db prepare {
-	    SELECT a.idnum, b.idnum 
-	    FROM people a, people b
-	    WHERE a.name = 'hud rockstone' 
-	    AND b.info = a.info
-	}]
-	set rs [$stmt execute]
-	$rs columns
-    }
-    -result {idnum idnum#2}
-    -cleanup {
-	$rs close
-	$stmt close
-    }
-}
 
-#-------------------------------------------------------------------------------
-
-# Test cleanup. Get rid of the test database
-
-catch {rename ::db {}}
-
-cleanupTests
-return
-
-# Local Variables:
-# mode: tcl
-# End:

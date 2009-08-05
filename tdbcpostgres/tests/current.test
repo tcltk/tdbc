@@ -2818,6 +2818,103 @@ test tdbc::postgres-20.1 {bit values} {*}{
     }
 }
 
+test tdbc::postgres-20.2 {direct value transfers} {*}{
+    -setup {
+	set bigtext [string repeat a 200]
+	set bigbinary [string repeat \xc2\xa1 100]
+	catch {db allrows {DROP TABLE typetest}}
+	db allrows {
+	    CREATE TABLE typetest (
+		xsmall1 SMALLINT,
+		xint1 INTEGER,
+		xfloat1 FLOAT,
+		xdouble1 DOUBLE PRECISION,
+		xtimestamp1 TIMESTAMP,
+		xbig1 BIGINT,
+		xdate1 DATE,
+		xtime1 TIME,
+		xbit1 BIT(14),
+		xdec1 DECIMAL(10),
+		xtext1 TEXT,
+		xvarb1 BYTEA,
+		xvarc1 VARCHAR(256),
+		xchar1 CHAR(20)
+	    )
+	}
+	set stmt [db prepare {
+	    INSERT INTO typetest(
+		xsmall1,	xint1,		xfloat1,
+		xdouble1,	xtimestamp1,	xbig1,	    
+		xdate1,		xtime1,		xbit1,
+		xdec1,		xtext1,		xvarb1,
+		xvarc1,		xchar1
+	    ) values (
+		:xsmall1,	:xint1,		:xfloat1,
+		:xdouble1,	:xtimestamp1,	:xbig1,	
+		:xdate1,	:xtime1,	:xbit1,
+		:xdec1,		:xtext1,	:xvarb1,
+		:xvarc1,	:xchar1
+	    )
+	}]
+	$stmt paramtype xsmall1 smallint
+	$stmt paramtype xint1 integer
+	$stmt paramtype xfloat1 float
+	$stmt paramtype xdouble1 double
+	$stmt paramtype xtimestamp1 timestamp
+	$stmt paramtype xbig1 bigint
+	$stmt paramtype xdate1 date
+	$stmt paramtype xtime1 time
+	$stmt paramtype xbit1 bit 14
+	$stmt paramtype xdec1 decimal 10 0
+	$stmt paramtype xtext1 text
+	$stmt paramtype xvarb1 varbinary
+	$stmt paramtype xvarc1 varchar
+	$stmt paramtype xchar1 char 20
+    } 
+    -body {
+	set trouble {}
+	set xsmall1 0x3039
+	set xint1 0xbc614e
+	set xfloat1 1.125
+	set xdouble1 1.125
+	set xtimestamp1 {2001-02-03 04:05:06}
+	set xbig1 0xbc614e
+	set xdate1 2001-02-03
+	set xtime1 04:05:06
+	set xbit1 011010001010110
+	set xdec1 0xbc614e
+	set xtext1 $bigtext
+	set xvarb1 $bigbinary
+	set xvarc1 $bigtext
+	set xchar1 [string repeat a 20]
+	$stmt allrows
+	db foreach row {select * from typetest} {
+	    foreach v {
+		xsmall1		xint1		xfloat1
+		xdouble1	xtimestamp1	xbig1		
+		xdate1		xtime1		xbit1
+		xdec1		xtext1		xvarb1
+		xvarc1		xchar1
+	    } {
+		if {![dict exists $row $v]} {
+		    append trouble $v " did not appear in result set\n"
+		} elseif {[set $v] != [dict get $row $v]} {
+		    append trouble [list $v is [dict get $row $v] \
+					should be [set $v]] \n
+		}
+	    }
+	}
+	set trouble
+    }
+    -result {}
+    -cleanup {
+	$stmt close
+	db allrows {
+	    DROP TABLE typetest
+	}
+    }
+}
+
 
 
 #-------------------------------------------------------------------------------
