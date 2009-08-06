@@ -1,5 +1,3 @@
-// - -timeout only sets connect_timeout. improve it someway.
-//
 #include <tcl.h>
 #include <tclOO.h>
 #include <tdbc.h>
@@ -43,6 +41,111 @@ enum LiteralIndex {
     LIT__END
 };
 
+#define UNTYPEDOID	0
+#define BYTEAOID	17
+#define INT8OID		20
+#define INT2OID         21
+#define INT4OID         23
+#define TEXTOID		25
+#define FLOAT4OID	700
+#define FLOAT8OID	701
+#define BPCHAROID	1042
+#define VARCHAROID      1043
+#define DATEOID		1082
+#define TIMEOID		1083
+#define TIMESTAMPOID	1114
+#define BITOID		1560
+#define NUMERICOID      1700
+
+typedef struct PostgresDataType {
+    const char* name;		/* Type name */
+    Oid oid;			/* Type number */
+} PostgresDataType;
+static const PostgresDataType dataTypes[] = {
+    { "NULL",	    UNTYPEDOID},
+    { "smallint",   INT2OID },
+    { "integer",    INT4OID }, 
+    { "tinyint",    INT2OID },
+    { "float",	    FLOAT8OID },
+    { "real",	    FLOAT4OID },
+    { "double",	    FLOAT8OID },
+    { "timestamp",  TIMESTAMPOID },
+    { "bigint",	    INT8OID },
+    { "date",	    DATEOID },
+    { "time",	    TIMEOID },
+    { "bit",	    BITOID },
+    { "numeric",    NUMERICOID },
+    { "decimal",    NUMERICOID },
+    { "text",	    TEXTOID },
+    { "varbinary",  BYTEAOID },
+    { "varchar",    VARCHAROID } ,
+    { "char",	    BPCHAROID },
+    { NULL, 0 }
+};
+
+/* Configuration options for Postgres connections */
+
+/* Data types of configuration options */
+
+enum OptType {
+    TYPE_STRING,		/* Arbitrary character string */
+    TYPE_PORT,			/* Port number */
+    TYPE_ENCODING,		/* Encoding name */
+    TYPE_ISOLATION,		/* Transaction isolation level */
+    TYPE_READONLY,		/* Read-only indicator */
+};
+
+/* Locations of the string options in the string array */
+
+enum OptStringIndex {
+    INDX_HOST, INDX_HOSTA, INDX_PORT, INDX_DB, INDX_USER,
+    INDX_PASS, INDX_OPT, INDX_TTY, INDX_SERV, INDX_TOUT,
+    INDX_SSLM, INDX_RSSL, INDX_KERB, 
+    INDX_MAX
+};
+
+/* Names of string options for Postgres PGconnectdb() */
+
+const char *  optStringNames[] = {
+    "host", "hostaddr", "port", "dbname", "user",
+    "password", "options", "tty", "service", "connect_timeout", 
+    "sslmode", "requiressl", "krbsrvname"
+};
+
+/* Flags in the configuration table */
+
+#define CONN_OPT_FLAG_MOD 0x1	/* Configuration value changable at runtime */
+#define CONN_OPT_FLAG_ALIAS 0x2	/* Configuration option is an alias */
+
+/* Table of configuration options */
+
+static const struct {
+    const char * name;		    /* Option name */
+    enum OptType type;		    /* Option data type */
+    int info;		    	    /* Option index or flag value */
+    int flags;			    /* Flags - modifiable; SSL related; is an alias */
+    char *(*queryF)(const PGconn*); /* Function used to determine the option value */
+
+} ConnOptions [] = {
+    { "-host",		TYPE_STRING,    INDX_HOST,	0,			PQhost},
+    { "-hostaddr",	TYPE_STRING,    INDX_HOSTA,	0,			PQhost},
+    { "-port",		TYPE_PORT,      INDX_PORT,	0,			PQport},
+    { "-database",	TYPE_STRING,    INDX_DB,	0,			PQdb},
+    { "-db",		TYPE_STRING,    INDX_DB,	CONN_OPT_FLAG_ALIAS,	PQdb},
+    { "-user",		TYPE_STRING,    INDX_USER,	0,			PQuser},
+    { "-password",	TYPE_STRING,    INDX_PASS,	0,			PQpass},
+    { "-options",	TYPE_STRING,    INDX_OPT,	0,			PQoptions},
+    { "-tty",		TYPE_STRING,    INDX_TTY,	0,			PQtty},
+    { "-service",	TYPE_STRING,    INDX_SERV,	0,			NULL},
+    { "-timeout",	TYPE_STRING,    INDX_TOUT,	0,			NULL},
+    { "-sslmode",	TYPE_STRING,    INDX_SSLM,	0,			NULL},
+    { "-requiressl",	TYPE_STRING,	INDX_RSSL,	0,			NULL},
+    { "-krbsrvname",	TYPE_STRING,    INDX_KERB,	0,			NULL},
+    { "-encoding",	TYPE_ENCODING,  0,		CONN_OPT_FLAG_MOD,	NULL},
+    { "-isolation",	TYPE_ISOLATION, 0,		CONN_OPT_FLAG_MOD,	NULL},
+    { "-readonly",	TYPE_READONLY,  0,		CONN_OPT_FLAG_MOD,	NULL},
+    { NULL,		0,		    0,		0,			NULL}
+};
 
 /*
  * Structure that holds per-interpreter data for the POSTGRES package.
@@ -65,7 +168,6 @@ typedef struct PerInterpData {
 	}					\
     } while(0)
 
-
 /* 
  * Structure that carries the data for a Postgres connection
  *
@@ -82,6 +184,7 @@ typedef struct ConnectionData {
     int flags;
     int isolation;		/* Current isolation level */
     int readOnly;		/* Read only connection indicator */
+    char * savedOpts[INDX_MAX];  /* Saved configuration options */
 } ConnectionData;
 
 /*
@@ -190,110 +293,6 @@ typedef struct ResultSetData {
 	}					\
     } while(0)
 
-#define UNTYPEDOID	0
-#define BYTEAOID	17
-#define INT8OID		20
-#define INT2OID         21
-#define INT4OID         23
-#define TEXTOID		25
-#define FLOAT4OID	700
-#define FLOAT8OID	701
-#define BPCHAROID	1042
-#define VARCHAROID      1043
-#define DATEOID		1082
-#define TIMEOID		1083
-#define TIMESTAMPOID	1114
-#define BITOID		1560
-#define NUMERICOID      1700
-
-typedef struct PostgresDataType {
-    const char* name;		/* Type name */
-    Oid oid;			/* Type number */
-} PostgresDataType;
-static const PostgresDataType dataTypes[] = {
-///    { "tinyint",    },
-    { "NULL",	    UNTYPEDOID},
-    { "smallint",   INT2OID },
-    { "integer",    INT4OID }, 
-    { "float",	    FLOAT8OID },
-    { "real",	    FLOAT4OID },
-    { "double",	    FLOAT8OID },
-    { "timestamp",  TIMESTAMPOID },
-    { "bigint",	    INT8OID },
-    { "date",	    DATEOID },
-    { "time",	    TIMEOID },
-    { "bit",	    BITOID },
-    { "numeric",    NUMERICOID },
-    { "decimal",    NUMERICOID },
-    { "text",	    TEXTOID },
-    { "varbinary",  BYTEAOID },
-    { "varchar",    VARCHAROID } ,
-    { "char",	    BPCHAROID },
-    { NULL, 0 }
-};
-
-
-/* Configuration options for Postgres connections */
-
-/* Data types of configuration options */
-
-enum OptType {
-    TYPE_STRING,		/* Arbitrary character string */
-    TYPE_PORT,			/* Port number */
-    TYPE_ENCODING,		/* Encoding name */
-    TYPE_ISOLATION,		/* Transaction isolation level */
-    TYPE_READONLY,		/* Read-only indicator */
-};
-
-/* Locations of the string options in the string array */
-enum OptStringIndex {
-    INDX_HOST, INDX_HOSTA, INDX_PORT, INDX_DB, INDX_USER,
-    INDX_PASS, INDX_OPT, INDX_TTY, INDX_SERV, INDX_TOUT,
-    INDX_MAX
-};
-
-/* Names of string options for Postgres PGconnectdb() */
-const char *  optStringNames[] = {
-    "host", "hostaddr", "port", "dbname", "user",
-    "password", "options", "tty", "service", "connect_timeout"
-};
-
-/* Flags in the configuration table */
-
-#define CONN_OPT_FLAG_MOD 0x1	/* Configuration value changable at runtime */
-#define CONN_OPT_FLAG_ALIAS 0x2	/* Configuration option is an alias */
-
- /* Table of configuration options */
-
-static const struct {
-    const char * name;		    /* Option name */
-    enum OptType type;		    /* Option data type */
-    int info;		    	    /* Option index or flag value */
-    int flags;			    /* Flags - modifiable; SSL related; is an alias */
-    char *(*queryF)(const PGconn*); /* Function used to determine the option value */
-    const char* query;		    /* query if no queryF() given  */
-
-} ConnOptions [] = {
-// from libpq:  connect_timeout, options,  sslmode, requiressl, krbsrvname, 
-    { "-host",	    TYPE_STRING,    INDX_HOST,	0,			PQhost,	    NULL},
-    { "-hostaddr",  TYPE_STRING,    INDX_HOSTA,	0,			PQhost,	    NULL},
-    { "-port",	    TYPE_PORT,      INDX_PORT,	0,			PQport,	    NULL},
-    { "-database",  TYPE_STRING,    INDX_DB,	0,			PQdb,	    NULL},
-    { "-db",	    TYPE_STRING,    INDX_DB,	CONN_OPT_FLAG_ALIAS,	PQdb,	    NULL},
-    { "-user",	    TYPE_STRING,    INDX_USER,	0,			PQuser,	    NULL},
-    { "-password",  TYPE_STRING,    INDX_PASS,	0,			PQpass,	    NULL},
-    { "-options",   TYPE_STRING,    INDX_OPT,	0,			PQoptions,  NULL},
-    { "-tty",	    TYPE_STRING,    INDX_TTY,	0,			PQtty,	    NULL},
-    { "-service",   TYPE_STRING,    INDX_SERV,	0,			NULL,	    NULL},
-    { "-timeout",   TYPE_STRING,    INDX_TOUT,	0,			NULL,	    NULL},
-    { "-encoding",  TYPE_ENCODING,  0,		CONN_OPT_FLAG_MOD,
- NULL,	     NULL},
-    { "-isolation", TYPE_ISOLATION, 0,		CONN_OPT_FLAG_MOD, 
- NULL,	     NULL},
-    { "-readonly",  TYPE_READONLY,  0,		CONN_OPT_FLAG_MOD, 
- NULL,	     NULL},
-    { NULL,	    0,		    0,		0,			NULL,	    NULL}
-};
 
 
 static const char* TclIsolationLevels[] = {
@@ -303,6 +302,7 @@ static const char* TclIsolationLevels[] = {
     "serializable",
     NULL
 };
+
 static const char* SqlIsolationLevels[] = {
     "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED",
     "SET TRANSACTION ISOLATION LEVEL READ COMMITTED",
@@ -310,6 +310,7 @@ static const char* SqlIsolationLevels[] = {
     "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
     NULL
 };
+
 enum IsolationLevel {
     ISOL_READ_UNCOMMITTED,
     ISOL_READ_COMMITTED,
@@ -320,19 +321,16 @@ enum IsolationLevel {
 
 
 static int ExecSimpleQuery(Tcl_Interp* interp, PGconn * pgPtr, const char * query, PGresult** resOut);
-
 static void TransferPostgresError(Tcl_Interp* interp, PGconn * pgPtr);
 static int TransferResultError(Tcl_Interp* interp, PGresult * res);
 
 static Tcl_Obj* QueryConnectionOption(ConnectionData* cdata, Tcl_Interp* interp,
 				      int optionNum);
-
 static int ConfigureConnection(ConnectionData* cdata, Tcl_Interp* interp,
 			       int objc, Tcl_Obj *const objv[], int skip);
 static int ConnectionConstructor(ClientData clientData, Tcl_Interp* interp,
 				 Tcl_ObjectContext context,
 				 int objc, Tcl_Obj *const objv[]);
-
 static int ConnectionBegintransactionMethod(ClientData clientData,
 					    Tcl_Interp* interp,
 					    Tcl_ObjectContext context,
@@ -352,9 +350,6 @@ static int ConnectionRollbackMethod(ClientData clientData, Tcl_Interp* interp,
 static int ConnectionTablesMethod(ClientData clientData, Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
-
-
-
 static void DeleteConnectionMetadata(ClientData clientData);
 static void DeleteConnection(ConnectionData* cdata);
 static int CloneConnection(Tcl_Interp* interp, ClientData oldClientData,
@@ -365,10 +360,7 @@ static void UnallocateStatement(PGconn* pgPtr, char* stmtName);
 static StatementData* NewStatement(ConnectionData* cdata);
 static PGresult* PrepareStatement(Tcl_Interp* interp,
 					    StatementData* sdata, char* stmtName);
-
 static Tcl_Obj* ResultDescToTcl(PGresult* resultDesc, int flags);
-
-
 static int StatementConstructor(ClientData clientData, Tcl_Interp* interp,
 				Tcl_ObjectContext context,
 				int objc, Tcl_Obj *const objv[]);
@@ -378,12 +370,10 @@ static int StatementParamtypeMethod(ClientData clientData, Tcl_Interp* interp,
 static int StatementParamsMethod(ClientData clientData, Tcl_Interp* interp,
 				 Tcl_ObjectContext context,
 				 int objc, Tcl_Obj *const objv[]);
-
 static void DeleteStatementMetadata(ClientData clientData);
 static void DeleteStatement(StatementData* sdata);
 static int CloneStatement(Tcl_Interp* interp, ClientData oldClientData,
 ClientData* newClientData);
-
 
 static int ResultSetConstructor(ClientData clientData, Tcl_Interp* interp,
 				Tcl_ObjectContext context,
@@ -397,13 +387,10 @@ static int ResultSetNextrowMethod(ClientData clientData, Tcl_Interp* interp,
 static int ResultSetRowcountMethod(ClientData clientData, Tcl_Interp* interp,
 				   Tcl_ObjectContext context,
 				   int objc, Tcl_Obj *const objv[]);
-
 static void DeleteResultSetMetadata(ClientData clientData);
 static void DeleteResultSet(ResultSetData* rdata);
 static int CloneResultSet(Tcl_Interp* interp, ClientData oldClientData,
 			  ClientData* newClientData);
-
-
 
 static void DeleteCmd(ClientData clientData);
 static int CloneCmd(Tcl_Interp* interp,
@@ -454,6 +441,7 @@ const static Tcl_MethodType ResultSetConstructorType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
 const static Tcl_MethodType ResultSetColumnsMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */    "columns",			/* name */
@@ -461,6 +449,7 @@ const static Tcl_MethodType ResultSetColumnsMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
 const static Tcl_MethodType ResultSetNextrowMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -469,6 +458,7 @@ const static Tcl_MethodType ResultSetNextrowMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
 const static Tcl_MethodType ResultSetRowcountMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -478,7 +468,6 @@ const static Tcl_MethodType ResultSetRowcountMethodType = {
     NULL			/* cloneProc */
 };
 
-
 /* Methods to create on the result set class */
 
 const static Tcl_MethodType* ResultSetMethods[] = {
@@ -486,8 +475,6 @@ const static Tcl_MethodType* ResultSetMethods[] = {
     &ResultSetRowcountMethodType,
     NULL
 };
-
-
 
 /* Method types of the connection methods that are implemented in C */
 
@@ -508,6 +495,7 @@ const static Tcl_MethodType ConnectionBegintransactionMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
 const static Tcl_MethodType ConnectionColumnsMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -516,6 +504,7 @@ const static Tcl_MethodType ConnectionColumnsMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
 const static Tcl_MethodType ConnectionCommitMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -524,6 +513,7 @@ const static Tcl_MethodType ConnectionCommitMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
 const static Tcl_MethodType ConnectionConfigureMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -571,6 +561,7 @@ const static Tcl_MethodType StatementConstructorType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
 const static Tcl_MethodType StatementParamsMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -579,6 +570,7 @@ const static Tcl_MethodType StatementParamsMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+
 const static Tcl_MethodType StatementParamtypeMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -598,18 +590,12 @@ const static Tcl_MethodType* StatementMethods[] = {
     NULL
 };
 
-
-
-
 /* Initialization script */
 
 static const char initScript[] =
     "namespace eval ::tdbc::postgres {}\n"
     "tcl_findLibrary tdbcpostgres " PACKAGE_VERSION " " PACKAGE_VERSION
     " tdbcpostgres.tcl TDBCPOSTGRES_LIBRARY ::tdbc::postgres::Library";
-
-
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -648,13 +634,12 @@ static int ExecSimpleQuery(
 	return TCL_ERROR;
     }
     if (resOut != NULL) {
-	*resOut =  res;
+	*resOut = res;
     } else {
 	PQclear(res);
     }
     return TCL_OK;
 }
-
     
 /*
  *-----------------------------------------------------------------------------
@@ -692,7 +677,6 @@ TransferPostgresError(
     Tcl_SetObjErrorCode(interp, errorCode);
     Tcl_SetObjResult(interp, Tcl_NewStringObj(PQerrorMessage(pgPtr), -1));
 }
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -745,7 +729,6 @@ static int TransferResultError(
     else
 	return TCL_OK; 
 }
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -810,10 +793,9 @@ QueryConnectionOption (
 
 	    i=0; 
 	    while (TclIsolationLevels[i] != NULL && strcmp(isoName, TclIsolationLevels[i])) {
-		i+=1; 
+		i += 1; 
 	    }
 	    ckfree(isoName);
-
 	    if (TclIsolationLevels[i] != NULL) {
 		cdata->isolation = i; 
 	    } else {
@@ -838,15 +820,10 @@ QueryConnectionOption (
 	    return Tcl_NewStringObj(value, -1);
 	}
     }
-    if (ConnOptions[optionNum].query != NULL){
-        //TODO: SQL query, when no queryF given
-    }
-    
     if (ConnOptions[optionNum].type == TYPE_STRING &&
 	    ConnOptions[optionNum].info != -1) {
-	/* Fallback: try to get parameter value by generic function */
-	value = (char*) PQparameterStatus(cdata->pgPtr,
-		optStringNames[ConnOptions[optionNum].info]);
+	/* Fallback: get value saved ealier */
+	value = cdata->savedOpts[ConnOptions[optionNum].info];
 	if (value != NULL) {
 	    return Tcl_NewStringObj(value, -1);
 	}
@@ -885,7 +862,6 @@ ConfigureConnection(
     int optionValue;		/* Integer value of the current option */
     int i,j;
     char portval[10];		/* String representation of port number */
-    const char* stringOpts[INDX_MAX];  /* Configuration string elements */
     char * encoding = NULL;	/* Selected encoding name */
     int isolation = ISOL_NONE;	/* Isolation level */
     int readOnly = -1;		/* Read only indicator */
@@ -915,7 +891,9 @@ ConfigureConnection(
 	    Tcl_SetObjResult(interp, retval);
 	    return TCL_OK;
 	} else if (objc == skip+1) {
+
 	    /* Return one option value */
+
 	    if (Tcl_GetIndexFromObjStruct(interp, objv[skip],
 					  (void*) ConnOptions,
 					  sizeof(ConnOptions[0]), "option",
@@ -941,7 +919,7 @@ ConfigureConnection(
     /* Extract options from the command line */
 
     for (i = 0; i < INDX_MAX; ++i) {
-	stringOpts[i] = NULL;
+	cdata->savedOpts[i] = NULL;
     }
     for (i = skip; i < objc; i += 2) {
 
@@ -970,19 +948,9 @@ ConfigureConnection(
 
 	switch (ConnOptions[optionIndex].type) {
 	case TYPE_STRING:
-	    stringOpts[ConnOptions[optionIndex].info] =
+	    cdata->savedOpts[ConnOptions[optionIndex].info] =
 		Tcl_GetString(objv[i+1]);
 	    break;
-/*	case TYPE_FLAG:
-	    if (Tcl_GetBooleanFromObj(interp, objv[i+1], &optionValue)
-		!= TCL_OK) {
-		return TCL_ERROR;
-	    }
-	    if (optionValue) {
-		postgresFlags |= ConnOptions[optionIndex].info;
-	    }
-	    break; 
-	    */
 	case TYPE_ENCODING:
 	    encoding = Tcl_GetString(objv[i+1]);
 	    break;
@@ -1015,25 +983,20 @@ ConfigureConnection(
 	    }
 	    break;
 	}
-/*	if (ConnOptions[optionIndex].flags & CONN_OPT_FLAG_SSL) {
-	    sslFlag = 1;
-	} */
     }
-
-
 
     if (cdata->pgPtr == NULL) {
 	j=0; 
 	connInfo[0] = '\0'; 
 	for (i=0; i<INDX_MAX; i+=1) {
-	    if (stringOpts[i] != NULL ) {
+	    if (cdata->savedOpts[i] != NULL ) {
 		//TODO escape values
 		strncpy(&connInfo[j], optStringNames[i], CONNINFO_LEN - j);
 		j+=strlen(optStringNames[i]);
 		strncpy(&connInfo[j], " = '", CONNINFO_LEN - j);
 		j+=strlen(" = '"); 
-		strncpy(&connInfo[j], stringOpts[i], CONNINFO_LEN - j);
-		j+=strlen(stringOpts[i]);
+		strncpy(&connInfo[j], cdata->savedOpts[i], CONNINFO_LEN - j);
+		j+=strlen(cdata->savedOpts[i]);
 		strncpy(&connInfo[j], "' ", CONNINFO_LEN - j);
 		j+=strlen("' ");
 	    }
@@ -1090,8 +1053,6 @@ ConfigureConnection(
 	}
 	cdata->readOnly = readOnly; 
     }
-
-    
     return TCL_OK;
 }
 
@@ -1388,26 +1349,32 @@ ConnectionColumnsMethod(
 	    }
 
 	    /* 1 is numeric_precision column number */
-	    if (!PQgetisnull(res, i, 1)){
+
+	    if (!PQgetisnull(res, i, 1)) {
 		Tcl_DictObjPut(NULL, attrs, literals[LIT_PRECISION], 
 			Tcl_NewStringObj(PQgetvalue(res, i, 1), -1));
 	    } else {
 		
 		/* 2 is character_maximum_length column number */  
-		if (!PQgetisnull(res, i, 2)){
+
+		if (!PQgetisnull(res, i, 2)) {
 		    Tcl_DictObjPut(NULL, attrs, literals[LIT_PRECISION], 
 			    Tcl_NewStringObj(PQgetvalue(res, i, 2), -1));
 		}
 	    }
 
 	    /* 3 is character_maximum_length column number */
-	    if (!PQgetisnull(res, i, 3)){
+
+	    if (!PQgetisnull(res, i, 3)) {
+		
 		/* This is for numbers */
+		
 		Tcl_DictObjPut(NULL, attrs, literals[LIT_SCALE], 
 			Tcl_NewStringObj(PQgetvalue(res, i, 3), -1));
 	    }
 	    
 	    /* 4 is is_nullable column number */
+	    
 	    Tcl_DictObjPut(NULL, attrs, literals[LIT_NULLABLE],
 		    Tcl_NewIntObj(strcmp("YES",
 			    PQgetvalue(res, i, 4)) == 0));
@@ -1422,7 +1389,6 @@ ConnectionColumnsMethod(
 	return TCL_OK;
     }
 }
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -1473,7 +1439,6 @@ static int ConnectionConfigureMethod(
 				/* Instance data */
     return ConfigureConnection(cdata, interp, objc, objv, skip);
 }
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -1532,8 +1497,6 @@ ConnectionRollbackMethod(
     /* Send end transaction SQL command */
     return ExecSimpleQuery(interp, cdata->pgPtr, "ROLLBACK", NULL);
 }
-
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -1622,8 +1585,6 @@ ConnectionTablesMethod(
     return TCL_OK;
 }
 
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1652,16 +1613,13 @@ static void
 DeleteConnection(
     ConnectionData* cdata	/* Instance data for the connection */
 ) {
-//    if (cdata->collationSizes != NULL) {
-//	ckfree((char*) cdata->collationSizes);
-//    }
     if (cdata->pgPtr != NULL) {
 	PQfinish(cdata->pgPtr);
     }
     DecrPerInterpRefCount(cdata->pidata);
     ckfree((char*) cdata);
 }
-
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1794,9 +1752,6 @@ UnallocateStatement(
     PQexec(pgPtr, Tcl_GetString(sqlQuery));
     Tcl_DecrRefCount(sqlQuery);
 }
-
-
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -1931,7 +1886,6 @@ ResultDescToTcl(
     return retval;
 }
 
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2063,7 +2017,6 @@ StatementConstructor(
     sdata->nativeSql = nativeSql;
     Tcl_DecrRefCount(tokens);
 
-
     Tcl_ListObjLength(NULL, sdata->subVars, &sdata->nParams);
     sdata->params = (ParamData*) ckalloc(sdata->nParams * sizeof(ParamData));
     sdata->paramDataTypes = (Oid*) ckalloc(sdata->nParams * sizeof(Oid));
@@ -2085,8 +2038,6 @@ StatementConstructor(
 
     PQclear(res);
 
-
-
     /* Attach the current statement data as metadata to the current object */
 
     Tcl_ObjectSetMetadata(thisObject, &statementDataType, (ClientData) sdata);
@@ -2103,7 +2054,6 @@ StatementConstructor(
     DecrStatementRefCount(sdata);
     return TCL_ERROR;
 }
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -2191,7 +2141,7 @@ StatementParamsMethod(
     Tcl_SetObjResult(interp, retVal);
     return TCL_OK;
 }
-
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2439,7 +2389,6 @@ ResultSetConstructor(
     int skip = Tcl_ObjectContextSkippedArgs(context);
 				/* Number of args to skip */
     Tcl_Object statementObject;	/* The current statement object */
-//    PerInterpData* pidata;	/* The per-interpreter data for this package */
     ConnectionData* cdata;	/* The Postgres connection object's data */
 
     StatementData* sdata;	/* The statement object's data */
@@ -2489,8 +2438,6 @@ ResultSetConstructor(
     rdata->rowCount = 0;
     IncrStatementRefCount(sdata);
     Tcl_ObjectSetMetadata(thisObject, &resultSetDataType, (ClientData) rdata);
-
-
 
     /*
      * Find a statement handle that we can use to execute the SQL code.
@@ -2560,7 +2507,6 @@ ResultSetConstructor(
 	    int16_t tmp16;
 	    int64_t tmp64;
 	    
-
 	    switch (sdata->paramDataTypes[i]) {
 		case INT2OID:
 		    bufPtr = ckalloc(sizeof(int));
@@ -2572,8 +2518,8 @@ ResultSetConstructor(
 		    tmp16 = *(int*) bufPtr;
 		    ckfree(bufPtr);
 		    *(int16_t*)(paramValues[i])=htons(tmp16);
-		    paramFormats[i]=1;
-		    paramLengths[i]=sizeof(int16_t);
+		    paramFormats[i] = 1;
+		    paramLengths[i] = sizeof(int16_t);
 		    break;
 
 		case INT4OID:
@@ -2586,8 +2532,8 @@ ResultSetConstructor(
 		    tmp32 = *(long*) bufPtr;
 		    ckfree(bufPtr);
 		    *((int32_t*)(paramValues[i]))=htonl(tmp32);
-		    paramFormats[i]=1;
-		    paramLengths[i]=sizeof(int32_t);
+		    paramFormats[i] = 1;
+		    paramLengths[i] = sizeof(int32_t);
 		    break;
 
 	    case INT8OID:
@@ -2599,8 +2545,8 @@ ResultSetConstructor(
 		    paramValues[i]=ckalloc(sizeof(int64_t));
 		    tmp64=*(Tcl_WideInt*) bufPtr;
 		    *(int64_t*)(paramValues[i])=tmp64; //TODO: bswap to network?
-		    paramFormats[i]=1;
-		    paramLengths[i]=sizeof(int64_t);
+		    paramFormats[i] = 1;
+		    paramLengths[i] = sizeof(int64_t);
 		    ckfree(bufPtr);
 		    break; 
 		case FLOAT4OID:
@@ -2635,6 +2581,7 @@ ResultSetConstructor(
     sdata->columnNames = ResultDescToTcl(rdata->execResult, 0);
     Tcl_IncrRefCount(sdata->columnNames);
 
+    //TODO free each paramValue
     ckfree((char*)paramValues);
     ckfree((char*)paramLengths);
     ckfree((char*)paramFormats);
@@ -2647,7 +2594,6 @@ ResultSetConstructor(
     ckfree((char*)paramLengths);
     return TCL_ERROR;
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -2689,10 +2635,6 @@ ResultSetColumnsMethod(
     return TCL_OK;
 }
 
-
-
-
-    
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2772,7 +2714,6 @@ ResultSetNextrowMethod(
 	Tcl_SetObjResult(interp, literals[LIT_0]);
 	return TCL_OK;
     }
- 
 
     resultRow = Tcl_NewObj();
     Tcl_IncrRefCount(resultRow);
@@ -2790,7 +2731,6 @@ ResultSetNextrowMethod(
 		    break;
 		default:	/* binary format */
 		    colObj = Tcl_NewByteArrayObj((unsigned char*)buffer, buffSize);
-
 	    }
 	}
 
@@ -2817,15 +2757,12 @@ ResultSetNextrowMethod(
 	goto cleanup;
     }
 
-
     Tcl_SetObjResult(interp, literals[LIT_1]);
     status = TCL_OK;
 
 cleanup:
     Tcl_DecrRefCount(resultRow);
     return status;
-
-
 }
 
 /*
@@ -2866,10 +2803,8 @@ DeleteResultSet(
     }
     DecrStatementRefCount(rdata->sdata);
     ckfree((char*)rdata);
-
 }
 
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2949,8 +2884,6 @@ ResultSetRowcountMethod(
     }
     return TCL_OK;
 }
-
-
 	
 /*
  *-----------------------------------------------------------------------------
@@ -3158,5 +3091,3 @@ DeletePerInterpData(
    ckfree((char *) pidata);
 
 }
-
-
