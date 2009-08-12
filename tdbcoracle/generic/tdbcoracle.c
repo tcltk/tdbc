@@ -256,8 +256,8 @@ static const struct {
 } ConnOptions [] = {
     { "-dblink",    TYPE_STRING,    INDX_DBLINK,    0,			    NULL},
     { "-db",	    TYPE_STRING,    INDX_DBLINK,    CONN_OPT_FLAG_ALIAS,    NULL},
-    { "-user",	    TYPE_STRING,    0,		    CONN_OPT_FLAG_ALIAS,    NULL},
-    { "-user",	    TYPE_STRING,    0,		    CONN_OPT_FLAG_ALIAS,    NULL},
+    { "-user",	    TYPE_STRING,    INDX_USER,	    0,			    NULL},
+    { "-passwd",    TYPE_STRING,    INDX_PASS,	    0,			    NULL},
     { NULL,	    0,		    0,		    0,			    NULL}
 };
 
@@ -611,7 +611,7 @@ static int TransferOracleError(
 		Tcl_NewStringObj(Tdbc_MapSqlState(sqlState), -1 )); 
 	Tcl_ListObjAppendElement(NULL, errorCode,
 		Tcl_NewStringObj(sqlState, -1));
-	Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("POSTGRES", -1));
+	Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("ORACLE", -1));
 
 	Tcl_ListObjAppendElement(NULL, errorCode,
 		Tcl_NewIntObj(status));
@@ -735,8 +735,8 @@ ConfigureConnection(
 	stringOpts[i] = NULL;
     }
     for (i = skip; i < objc; i += 2) {
-
-	/* Unknown option */
+	
+    /* Unknown option */
 
 	if (Tcl_GetIndexFromObjStruct(interp, objv[i], (void*) ConnOptions,
 				      sizeof(ConnOptions[0]), "option",

@@ -67,7 +67,7 @@ test tdbc::oracle-1.9 {create a connection, failure} {*}{
 	list $status $result $::errorCode
     }
     -match glob
-    -result {1 {Unknown Oracle server host*} {TDBC GENERAL_ERROR HY000 ORACLE *}}
+    -result {1 {*could not resolve the connect identifier specified*} {TDBC GENERAL_ERROR HY000 ORACLE *}}
 }
 
 test tdbc::oracle-1.10 {create a connection, successful} {*}{
