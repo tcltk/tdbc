@@ -68,6 +68,8 @@ typedef struct PostgresDataType {
 } PostgresDataType;
 static const PostgresDataType dataTypes[] = {
     { "NULL",	    0},
+    { "integer",    0},
+    { "varchar",    0},
     { NULL,	    0}
 };
 
@@ -211,6 +213,7 @@ typedef struct ResultSetData {
     OCIStmt* ociStmtHp;		/* OCI statement Handle */ 
     ub2* resultLengths;		/* Length of output fields */
     char** resultBindings;	/* Array of output field values */
+    ub4 rowCount; 
 } ResultSetData;
 #define IncrResultSetRefCount(x)		\
     do {					\
@@ -311,9 +314,9 @@ static Tcl_Obj* ResultDescToTcl(ResultSetData* rdata, int flags);
 static int StatementConstructor(ClientData clientData, Tcl_Interp* interp,
 				Tcl_ObjectContext context,
 				int objc, Tcl_Obj *const objv[]);
-//static int StatementParamtypeMethod(ClientData clientData, Tcl_Interp* interp,
-//				    Tcl_ObjectContext context,
-//				    int objc, Tcl_Obj *const objv[]);
+static int StatementParamtypeMethod(ClientData clientData, Tcl_Interp* interp,
+				    Tcl_ObjectContext context,
+				    int objc, Tcl_Obj *const objv[]);
 //static int StatementParamsMethod(ClientData clientData, Tcl_Interp* interp,
 //				 Tcl_ObjectContext context,
 //				 int objc, Tcl_Obj *const objv[]);
@@ -332,9 +335,9 @@ static int ResultSetColumnsMethod(ClientData clientData, Tcl_Interp* interp,
 static int ResultSetNextrowMethod(ClientData clientData, Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
-//static int ResultSetRowcountMethod(ClientData clientData, Tcl_Interp* interp,
-//				   Tcl_ObjectContext context,
-//				   int objc, Tcl_Obj *const objv[]);
+static int ResultSetRowcountMethod(ClientData clientData, Tcl_Interp* interp,
+				   Tcl_ObjectContext context,
+				   int objc, Tcl_Obj *const objv[]);
 
 static void DeleteResultSetMetadata(ClientData clientData);
 static void DeleteResultSet(ResultSetData* rdata);
@@ -471,6 +474,7 @@ const static Tcl_MethodType StatementParamsMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+#endif
 const static Tcl_MethodType StatementParamtypeMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -479,14 +483,13 @@ const static Tcl_MethodType StatementParamtypeMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#endif
 /* 
  * Methods to create on the statement class. 
  */
 
 const static Tcl_MethodType* StatementMethods[] = {
 //  &StatementParamsMethodType,
-//  &StatementParamtypeMethodType,
+    &StatementParamtypeMethodType,
     NULL
 };
 
@@ -515,7 +518,6 @@ const static Tcl_MethodType ResultSetNextrowMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#if 0
 const static Tcl_MethodType ResultSetRowcountMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -524,13 +526,12 @@ const static Tcl_MethodType ResultSetRowcountMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#endif
 
 /* Methods to create on the result set class */
 
 const static Tcl_MethodType* ResultSetMethods[] = {
-//  &ResultSetColumnsMethodType,
-//  &ResultSetRowcountMethodType,
+    &ResultSetColumnsMethodType,
+    &ResultSetRowcountMethodType,
     NULL
 };
 
@@ -657,7 +658,7 @@ QueryConnectionOption (
  *
  * ConfigureConnection --
  *
- *	Applies configuration settings to a MySQL connection.
+ *	Applies configuration settings to a Oracle connection.
  *
  * Results:
  *	Returns a Tcl result. If the result is TCL_ERROR, error information
@@ -753,7 +754,7 @@ ConfigureConnection(
 	    Tcl_AppendToObj(msg, "\" option cannot be changed dynamically", -1);
 	    Tcl_SetObjResult(interp, msg);
 	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000", 
-			     "MYSQL", "-1", NULL);
+			     "ORACLE", "-1", NULL);
 	    return TCL_ERROR;
 	}
 
@@ -1062,7 +1063,7 @@ NewStatement(
  *
  * AllocAndPrepareStatement --
  *
- *	Allocate space for a MySQL prepared statement, and prepare the
+ *	Allocate space for a Oracle prepared statement, and prepare the
  *	statement.
  *
  * Results:
@@ -1115,7 +1116,7 @@ AllocAndPrepareStatement(
  *
  * ResultDescToTcl --
  *
- *	Converts a MySQL result description for return as a Tcl list.
+ *	Converts a Oracle result description for return as a Tcl list.
  *
  * Results:
  *	Returns a Tcl object holding the result description
@@ -1255,7 +1256,7 @@ StatementConstructor(
 						    &connectionDataType);
     if (cdata == NULL) {
 	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
-			 " does not refer to a MySQL connection", NULL);
+			 " does not refer to a Oracle connection", NULL);
 	return TCL_ERROR;
     }
 
@@ -1274,7 +1275,7 @@ StatementConstructor(
     Tcl_IncrRefCount(tokens);
 
     /*
-     * Rewrite the tokenized statement to MySQL syntax. Reject the
+     * Rewrite the tokenized statement to Oracle syntax. Reject the
      * statement if it is actually multiple statements.
      */
 
@@ -1349,6 +1350,143 @@ StatementConstructor(
     DecrStatementRefCount(sdata);
     return TCL_ERROR;
 
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StatementParamtypeMethod --
+ *
+ *	Defines a parameter type in a MySQL statement.
+ *
+ * Usage:
+ *	$statement paramtype paramName ?direction? type ?precision ?scale??
+ *
+ * Results:
+ *	Returns a standard Tcl result.
+ *
+ * Side effects:
+ *	Updates the description of the given parameter.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StatementParamtypeMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    StatementData* sdata	/* The current statement */
+	= (StatementData*) Tcl_ObjectGetMetadata(thisObject,
+						 &statementDataType);
+    struct {
+	const char* name;
+	int flags;
+    } directions[] = {
+	{ "in", 	PARAM_IN },
+	{ "out",	PARAM_OUT },
+	{ "inout",	PARAM_IN | PARAM_OUT },
+	{ NULL,		0 }
+    };
+    int direction;
+    int typeNum;		/* Data type number of a parameter */
+    int precision;		/* Data precision */
+    int scale;			/* Data scale */
+
+    int nParams;		/* Number of parameters to the statement */
+    const char* paramName;	/* Name of the parameter being set */
+    Tcl_Obj* targetNameObj;	/* Name of the ith parameter in the statement */
+    const char* targetName;	/* Name of a candidate parameter in the
+				 * statement */
+    int matchCount = 0;		/* Number of parameters matching the name */
+    Tcl_Obj* errorObj;		/* Error message */
+
+    int i;
+
+    /* Check parameters */
+
+    if (objc < 4) {
+	goto wrongNumArgs;
+    }
+    
+    i = 3;
+    if (Tcl_GetIndexFromObjStruct(interp, objv[i], directions, 
+				  sizeof(directions[0]), "direction",
+				  TCL_EXACT, &direction) != TCL_OK) {
+	direction = PARAM_IN;
+	Tcl_ResetResult(interp);
+    } else {
+	++i;
+    }
+    if (i >= objc) goto wrongNumArgs;
+    if (Tcl_GetIndexFromObjStruct(interp, objv[i], dataTypes,
+				  sizeof(dataTypes[0]), "SQL data type",
+				  TCL_EXACT, &typeNum) == TCL_OK) {
+	++i;
+    } else {
+	return TCL_ERROR;
+    }
+    if (i < objc) {
+	if (Tcl_GetIntFromObj(interp, objv[i], &precision) == TCL_OK) {
+	    ++i;
+	} else {
+	    return TCL_ERROR;
+	}
+    }
+    if (i < objc) {
+	if (Tcl_GetIntFromObj(interp, objv[i], &scale) == TCL_OK) {
+	    ++i;
+	} else {
+	    return TCL_ERROR;
+	}
+    }
+    if (i != objc) {
+	goto wrongNumArgs;
+    }
+
+    /* Look up parameters by name. */
+
+    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
+    paramName = Tcl_GetString(objv[2]);
+    for (i = 0; i < nParams; ++i) {
+	Tcl_ListObjIndex(NULL, sdata->subVars, i, &targetNameObj);
+	targetName = Tcl_GetString(targetNameObj);
+	if (!strcmp(paramName, targetName)) {
+	    ++matchCount;
+	    sdata->params[i].flags = direction;
+	    sdata->params[i].dataType = dataTypes[typeNum].num;
+	    sdata->params[i].precision = precision;
+	    sdata->params[i].scale = scale;
+	}
+    }
+    if (matchCount == 0) {
+	errorObj = Tcl_NewStringObj("unknown parameter \"", -1);
+	Tcl_AppendToObj(errorObj, paramName, -1);
+	Tcl_AppendToObj(errorObj, "\": must be ", -1);
+	for (i = 0; i < nParams; ++i) {
+	    Tcl_ListObjIndex(NULL, sdata->subVars, i, &targetNameObj);
+	    Tcl_AppendObjToObj(errorObj, targetNameObj);
+	    if (i < nParams-2) {
+		Tcl_AppendToObj(errorObj, ", ", -1);
+	    } else if (i == nParams-2) {
+		Tcl_AppendToObj(errorObj, " or ", -1);
+	    }
+	}
+	Tcl_SetObjResult(interp, errorObj);
+	return TCL_ERROR;
+    }
+
+    return TCL_OK;
+
+ wrongNumArgs:
+    Tcl_WrongNumArgs(interp, 2, objv,
+		     "name ?direction? type ?precision ?scale??");
+    return TCL_ERROR;
 }
 
 /*
@@ -1455,7 +1593,7 @@ ResultSetConstructor(
 				/* Number of args to skip */
     Tcl_Object statementObject;	/* The current statement object */
     PerInterpData* pidata;	/* The per-interpreter data for this package */
-    ConnectionData* cdata;	/* The MySQL connection object's data */
+    ConnectionData* cdata;	/* The Oracle connection object's data */
     StatementData* sdata;	/* The statement object's data */
     ResultSetData* rdata;	/* THe result set object's data */
 
@@ -1470,6 +1608,8 @@ ResultSetConstructor(
     Tcl_Obj* paramValObj;	/* Value of the current parameter */
     char* paramValStr;	/* String value of the current parameter */
     int nColumns;		/* Number of columns in the result set */
+    int stmtIters;		/* Numer of statement execution iterations */
+    ub2 stmtType;		/* Statement type */
     sword status;		/* Status returned by OCI calls */
 
 
@@ -1494,7 +1634,7 @@ ResultSetConstructor(
 						   &statementDataType);
     if (sdata == NULL) {
 	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
-			 " does not refer to a MySQL statement", NULL);
+			 " does not refer to a Oracle statement", NULL);
 	return TCL_ERROR;
     }
     cdata = sdata->cdata;
@@ -1509,6 +1649,7 @@ ResultSetConstructor(
     rdata->ociStmtHp = NULL;
     rdata->resultBindings = NULL; 
     rdata->resultLengths = NULL;
+    rdata->rowCount = 0; 
 
     IncrStatementRefCount(sdata);
     Tcl_ObjectSetMetadata(thisObject, &resultSetDataType, (ClientData) rdata);
@@ -1557,7 +1698,7 @@ ResultSetConstructor(
 	/* 
 	 * At this point, paramValObj contains the parameter to bind.
 	 * Convert the parameters to the appropriate data types for
-	 * MySQL's prepared statement interface, and bind them.
+	 * Oracle's prepared statement interface, and bind them.
 	 */
 	paramValStr = Tcl_GetString(paramValObj); 
 
@@ -1571,11 +1712,22 @@ ResultSetConstructor(
 	}
     }
 
-    /* Execute the statement */
+    /* Calculate number of iterations of statement. Non - select statements 
+     * should be executed once, selects are executed later during row fetches */
 
-    //TODO: error possible on NON-SELECTS.
+    OCIAttrGet(rdata->ociStmtHp, OCI_HTYPE_STMT, &stmtType, NULL,
+	    OCI_ATTR_STMT_TYPE, cdata->ociErrHp); 
+
+    if (stmtType != OCI_STMT_SELECT) { 
+	stmtIters = 1; 
+    } else { 
+	stmtIters = 0; 
+    }
+
+    /* Execute the statement */
+    
     status = OCIStmtExecute(cdata->ociSvcHp, rdata->ociStmtHp,
-	    cdata->ociErrHp, 0, 0, NULL, NULL, OCI_DEFAULT);
+	    cdata->ociErrHp, stmtIters, 0, NULL, NULL, OCI_DEFAULT);
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
 	return TCL_ERROR;
     }
@@ -1614,7 +1766,22 @@ ResultSetConstructor(
 
 	resultBindings[nDefined] = ckalloc(colSize);
 	
-	status = OCIDefineByPos(rdata->ociStmtHp, NULL, cdata->ociErrHp, nDefined, resultBindings[nDefined], colSize, 0, NULL, resultLengths, NULL, OCI_DEFAULT);
+	status = OCIDefineByPos(rdata->ociStmtHp, NULL, cdata->ociErrHp, nDefined,
+		resultBindings[nDefined], colSize, 0, NULL, resultLengths, NULL, OCI_DEFAULT);
+	if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+
+	    OCIDescriptorFree(ociParamH, OCI_DTYPE_PARAM); 
+	    goto freeRData;
+	}
+
+    }
+
+    /* Determine and store row count */
+
+    status = OCIAttrGet(rdata->ociStmtHp, OCI_HTYPE_STMT,
+	    &rdata->rowCount, 0, OCI_ATTR_ROW_COUNT,  cdata->ociErrHp);  
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freeRData;
     }
 
     return TCL_OK;
@@ -1624,6 +1791,47 @@ ResultSetConstructor(
 freeRData:
     DecrStatementRefCount(sdata);
     return TCL_ERROR;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ResultSetRowcountMethod --
+ *
+ *	Returns (if known) the number of rows affected by a MySQL statement.
+ *
+ * Usage:
+ *	$resultSet rowcount
+ *
+ * Results:
+ *	Returns a standard Tcl result giving the number of affected rows.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ResultSetRowcountMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current result set object */
+    ResultSetData* rdata = (ResultSetData*)
+	Tcl_ObjectGetMetadata(thisObject, &resultSetDataType);
+				/* Data pertaining to the current result set */
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp,
+		     Tcl_NewWideIntObj((Tcl_WideInt)(rdata->rowCount)));
+    return TCL_OK;
 }
 
 /*
