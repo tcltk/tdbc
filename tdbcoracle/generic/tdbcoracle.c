@@ -209,10 +209,12 @@ typedef struct ParamData {
 typedef struct ResultSetData {
     int refCount;		/* Reference count */
     StatementData* sdata;	/* Statement that generated this result set */
-    Tcl_Obj* paramValues;	/* List of parameter values */
     OCIStmt* ociStmtHp;		/* OCI statement Handle */ 
-    ub2* resultLengths;		/* Length of output fields */
-    char** resultBindings;	/* Array of output field values */
+    char** bindValues;		/* Array of parameter values */
+    ub2* definedLengths;	/* Length of output fields */
+    char** definedValues;	/* Array of output field values */
+    OCIDefine** ociDefines; 
+    OCIBind** ociBindings;
     ub4 rowCount; 
 } ResultSetData;
 #define IncrResultSetRefCount(x)		\
@@ -1597,8 +1599,9 @@ ResultSetConstructor(
     StatementData* sdata;	/* The statement object's data */
     ResultSetData* rdata;	/* THe result set object's data */
 
-    ub2* resultLengths;		/* Length of output fields */
-    char** resultBindings;	/* Array of output field values */
+    char** bindValues;		/* Array of parameter values */
+    ub2* definedLengths;	/* Length of output fields */
+    char** definedValues;	/* Array of output field values */
 
     int nParams;		/* The parameter count on the statement */
     int nBound;			/* Number of parameters bound so far */
@@ -1606,7 +1609,7 @@ ResultSetConstructor(
     Tcl_Obj* paramNameObj;	/* Name of the current parameter */
     const char* paramName;	/* Name of the current parameter */
     Tcl_Obj* paramValObj;	/* Value of the current parameter */
-    char* paramValStr;	/* String value of the current parameter */
+    const char * paramValStr;	/* Representation of value of current parameter */
     int nColumns;		/* Number of columns in the result set */
     int stmtIters;		/* Numer of statement execution iterations */
     ub2 stmtType;		/* Statement type */
@@ -1647,8 +1650,9 @@ ResultSetConstructor(
     rdata->refCount = 1;
     rdata->sdata = sdata;
     rdata->ociStmtHp = NULL;
-    rdata->resultBindings = NULL; 
-    rdata->resultLengths = NULL;
+    rdata->definedValues = NULL; 
+    rdata->bindValues = NULL;
+    rdata->definedLengths = NULL;
     rdata->rowCount = 0; 
 
     IncrStatementRefCount(sdata);
@@ -1673,6 +1677,10 @@ ResultSetConstructor(
     }
 
     Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
+
+    bindValues = (char**) ckalloc(nParams * sizeof(char*));
+
+    rdata->ociBindings = (OCIBind**) ckalloc(nParams * sizeof(OCIBind*));
 
     /* Bind the substituted parameters */
 
@@ -1701,11 +1709,14 @@ ResultSetConstructor(
 	 * Oracle's prepared statement interface, and bind them.
 	 */
 	paramValStr = Tcl_GetString(paramValObj); 
+	bindValues[nBound] = ckalloc(strlen(paramValStr) + 1);
+	strcpy(bindValues[nBound], paramValStr);
+
+	rdata->ociBindings[nBound] = NULL;
 
 	/* Bind value */
-
-	status = OCIBindByPos(rdata->ociStmtHp, NULL, cdata->ociErrHp,
-	       nBound, paramValStr, strlen(paramValStr), 0, NULL, NULL,
+	status = OCIBindByPos(rdata->ociStmtHp, &rdata->ociBindings[nBound], cdata->ociErrHp,
+	       nBound, bindValues[nBound], strlen(bindValues[nBound]), 0, NULL, NULL,
 	       	NULL, 0 , NULL, OCI_DEFAULT);
 	if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
 	    return TCL_ERROR;
@@ -1725,7 +1736,6 @@ ResultSetConstructor(
     }
 
     /* Execute the statement */
-    
     status = OCIStmtExecute(cdata->ociSvcHp, rdata->ociStmtHp,
 	    cdata->ociErrHp, stmtIters, 0, NULL, NULL, OCI_DEFAULT);
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
@@ -1741,15 +1751,16 @@ ResultSetConstructor(
 
     /* Define Columns */
 
-    resultBindings = rdata->resultBindings = (char**)ckalloc(
+    definedValues = rdata->definedValues = (char**)ckalloc(
 	    nColumns * sizeof(char*));
-    resultLengths = rdata->resultLengths = (ub2*) ckalloc(nColumns * sizeof(ub2));
+    definedLengths = rdata->definedLengths = (ub2*) ckalloc(nColumns * sizeof(ub2));
+    rdata->ociDefines = (OCIDefine**) ckalloc (nColumns * sizeof(OCIDefine*));
 
     for (nDefined = 0; nDefined < nColumns; nDefined += 1) { 
 	int colSize; 
 	OCIParam* ociParamH;
-
-	resultBindings[nDefined] = NULL; 
+	printf("defining...\n");
+	definedValues[nDefined] = NULL; 
 
 	OCIParamGet(rdata->ociStmtHp, OCI_HTYPE_STMT, 
 		rdata->sdata->cdata->ociErrHp, (dvoid**)&ociParamH, 0); 
@@ -1764,10 +1775,12 @@ ResultSetConstructor(
 	
 	OCIDescriptorFree(ociParamH, OCI_DTYPE_PARAM); 
 
-	resultBindings[nDefined] = ckalloc(colSize);
+	definedValues[nDefined] = ckalloc(colSize);
+
+	rdata->ociDefines[nDefined] = NULL;
 	
-	status = OCIDefineByPos(rdata->ociStmtHp, NULL, cdata->ociErrHp, nDefined,
-		resultBindings[nDefined], colSize, 0, NULL, resultLengths, NULL, OCI_DEFAULT);
+	status = OCIDefineByPos(rdata->ociStmtHp, &rdata->ociDefines[nDefined], cdata->ociErrHp, nDefined,
+		definedValues[nDefined], colSize, 0, NULL, definedLengths, NULL, OCI_DEFAULT);
 	if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
 
 	    OCIDescriptorFree(ociParamH, OCI_DTYPE_PARAM); 
@@ -1783,7 +1796,6 @@ ResultSetConstructor(
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
 	goto freeRData;
     }
-
     return TCL_OK;
 
     /* On error, unwind all the resource allocations */
@@ -1857,24 +1869,26 @@ static void
 DeleteResultSet(
     ResultSetData* rdata	/* Metadata for the result set */
 ) {
+
+    //TODO: free averything.
     int nColumns; 
     int i; 
 
-    if (rdata->resultLengths != NULL) {
-        ckfree((char*)rdata->resultLengths);
+    if (rdata->definedLengths != NULL) {
+        ckfree((char*)rdata->definedLengths);
     }
 
-    if (rdata->resultBindings != NULL) {
+    if (rdata->definedValues != NULL) {
 	if (rdata->sdata->columnNames) { 
 	    Tcl_ListObjLength(NULL, rdata->sdata->columnNames, &nColumns);
 	    for (i=0; i<nColumns; i += 1) { 
-		if (rdata->resultBindings[i] == NULL) 
+		if (rdata->definedValues[i] == NULL) 
 		    break;
-		ckfree(rdata->resultBindings[i]);
+		ckfree(rdata->definedValues[i]);
 	    }
 	    
 	}
-	ckfree((char*)rdata->resultBindings);
+	ckfree((char*)rdata->definedValues);
     }
 
     DecrStatementRefCount(rdata->sdata);
