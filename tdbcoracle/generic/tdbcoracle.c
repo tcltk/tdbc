@@ -70,6 +70,7 @@ static const PostgresDataType dataTypes[] = {
     { "NULL",	    0},
     { "integer",    0},
     { "varchar",    0},
+    { "decimal",    0},
     { NULL,	    0}
 };
 
@@ -124,8 +125,8 @@ typedef struct ConnectionData {
  * Flags for the state of an ORACLE connection
  */
 
-//#define CONN_FLAG_AUTOCOMMIT	0x1	/* Autocommit is set */
-//#define CONN_FLAG_IN_XCN	0x2 	/* Transaction is in progress */
+#define CONN_FLAG_AUTOCOMMIT	0x1	/* Autocommit is set */
+#define CONN_FLAG_IN_XCN	0x2 	/* Transaction is in progress */
 //#define CONN_FLAG_INTERACTIVE	0x4	/* -interactive requested at connect */
 
 #define IncrConnectionRefCount(x) \
@@ -210,12 +211,10 @@ typedef struct ResultSetData {
     int refCount;		/* Reference count */
     StatementData* sdata;	/* Statement that generated this result set */
     OCIStmt* ociStmtHp;		/* OCI statement Handle */ 
-    char** bindValues;		/* Array of parameter values */
     ub2* definedLengths;	/* Length of output fields */
     char** definedValues;	/* Array of output field values */
     ub2* definedIndicators;	/* Indicators of per-column errors */
-    OCIDefine** ociDefines; 
-    OCIBind** ociBindings;
+    int badCursorState;		/* Indicator of EOF condition */ 
     ub4 rowCount; 
 } ResultSetData;
 #define IncrResultSetRefCount(x)		\
@@ -279,22 +278,22 @@ static int ConfigureConnection(PerInterpData* pidata, ConnectionData* cdata, Tcl
 static int ConnectionConstructor(ClientData clientData, Tcl_Interp* interp,
 				 Tcl_ObjectContext context,
 				 int objc, Tcl_Obj *const objv[]);
-//static int ConnectionBegintransactionMethod(ClientData clientData,
-//					    Tcl_Interp* interp,
-//					    Tcl_ObjectContext context,
-//					    int objc, Tcl_Obj *const objv[]);
+static int ConnectionBegintransactionMethod(ClientData clientData,
+					    Tcl_Interp* interp,
+					    Tcl_ObjectContext context,
+					    int objc, Tcl_Obj *const objv[]);
 //static int ConnectionColumnsMethod(ClientData clientData, Tcl_Interp* interp,
 //				  Tcl_ObjectContext context,
 //				  int objc, Tcl_Obj *const objv[]);
-//static int ConnectionCommitMethod(ClientData clientData, Tcl_Interp* interp,
-//				  Tcl_ObjectContext context,
-//				  int objc, Tcl_Obj *const objv[]);
+static int ConnectionCommitMethod(ClientData clientData, Tcl_Interp* interp,
+				  Tcl_ObjectContext context,
+				  int objc, Tcl_Obj *const objv[]);
 //static int ConnectionConfigureMethod(ClientData clientData, Tcl_Interp* interp,
 //				     Tcl_ObjectContext context,
 //				     int objc, Tcl_Obj *const objv[]);
-//static int ConnectionRollbackMethod(ClientData clientData, Tcl_Interp* interp,
-//				    Tcl_ObjectContext context,
-//				    int objc, Tcl_Obj *const objv[]);
+static int ConnectionRollbackMethod(ClientData clientData, Tcl_Interp* interp,
+				    Tcl_ObjectContext context,
+				    int objc, Tcl_Obj *const objv[]);
 //static int ConnectionSetCollationInfoMethod(ClientData clientData,
 //					    Tcl_Interp* interp,
 //					    Tcl_ObjectContext context,
@@ -398,7 +397,6 @@ const static Tcl_MethodType ConnectionConstructorType = {
     CloneCmd			/* cloneProc */
 };
 
-#if 0
 const static Tcl_MethodType ConnectionBegintransactionMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -407,6 +405,7 @@ const static Tcl_MethodType ConnectionBegintransactionMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+#if 0
 const static Tcl_MethodType ConnectionColumnsMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -415,6 +414,7 @@ const static Tcl_MethodType ConnectionColumnsMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+#endif
 const static Tcl_MethodType ConnectionCommitMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -423,6 +423,7 @@ const static Tcl_MethodType ConnectionCommitMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+#if 0
 const static Tcl_MethodType ConnectionConfigureMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -431,6 +432,7 @@ const static Tcl_MethodType ConnectionConfigureMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+#endif
 const static Tcl_MethodType ConnectionRollbackMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -439,6 +441,7 @@ const static Tcl_MethodType ConnectionRollbackMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+#if 0
 const static Tcl_MethodType ConnectionTablesMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -449,11 +452,11 @@ const static Tcl_MethodType ConnectionTablesMethodType = {
 };
 #endif
 const static Tcl_MethodType* ConnectionMethods[] = {
-//  &ConnectionBegintransactionMethodType,
+    &ConnectionBegintransactionMethodType,
 //  &ConnectionColumnsMethodType,
-//  &ConnectionCommitMethodType,
+    &ConnectionCommitMethodType,
 //  &ConnectionConfigureMethodType,
-//  &ConnectionRollbackMethodType,
+    &ConnectionRollbackMethodType,
 //  &ConnectionTablesMethodType,
     NULL
 };
@@ -572,14 +575,16 @@ static int TransferOracleError(
 	OCIError* ociErrHp,	/* OCI error handle */
 	sword status		/* Status retturned by last operation */
 ) {
-    char* sqlState = "HY000";  
+    char sqlState[20];
     char errMsg[1000]; 
     sb4 errorCode = status;
+
+    strcpy(sqlState, "HY000");
    
     if (status != OCI_SUCCESS) {  
 	switch (status) {
 	    case OCI_SUCCESS_WITH_INFO:
-		if (OCIErrorGet(ociErrHp, 1, NULL, &errorCode,
+		if (OCIErrorGet(ociErrHp, 1, (text*)sqlState, &errorCode,
 			    (text*) errMsg, 1000, OCI_HTYPE_ERROR) != OCI_SUCCESS) {
 		    strcpy(errMsg, "Cannot retreive OCI error message");
 		}
@@ -591,7 +596,7 @@ static int TransferOracleError(
 		strcpy(errMsg, "OCI_NO_DATA error occured\n");
 		break;
 	    case OCI_ERROR:
-		if (OCIErrorGet(ociErrHp, 1, NULL, &errorCode,
+		if (OCIErrorGet(ociErrHp, 1, (text*)sqlState, &errorCode,
 			    (text*) errMsg, 1000, OCI_HTYPE_ERROR) != OCI_SUCCESS) {
 		    strcpy(errMsg, "Cannot retreive OCI error message");
 		}
@@ -817,6 +822,8 @@ ConfigureConnection(
 	OCIAttrSet((dvoid *) cdata->ociSvcHp, OCI_HTYPE_SVCCTX,
 		(dvoid *) cdata->ociAutHp, 0, OCI_ATTR_SESSION, cdata->ociErrHp);
 
+	cdata->flags |= CONN_FLAG_AUTOCOMMIT;
+
     } else {
 
 	/* Already open connection */
@@ -894,7 +901,65 @@ ConnectionConstructor(
 
     return TCL_OK;
 }
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionBegintransactionMethod --
+ *
+ *	Method that requests that following operations on an Oracle connection
+ *	be executed as an atomic transaction.
+ *
+ * Usage:
+ *	$connection begintransaction
+ *
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns an empty result if successful, and throws an error otherwise.
+ *
+ *-----------------------------------------------------------------------------
+*/
 
+static int
+ConnectionBegintransactionMethod(
+    ClientData clientData,	/* Unused */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+    sword status;
+
+    /* Check parameters */
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+
+    /* Reject attempts at nested transactions */
+
+    if (cdata->flags & CONN_FLAG_IN_XCN) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("Oracle does not support "
+						  "nested transactions", -1));
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HYC00",
+			 "ORACLE", "-1", NULL);
+	return TCL_ERROR;
+    }
+    cdata->flags |= CONN_FLAG_IN_XCN;
+
+    /* Turn off autocommit for the duration of the transaction */
+    
+    cdata->flags &= ~CONN_FLAG_AUTOCOMMIT;
+    
+    return TCL_OK;
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -945,7 +1010,130 @@ CloneCmd(
     *newClientData = oldClientData;
     return TCL_OK;
 }
-
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionCommitMethod --
+ *
+ *	Method that requests that a pending transaction against a database
+ * 	be committed.
+ *
+ * Usage:
+ *	$connection commit
+ * 
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns an empty Tcl result if successful, and throws an error
+ *	otherwise.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionCommitMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    sword status;			/* Oracle status return */
+
+    /* Check parameters */
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+
+    /* Reject the request if no transaction is in progress */
+
+    if (!(cdata->flags & CONN_FLAG_IN_XCN)) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("no transaction is in "
+						  "progress", -1));
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY010",
+			 "ORACLE", "-1", NULL);
+	return TCL_ERROR;
+    }
+
+    /* End transaction, turn off "transaction in progress", and report status */
+    status = OCITransCommit(cdata->ociSvcHp, cdata->ociErrHp, OCI_DEFAULT); 
+    cdata->flags &= ~ CONN_FLAG_IN_XCN;
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionRollbackMethod --
+ *
+ *	Method that requests that a pending transaction against a database
+ * 	be rolled back.
+ *
+ * Usage:
+ * 	$connection rollback
+ * 
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns an empty Tcl result if successful, and throws an error
+ *	otherwise.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionRollbackMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    sword status;		/* Result code from Oracle operations */
+
+    /* Check parameters */
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+
+    /* Reject the request if no transaction is in progress */
+
+    if (!(cdata->flags & CONN_FLAG_IN_XCN)) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("no transaction is in "
+						  "progress", -1));
+	Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY010",
+			 "ORACLE", "-1", NULL);
+	return TCL_ERROR;
+    }
+
+    /* End transaction, turn off "transaction in progress", and report status */
+    status = OCITransRollback(cdata->ociSvcHp, cdata->ociErrHp, OCI_DEFAULT); 
+    cdata->flags &= ~CONN_FLAG_IN_XCN;
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    return TCL_OK;
+}
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1373,7 +1561,7 @@ StatementConstructor(
  *
  * StatementParamtypeMethod --
  *
- *	Defines a parameter type in a MySQL statement.
+ *	Defines a parameter type in a Oracle statement.
  *
  * Usage:
  *	$statement paramtype paramName ?direction? type ?precision ?scale??
@@ -1613,7 +1801,6 @@ ResultSetConstructor(
     StatementData* sdata;	/* The statement object's data */
     ResultSetData* rdata;	/* THe result set object's data */
 
-    char** bindValues;		/* Array of parameter values */
     ub2 bindLen;		/* Length of actual parameter */
     ub2* definedLengths;	/* Length of output fields */
     char** definedValues;	/* Array of output field values */
@@ -1622,12 +1809,15 @@ ResultSetConstructor(
     int nParams;		/* The parameter count on the statement */
     int nBound;			/* Number of parameters bound so far */
     int nDefined;   		/* Number of columns defined so far */
+    OCIDefine* ociDefine;	/* Handle for defined spaceholder */ 
+    OCIBind* ociBind;		/* Handle for bound parameter */
     Tcl_Obj* paramNameObj;	/* Name of the current parameter */
     const char* paramName;	/* Name of the current parameter */
     Tcl_Obj* paramValObj;	/* Value of the current parameter */
-    const char * paramValStr;	/* Representation of value of current parameter */
+    char * paramValStr;	/* Representation of value of current parameter */
     int nColumns;		/* Number of columns in the result set */
-    int stmtIters;		/* Numer of statement execution iterations */
+    int stmtIters = 1;		/* Numer of statement execution iterations */
+    int execMode = OCI_DEFAULT; /* Statement execution mode */
     ub2 stmtType;		/* Statement type */
     sword status;		/* Status returned by OCI calls */
 
@@ -1657,6 +1847,14 @@ ResultSetConstructor(
     }
     cdata = sdata->cdata;
 
+    /* 
+     * If there is no transaction in progress, turn on auto-commit so that
+     * this statement will execute directly.
+     */
+
+    if ((cdata->flags & (CONN_FLAG_IN_XCN | CONN_FLAG_AUTOCOMMIT)) == 0) {
+	cdata->flags |= CONN_FLAG_AUTOCOMMIT;
+    }
     pidata = cdata->pidata;
 
     /* Allocate an object to hold data about this result set */
@@ -1666,9 +1864,9 @@ ResultSetConstructor(
     rdata->sdata = sdata;
     rdata->ociStmtHp = NULL;
     rdata->definedValues = NULL; 
-    rdata->bindValues = NULL;
     rdata->definedLengths = NULL;
     rdata->rowCount = 0; 
+    rdata->badCursorState = 0;
 
     IncrStatementRefCount(sdata);
     Tcl_ObjectSetMetadata(thisObject, &resultSetDataType, (ClientData) rdata);
@@ -1693,9 +1891,6 @@ ResultSetConstructor(
 
     Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
 
-    bindValues = (char**) ckalloc(nParams * sizeof(char*));
-
-    rdata->ociBindings = (OCIBind**) ckalloc(nParams * sizeof(OCIBind*));
 
     /* Bind the substituted parameters */
 
@@ -1727,18 +1922,16 @@ ResultSetConstructor(
 	     */
 	    
 	    paramValStr = Tcl_GetString(paramValObj);
-	    bindValues[nBound] = ckalloc(strlen(paramValStr) + 1);
-	    strcpy(bindValues[nBound], paramValStr);    
-	    bindLen = strlen(bindValues[nBound]) + 1;
+	    bindLen = strlen(paramValStr) + 1;
 	} else {
-	    bindValues[nBound] = NULL;
+	    paramValStr = NULL;
 	    bindLen = 0;
 	}
 
-	rdata->ociBindings[nBound] = NULL;
+	ociBind = NULL;
 	/* Bind value */
-	status = OCIBindByPos(rdata->ociStmtHp, &rdata->ociBindings[nBound], cdata->ociErrHp,
-	       nBound + 1, bindValues[nBound], bindLen, SQLT_STR, NULL, NULL,
+	status = OCIBindByPos(rdata->ociStmtHp, &ociBind, cdata->ociErrHp,
+	       nBound + 1, paramValStr , bindLen, SQLT_STR, NULL, NULL,
 	       	NULL, 0 , NULL, OCI_DEFAULT);
 
 	if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
@@ -1746,21 +1939,24 @@ ResultSetConstructor(
 	}
     }
 
-    /* Calculate number of iterations of statement. Non - select statements 
-     * should be executed once, selects are executed later during row fetches */
-
     OCIAttrGet(rdata->ociStmtHp, OCI_HTYPE_STMT, &stmtType, NULL,
 	    OCI_ATTR_STMT_TYPE, cdata->ociErrHp); 
 
-    if (stmtType != OCI_STMT_SELECT) { 
-	stmtIters = 1; 
-    } else { 
+    if (stmtType == OCI_STMT_SELECT) { 
+
+	/* Select statements should not fetch any rows now,
+	   so number of execution iterations is zeroed */
+
 	stmtIters = 0; 
+    }
+
+    if (cdata->flags & CONN_FLAG_AUTOCOMMIT) {
+	execMode |= OCI_COMMIT_ON_SUCCESS;
     }
 
     /* Execute the statement */
     status = OCIStmtExecute(cdata->ociSvcHp, rdata->ociStmtHp,
-	    cdata->ociErrHp, stmtIters, 0, NULL, NULL, OCI_COMMIT_ON_SUCCESS); //TODO change to defaut
+	    cdata->ociErrHp, stmtIters, 0, NULL, NULL, execMode);
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
 	return TCL_ERROR;
     }
@@ -1779,7 +1975,6 @@ ResultSetConstructor(
     definedLengths = rdata->definedLengths = (ub2*) ckalloc(nColumns * sizeof(ub2));
     definedIndicators = rdata->definedIndicators = (ub2*) ckalloc(
 	    nColumns * sizeof(ub2));
-    rdata->ociDefines = (OCIDefine**) ckalloc (nColumns * sizeof(OCIDefine*));
 
     for (nDefined = 0; nDefined < nColumns; nDefined += 1) { 
 	int colSize; 
@@ -1801,9 +1996,9 @@ ResultSetConstructor(
 
 	definedValues[nDefined] = ckalloc(colSize);
 
-	rdata->ociDefines[nDefined] = NULL;
+	ociDefine = NULL;
 	
-	status = OCIDefineByPos(rdata->ociStmtHp, &rdata->ociDefines[nDefined],
+	status = OCIDefineByPos(rdata->ociStmtHp, &ociDefine,
 		cdata->ociErrHp, nDefined + 1, definedValues[nDefined],
 		colSize, SQLT_STR, &definedIndicators[nDefined],
 		&definedLengths[nDefined], NULL, OCI_DEFAULT);
@@ -1837,7 +2032,7 @@ freeRData:
  *
  * ResultSetRowcountMethod --
  *
- *	Returns (if known) the number of rows affected by a MySQL statement.
+ *	Returns (if known) the number of rows affected by a Oracle statement.
  *
  * Usage:
  *	$resultSet rowcount
@@ -2055,7 +2250,7 @@ ResultSetNextrowMethod(
     Tcl_Obj* colObj;		/* Column obtained from the row */
     sword ociStatus;		/* Status returned by oci calls */
     int status = TCL_ERROR;	/* Status return from this command */
-    int i, j;
+    int i;
 
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 2, objv, "varName");
@@ -2070,6 +2265,11 @@ ResultSetNextrowMethod(
 	return TCL_OK;
     }
 
+    if (rdata->badCursorState == 1) {
+	Tcl_SetObjResult(interp, literals[LIT_0]);
+	return TCL_OK;
+    }
+
     resultRow = Tcl_NewObj();
     Tcl_IncrRefCount(resultRow);
     
@@ -2077,13 +2277,15 @@ ResultSetNextrowMethod(
 
     if (ociStatus == OCI_NO_DATA) {
 	
-	/* EOF was reached */
+        /* EOF was reached */
 
+	rdata->badCursorState = 1;
 	Tcl_SetObjResult(interp, literals[LIT_0]);
 	return TCL_OK;
 
     } else {
 	if (TransferOracleError(interp, cdata->ociErrHp, ociStatus) != TCL_OK ) {
+	    printf("epic fail\n");
 	    goto cleanup;
 	}
     }
