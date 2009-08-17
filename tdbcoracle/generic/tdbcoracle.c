@@ -213,6 +213,7 @@ typedef struct ResultSetData {
     char** bindValues;		/* Array of parameter values */
     ub2* definedLengths;	/* Length of output fields */
     char** definedValues;	/* Array of output field values */
+    ub2* definedIndicators;	/* Indicators of per-column errors */
     OCIDefine** ociDefines; 
     OCIBind** ociBindings;
     ub4 rowCount; 
@@ -1141,25 +1142,38 @@ ResultDescToTcl(
     OCIParam* ociParamH;	/* OCI parameter handle */
     Tcl_InitHashTable(&names, TCL_STRING_KEYS);
     if (rdata != NULL) {
-	unsigned int i = 0;
+	unsigned int i = 1;
 	char numbuf[16];
-
+	
 	status = OCIParamGet(rdata->ociStmtHp, OCI_HTYPE_STMT, 
-		rdata->sdata->cdata->ociErrHp, (dvoid**) &ociParamH, 0); 
+   		rdata->sdata->cdata->ociErrHp, (dvoid**) &ociParamH, i); 
 
+	/* Iterate through columns until end is reached */
+	
 	while (status != OCI_ERROR) { 
 	    Tcl_Obj* nameObj;
 	    int new;
 	    Tcl_HashEntry* entry;
-	    char * colName; 
+	    char* colNameTmp = NULL;
+	    char* colName;
 	    ub4 colNameLen;
 	    int count = 1;
 
-	    OCIAttrGet(ociParamH, OCI_DTYPE_PARAM, &colName, 
+	    OCIAttrGet(ociParamH, OCI_DTYPE_PARAM, &colNameTmp, 
 		    &colNameLen, OCI_ATTR_NAME, rdata->sdata->cdata->ociErrHp); 
+
+	    /* Column names reported by OCI need to be convererted to lower case */
+
+	    colName = ckalloc(colNameLen);
+	    strncpy(colName, colNameTmp, colNameLen);
+	    colName[colNameLen] = '\0'; 
+	    Tcl_UtfToLower(colName);
+
 	    nameObj = Tcl_NewStringObj(colName, colNameLen);
 	    Tcl_IncrRefCount(nameObj);
 	    entry = Tcl_CreateHashEntry(&names, colName, &new);
+
+	    ckfree(colName);
 
 	    while (!new) {
 		count = (int) Tcl_GetHashValue(entry);
@@ -1181,7 +1195,6 @@ ResultDescToTcl(
 	    i += 1;
 	    status = OCIParamGet(rdata->ociStmtHp, OCI_HTYPE_STMT, 
 		    rdata->sdata->cdata->ociErrHp, (dvoid**)&ociParamH, i); 
-
 	}
     }
     Tcl_DeleteHashTable(&names);
@@ -1294,6 +1307,7 @@ StatementConstructor(
 	case ':':
 	case '@':
 	    tmpstr = ckalloc(strlen(tokenStr));
+	    strcpy(tmpstr, tokenStr);
 	    tmpstr[0] = ':';
 	    Tcl_AppendToObj(nativeSql, tmpstr, -1);
 	    ckfree(tmpstr);
@@ -1600,8 +1614,10 @@ ResultSetConstructor(
     ResultSetData* rdata;	/* THe result set object's data */
 
     char** bindValues;		/* Array of parameter values */
+    ub2 bindLen;		/* Length of actual parameter */
     ub2* definedLengths;	/* Length of output fields */
     char** definedValues;	/* Array of output field values */
+    ub2* definedIndicators;	/* Indicators of per-column errors */
 
     int nParams;		/* The parameter count on the statement */
     int nBound;			/* Number of parameters bound so far */
@@ -1614,7 +1630,6 @@ ResultSetConstructor(
     int stmtIters;		/* Numer of statement execution iterations */
     ub2 stmtType;		/* Statement type */
     sword status;		/* Status returned by OCI calls */
-
 
     /* Check parameter count */
 
@@ -1687,6 +1702,7 @@ ResultSetConstructor(
     for (nBound = 0; nBound < nParams; ++nBound) {
 	Tcl_ListObjIndex(NULL, sdata->subVars, nBound, &paramNameObj);
 	paramName = Tcl_GetString(paramNameObj);
+
 	if (objc == skip+2) {
 
 	    /* Param from a dictionary */
@@ -1702,22 +1718,29 @@ ResultSetConstructor(
 	    paramValObj = Tcl_GetVar2Ex(interp, paramName, NULL, 
 					TCL_LEAVE_ERR_MSG);
 	}
-
-	/* 
-	 * At this point, paramValObj contains the parameter to bind.
-	 * Convert the parameters to the appropriate data types for
-	 * Oracle's prepared statement interface, and bind them.
-	 */
-	paramValStr = Tcl_GetString(paramValObj); 
-	bindValues[nBound] = ckalloc(strlen(paramValStr) + 1);
-	strcpy(bindValues[nBound], paramValStr);
+	if (paramValObj != NULL) { 
+	
+	    /* 
+	     * At this point, paramValObj contains the parameter to bind.
+	     * Convert the parameters to the appropriate data types for
+	     * Oracle's prepared statement interface, and bind them.
+	     */
+	    
+	    paramValStr = Tcl_GetString(paramValObj);
+	    bindValues[nBound] = ckalloc(strlen(paramValStr) + 1);
+	    strcpy(bindValues[nBound], paramValStr);    
+	    bindLen = strlen(bindValues[nBound]) + 1;
+	} else {
+	    bindValues[nBound] = NULL;
+	    bindLen = 0;
+	}
 
 	rdata->ociBindings[nBound] = NULL;
-
 	/* Bind value */
 	status = OCIBindByPos(rdata->ociStmtHp, &rdata->ociBindings[nBound], cdata->ociErrHp,
-	       nBound, bindValues[nBound], strlen(bindValues[nBound]), 0, NULL, NULL,
+	       nBound + 1, bindValues[nBound], bindLen, SQLT_STR, NULL, NULL,
 	       	NULL, 0 , NULL, OCI_DEFAULT);
+
 	if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
 	    return TCL_ERROR;
 	}
@@ -1737,7 +1760,7 @@ ResultSetConstructor(
 
     /* Execute the statement */
     status = OCIStmtExecute(cdata->ociSvcHp, rdata->ociStmtHp,
-	    cdata->ociErrHp, stmtIters, 0, NULL, NULL, OCI_DEFAULT);
+	    cdata->ociErrHp, stmtIters, 0, NULL, NULL, OCI_COMMIT_ON_SUCCESS); //TODO change to defaut
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
 	return TCL_ERROR;
     }
@@ -1754,16 +1777,17 @@ ResultSetConstructor(
     definedValues = rdata->definedValues = (char**)ckalloc(
 	    nColumns * sizeof(char*));
     definedLengths = rdata->definedLengths = (ub2*) ckalloc(nColumns * sizeof(ub2));
+    definedIndicators = rdata->definedIndicators = (ub2*) ckalloc(
+	    nColumns * sizeof(ub2));
     rdata->ociDefines = (OCIDefine**) ckalloc (nColumns * sizeof(OCIDefine*));
 
     for (nDefined = 0; nDefined < nColumns; nDefined += 1) { 
 	int colSize; 
 	OCIParam* ociParamH;
-	printf("defining...\n");
 	definedValues[nDefined] = NULL; 
 
 	OCIParamGet(rdata->ociStmtHp, OCI_HTYPE_STMT, 
-		rdata->sdata->cdata->ociErrHp, (dvoid**)&ociParamH, 0); 
+		rdata->sdata->cdata->ociErrHp, (dvoid**)&ociParamH, nDefined + 1); 
 	status = OCIAttrGet(ociParamH, OCI_DTYPE_PARAM, &colSize, 
 		0, OCI_ATTR_DATA_SIZE, cdata->ociErrHp);
 	
@@ -1779,8 +1803,10 @@ ResultSetConstructor(
 
 	rdata->ociDefines[nDefined] = NULL;
 	
-	status = OCIDefineByPos(rdata->ociStmtHp, &rdata->ociDefines[nDefined], cdata->ociErrHp, nDefined,
-		definedValues[nDefined], colSize, 0, NULL, definedLengths, NULL, OCI_DEFAULT);
+	status = OCIDefineByPos(rdata->ociStmtHp, &rdata->ociDefines[nDefined],
+		cdata->ociErrHp, nDefined + 1, definedValues[nDefined],
+		colSize, SQLT_STR, &definedIndicators[nDefined],
+		&definedLengths[nDefined], NULL, OCI_DEFAULT);
 	if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
 
 	    OCIDescriptorFree(ociParamH, OCI_DTYPE_PARAM); 
@@ -2027,6 +2053,7 @@ ResultSetNextrowMethod(
     Tcl_Obj* resultRow;		/* Row of the result set under construction */
     
     Tcl_Obj* colObj;		/* Column obtained from the row */
+    sword ociStatus;		/* Status returned by oci calls */
     int status = TCL_ERROR;	/* Status return from this command */
     int i, j;
 
@@ -2037,7 +2064,6 @@ ResultSetNextrowMethod(
 
 
     /* Get the column names in the result set. */
-
     Tcl_ListObjLength(NULL, sdata->columnNames, &nColumns);
     if (nColumns == 0) {
 	Tcl_SetObjResult(interp, literals[LIT_0]);
@@ -2046,8 +2072,57 @@ ResultSetNextrowMethod(
 
     resultRow = Tcl_NewObj();
     Tcl_IncrRefCount(resultRow);
+    
+    ociStatus = OCIStmtFetch(sdata->ociStmtHp, cdata->ociErrHp, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
 
-    not_imp;
+    if (ociStatus == OCI_NO_DATA) {
+	
+	/* EOF was reached */
+
+	Tcl_SetObjResult(interp, literals[LIT_0]);
+	return TCL_OK;
+
+    } else {
+	if (TransferOracleError(interp, cdata->ociErrHp, ociStatus) != TCL_OK ) {
+	    goto cleanup;
+	}
+    }
+
+    /* Retrieve one column at a time. */
+    for (i = 0; i < nColumns; ++i) {
+	Tcl_ListObjIndex(NULL, sdata->columnNames, i, &colName);
+	if (rdata->definedIndicators[i] == 0) {
+	    colObj = Tcl_NewStringObj(rdata->definedValues[i], rdata->definedLengths[i]);
+	} else { 
+	    colObj = NULL; 
+	}
+	if (lists) {
+	    if (colObj == NULL) {
+		colObj = Tcl_NewObj();
+	    }
+	    Tcl_ListObjAppendElement(NULL, resultRow, colObj);
+	} else { 
+	    if (colObj != NULL) {
+		Tcl_ListObjIndex(NULL, sdata->columnNames, i, &colName);
+		Tcl_DictObjPut(NULL, resultRow, colName, colObj);
+	    }
+	}
+    }
+    
+    /* Save the row in the given variable */
+
+    if (Tcl_SetVar2Ex(interp, Tcl_GetString(objv[2]), NULL,
+		      resultRow, TCL_LEAVE_ERR_MSG) == NULL) {
+	goto cleanup;
+    }
+
+    Tcl_SetObjResult(interp, literals[LIT_1]);
+    status = TCL_OK;
+
+cleanup:
+    Tcl_DecrRefCount(resultRow);
+    return status;
+
 }
 
 /*
