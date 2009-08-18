@@ -2006,6 +2006,7 @@ ResultSetConstructor(
     rdata->sdata = sdata;
     rdata->ociStmtHp = NULL;
     rdata->definedValues = NULL; 
+    rdata->definedIndicators = NULL;
     rdata->definedLengths = NULL;
     rdata->rowCount = 0; 
     rdata->badCursorState = 0;
