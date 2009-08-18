@@ -294,13 +294,9 @@ static int ConnectionCommitMethod(ClientData clientData, Tcl_Interp* interp,
 static int ConnectionRollbackMethod(ClientData clientData, Tcl_Interp* interp,
 				    Tcl_ObjectContext context,
 				    int objc, Tcl_Obj *const objv[]);
-//static int ConnectionSetCollationInfoMethod(ClientData clientData,
-//					    Tcl_Interp* interp,
-//					    Tcl_ObjectContext context,
-//					    int objc, Tcl_Obj *const objv[]);
-//static int ConnectionTablesMethod(ClientData clientData, Tcl_Interp* interp,
-//				  Tcl_ObjectContext context,
-//				  int objc, Tcl_Obj *const objv[]);
+static int ConnectionTablesMethod(ClientData clientData, Tcl_Interp* interp,
+				  Tcl_ObjectContext context,
+				  int objc, Tcl_Obj *const objv[]);
 
 static void DeleteConnectionMetadata(ClientData clientData);
 static void DeleteConnection(ConnectionData* cdata);
@@ -441,7 +437,6 @@ const static Tcl_MethodType ConnectionRollbackMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#if 0
 const static Tcl_MethodType ConnectionTablesMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -450,14 +445,13 @@ const static Tcl_MethodType ConnectionTablesMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#endif
 const static Tcl_MethodType* ConnectionMethods[] = {
     &ConnectionBegintransactionMethodType,
 //  &ConnectionColumnsMethodType,
     &ConnectionCommitMethodType,
 //  &ConnectionConfigureMethodType,
     &ConnectionRollbackMethodType,
-//  &ConnectionTablesMethodType,
+    &ConnectionTablesMethodType,
     NULL
 };
 
@@ -934,7 +928,6 @@ ConnectionBegintransactionMethod(
 				/* The current connection object */
     ConnectionData* cdata = (ConnectionData*)
 	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
-    sword status;
 
     /* Check parameters */
 
@@ -1134,6 +1127,151 @@ ConnectionRollbackMethod(
     }
     return TCL_OK;
 }
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionTablesMethod --
+ *
+ *	Method that asks for the names of tables in the database (optionally
+ *	matching a given pattern
+ *
+ * Usage:
+ * 	$connection tables ?pattern?
+ * 
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns the list of tables
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionTablesMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    Tcl_Obj** literals = cdata->pidata->literals;
+				/* Literal pool */
+    char* patternStr;		/* Pattern to match table names */
+    Tcl_Obj* retval;		/* List of table names */
+    OCIStmt * ociStmtHp;	/* OCI statement handle */
+    OCIParam* ociParamH;	/* OCI parameter handle */
+    OCIDefine* ociDef = NULL;	/* OCI output placeholder define handle */
+    OCIBind* ociBind = NULL;	/* OCI parameter define handle */
+
+    const char * sqlQuery = "SELECT table_name FROM user_tables \
+			     WHERE table_name LIKE :pattern"; 
+				/* SQL query for retrieving table names */
+    char * tableName;		/* Actual table name */
+    ub2 tableNameLen;		/* Length of actual table name */
+    ub2 colSize;		/* Actual column size */
+    sword status;		/* Status returned from OCI calls */
+
+    /* Check parameters */
+
+    if (objc == 2) {
+	patternStr = ckalloc(strlen("%"));
+	strcpy(patternStr, "%");
+    } else if (objc == 3) {
+	const char * patternTmp; 
+	patternTmp = Tcl_GetString(objv[2]);
+	patternStr = ckalloc(strlen(patternTmp));
+	strcpy(patternStr, patternTmp);
+	Tcl_UtfToUpper(patternStr);	
+    } else {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+
+    OCIHandleAlloc(cdata->pidata->ociEnvHp,
+	    (dvoid **) &ociStmtHp, OCI_HTYPE_STMT, 0, NULL);
+
+    status = OCIStmtPrepare(ociStmtHp, cdata->ociErrHp, (text*) sqlQuery, 
+		strlen(sqlQuery), OCI_NTV_SYNTAX, OCI_DEFAULT);
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freePat;
+    }
+
+    status = OCIBindByPos(ociStmtHp, &ociBind, cdata->ociErrHp,
+	    1, patternStr, strlen(patternStr) + 1, SQLT_STR, NULL, NULL,
+	    NULL, 0 , NULL, OCI_DEFAULT);
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freePat;
+    }
+  
+    status = OCIStmtExecute(cdata->ociSvcHp, ociStmtHp,
+	    cdata->ociErrHp, 0, 0, NULL, NULL, OCI_DEFAULT);
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freePat;
+    }
+
+    OCIParamGet(ociStmtHp, OCI_HTYPE_STMT, 
+	    cdata->ociErrHp, (dvoid**)&ociParamH, 1); 
+    status = OCIAttrGet(ociParamH, OCI_DTYPE_PARAM, &colSize, 
+	    0, OCI_ATTR_DATA_SIZE, cdata->ociErrHp);
+    
+    OCIDescriptorFree(ociParamH, OCI_DTYPE_PARAM); 
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freePat;
+    }
+
+    tableName = ckalloc(colSize);
+
+    status = OCIDefineByPos(ociStmtHp, &ociDef,
+	    cdata->ociErrHp, 1, tableName, colSize, SQLT_STR, NULL,
+	    &tableNameLen, NULL, OCI_DEFAULT);
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freePat;
+    }
+    retval = Tcl_NewObj();
+    Tcl_IncrRefCount(retval);
+
+    while (1) {
+	char * tableNameLower;
+	status = OCIStmtFetch(ociStmtHp, cdata->ociErrHp, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
+	if (status == OCI_NO_DATA) { 
+	    break;
+	} else {
+	    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+		goto freeStmt;
+	    }
+	}
+	tableNameLower = ckalloc(tableNameLen);
+	strncpy(tableNameLower, tableName, tableNameLen);
+	tableNameLower[tableNameLen] = '\0';
+	Tcl_UtfToLower(tableNameLower);
+	Tcl_ListObjAppendElement(NULL, retval,
+		Tcl_NewStringObj(tableNameLower, -1));
+	ckfree(tableNameLower);
+	Tcl_ListObjAppendElement(NULL, retval, literals[LIT_EMPTY]);
+
+    }
+    OCIHandleFree((dvoid *) ociStmtHp, OCI_HTYPE_STMT);
+    Tcl_SetObjResult(interp, retval);
+    Tcl_DecrRefCount(retval);
+    ckfree(tableName);
+    ckfree(patternStr);
+    return TCL_OK;
+
+freeStmt:
+    OCIHandleFree((dvoid *) ociStmtHp, OCI_HTYPE_STMT);
+    ckfree(tableName);
+    Tcl_DecrRefCount(retval);
+freePat:
+    ckfree(patternStr);
+    return TCL_ERROR;
+}
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1716,6 +1854,7 @@ static void
 DeleteStatement(
     StatementData* sdata	/* Metadata for the statement */
 ) {
+    //TODO delete stmt handle
     if (sdata->columnNames != NULL) {
 	Tcl_DecrRefCount(sdata->columnNames);
     }
@@ -1724,6 +1863,9 @@ DeleteStatement(
     }
     if (sdata->params != NULL) {
 	ckfree((char*)sdata->params);
+    }
+    if (sdata->ociStmtHp != NULL) {
+        OCIHandleFree((dvoid *) sdata->ociStmtHp, OCI_HTYPE_STMT);
     }
     Tcl_DecrRefCount(sdata->subVars);
     DecrConnectionRefCount(sdata->cdata);
@@ -2090,13 +2232,15 @@ static void
 DeleteResultSet(
     ResultSetData* rdata	/* Metadata for the result set */
 ) {
-
-    //TODO: free averything.
     int nColumns; 
     int i; 
 
     if (rdata->definedLengths != NULL) {
         ckfree((char*)rdata->definedLengths);
+    }
+
+    if (rdata->definedIndicators != NULL) { 
+	ckfree((char*) rdata->definedIndicators);
     }
 
     if (rdata->definedValues != NULL) {
@@ -2110,6 +2254,12 @@ DeleteResultSet(
 	    
 	}
 	ckfree((char*)rdata->definedValues);
+    }
+
+    if (rdata->ociStmtHp != NULL) {
+	if (rdata->ociStmtHp != rdata->sdata->ociStmtHp) { 
+	    OCIHandleFree((dvoid *) rdata->ociStmtHp, OCI_HTYPE_STMT);
+	}
     }
 
     DecrStatementRefCount(rdata->sdata);
@@ -2144,8 +2294,6 @@ CloneResultSet(
 				      -1));
     return TCL_ERROR;
 }
-
-
 
 /*
  *----------------------------------------------------------------------

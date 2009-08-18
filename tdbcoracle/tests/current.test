@@ -2427,4 +2427,220 @@ catch {
     rename ::db {}
 }
 
+tdbc::oracle::connection create ::db {*}$::connFlags
+catch {
+    set stmt [db prepare {
+	INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+    }]
+    $stmt paramtype idnum integer
+    $stmt paramtype name varchar 40
+    set idnum 1
+    foreach name {fred wilma pebbles barney betty bam-bam} {
+	set rs [$stmt execute]
+	rename $rs {}
+	incr idnum
+    }
+    rename $stmt {}
+}
+
+test tdbc::oracle-15.1 {successful (empty) transaction} {*}{
+    -body {
+	db transaction {
+	    concat ok
+	}
+    }
+    -result ok
+}
+
+test tdbc::oracle-15.2 {failing transaction does not get committed} {*}{
+    -setup {
+	set stmt1 [db prepare {
+	    DELETE FROM people WHERE name = 'fred'
+	}]
+	set stmt2 [db prepare {
+	    SELECT idnum FROM people WHERE name = 'fred'
+	}]
+    }
+    -body {
+	catch {
+	    ::db transaction {
+		set rs [$stmt1 execute]
+		rename $rs {}
+		error "abort the transaction"
+	    }
+	} result
+	set id {failed transaction got committed}
+	set rs [$stmt2 execute]
+	while {[$rs nextrow -as lists row]} {
+	    set id [lindex $row 0]
+	}
+	rename $rs {}
+	list $result $id
+    }
+    -cleanup {
+	rename $stmt1 {}
+	rename $stmt2 {}
+    }
+    -result {{abort the transaction} 1}
+}
+
+test tdbc::oracle-15.3 {successful transaction gets committed} {*}{
+    -setup {
+	set stmt1 [db prepare {
+	    INSERT INTO people(idnum, name, info)
+	    VALUES(7, 'mr. gravel', 0)
+	}]
+	set stmt2 [db prepare {
+	    SELECT idnum FROM people WHERE name = 'mr. gravel'
+	}]
+    }
+    -body {
+	::db transaction {
+	    set rs [$stmt1 execute]
+	    rename $rs {}
+	}
+	set rs [$stmt2 execute]
+	while {[$rs nextrow -as lists row]} {
+	    set id [lindex $row 0]
+	}
+	rename $rs {}
+	set id
+    }
+    -cleanup {
+	rename $stmt1 {}
+	rename $stmt2 {}
+    }
+    -result 7
+}
+
+test tdbc::oracle-15.4 {break out of transaction commits it} {*}{
+    -setup {
+	set stmt1 [db prepare {
+	    INSERT INTO people(idnum, name, info)
+	    VALUES(8, 'gary granite', 0)
+	}]
+	set stmt2 [db prepare {
+	    SELECT idnum FROM people WHERE name = 'gary granite'
+	}]
+    }
+    -body {
+	while {1} {
+	    ::db transaction {
+		set rs [$stmt1 execute]
+		rename $rs {}
+		break
+	    }
+	}
+	set rs [$stmt2 execute]
+	while {[$rs nextrow -as lists row]} {
+	    set id [lindex $row 0]
+	}
+	rename $rs {}
+	set id
+    }
+    -cleanup {
+	rename $stmt1 {}
+	rename $stmt2 {}
+    }
+    -result 8
+}
+
+test tdbc::oracle-15.5 {continue in transaction commits it} {*}{
+    -setup {
+	set stmt1 [db prepare {
+	    INSERT INTO people(idnum, name, info)
+	    VALUES(9, 'hud rockstone', 0)
+	}]
+	set stmt2 [db prepare {
+	    SELECT idnum FROM people WHERE name = 'hud rockstone'
+	}]
+    }
+    -body {
+	for {set i 0} {$i < 1} {incr i} {
+	    ::db transaction {
+		set rs [$stmt1 execute]
+		rename $rs {}
+		continue
+	    }
+	}
+	set rs [$stmt2 execute]
+	while {[$rs nextrow -as lists row]} {
+	    set id [lindex $row 0]
+	}
+	rename $rs {}
+	set id
+    }
+    -cleanup {
+	rename $stmt1 {}
+	rename $stmt2 {}
+    }
+    -result 9
+}
+
+test tdbc::oracle-15.6 {return in transaction commits it} {*}{
+    -setup {
+	set stmt1 [db prepare {
+	    INSERT INTO people(idnum, name, info)
+	    VALUES(10, 'nelson stoneyfeller', 0)
+	}]
+	set stmt2 [db prepare {
+	    SELECT idnum FROM people WHERE name = 'nelson stoneyfeller'
+	}]
+	proc tdbcoracle-15.6 {stmt1} {
+	    ::db transaction {
+		set rs [$stmt1 execute]
+		rename $rs {}
+		return
+	    }
+	}
+    }
+    -body {
+	tdbcoracle-15.6 $stmt1
+	set rs [$stmt2 execute]
+	while {[$rs nextrow -as lists row]} {
+	    set id [lindex $row 0]
+	}
+	rename $rs {}
+	set id
+    }
+    -cleanup {
+	rename $stmt1 {}
+	rename $stmt2 {}
+	rename tdbcoracle-15.6 {}
+    }
+    -result 10
+}
+
+test tdbc::oracle-16.1 {database tables, wrong # args} {
+    -body {
+	set dict [::db tables % rubbish]
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+}
+
+test ssdbc::oracle-16.2 {database tables - empty set} {
+    -body {
+	::db tables q%
+    }
+    -result {}
+}
+
+test tdbc::oracle-16.3 {enumerate database tables} {*}{
+    -body {
+	set dict [::db tables]
+	list [dict exists $dict people] [dict exists $dict property]
+    } 
+    -result {1 0}
+}
+
+test tdbc::oracle-16.4 {enumerate database tables} {*}{
+    -body {
+	set dict [::db tables p%]
+	list [dict exists $dict people] [dict exists $dict property]
+    } 
+    -result {1 0}
+}
+
 
