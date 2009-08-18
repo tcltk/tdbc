@@ -68,9 +68,10 @@ typedef struct PostgresDataType {
 } PostgresDataType;
 static const PostgresDataType dataTypes[] = {
     { "NULL",	    0},
-    { "integer",    0},
-    { "varchar",    0},
-    { "decimal",    0},
+    { "integer",    SQLT_NUM},
+    { "varchar",    SQLT_CHR},
+    { "numeric",    SQLT_INT},
+    { "decimal",    SQLT_INT},
     { NULL,	    0}
 };
 
@@ -118,7 +119,6 @@ typedef struct ConnectionData {
     OCIServer*	ociSrvHp;	/* OCI Server handle */
     OCISvcCtx*	ociSvcHp;	/* OCI Service handle */
     OCISession* ociAutHp;	/* OCI Session handle */
-    OCIEnv *ociEnvHp;		/* OCI environment handle (copy from pidata)*/
 } ConnectionData;
 
 /*
@@ -273,7 +273,7 @@ static int TransferOracleError(Tcl_Interp* interp, OCIError* ociErrHp,	sword sta
 
 static Tcl_Obj* QueryConnectionOption(ConnectionData* cdata, Tcl_Interp* interp,
 				      int optionNum);
-static int ConfigureConnection(PerInterpData* pidata, ConnectionData* cdata, Tcl_Interp* interp,
+static int ConfigureConnection(ConnectionData* cdata, Tcl_Interp* interp,
 			       int objc, Tcl_Obj *const objv[], int skip);
 static int ConnectionConstructor(ClientData clientData, Tcl_Interp* interp,
 				 Tcl_ObjectContext context,
@@ -282,15 +282,15 @@ static int ConnectionBegintransactionMethod(ClientData clientData,
 					    Tcl_Interp* interp,
 					    Tcl_ObjectContext context,
 					    int objc, Tcl_Obj *const objv[]);
-//static int ConnectionColumnsMethod(ClientData clientData, Tcl_Interp* interp,
-//				  Tcl_ObjectContext context,
-//				  int objc, Tcl_Obj *const objv[]);
+static int ConnectionColumnsMethod(ClientData clientData, Tcl_Interp* interp,
+				  Tcl_ObjectContext context,
+				  int objc, Tcl_Obj *const objv[]);
 static int ConnectionCommitMethod(ClientData clientData, Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
-//static int ConnectionConfigureMethod(ClientData clientData, Tcl_Interp* interp,
-//				     Tcl_ObjectContext context,
-//				     int objc, Tcl_Obj *const objv[]);
+static int ConnectionConfigureMethod(ClientData clientData, Tcl_Interp* interp,
+				     Tcl_ObjectContext context,
+				     int objc, Tcl_Obj *const objv[]);
 static int ConnectionRollbackMethod(ClientData clientData, Tcl_Interp* interp,
 				    Tcl_ObjectContext context,
 				    int objc, Tcl_Obj *const objv[]);
@@ -315,9 +315,9 @@ static int StatementConstructor(ClientData clientData, Tcl_Interp* interp,
 static int StatementParamtypeMethod(ClientData clientData, Tcl_Interp* interp,
 				    Tcl_ObjectContext context,
 				    int objc, Tcl_Obj *const objv[]);
-//static int StatementParamsMethod(ClientData clientData, Tcl_Interp* interp,
-//				 Tcl_ObjectContext context,
-//				 int objc, Tcl_Obj *const objv[]);
+static int StatementParamsMethod(ClientData clientData, Tcl_Interp* interp,
+				 Tcl_ObjectContext context,
+				 int objc, Tcl_Obj *const objv[]);
 
 static void DeleteStatementMetadata(ClientData clientData);
 static void DeleteStatement(StatementData* sdata);
@@ -401,16 +401,14 @@ const static Tcl_MethodType ConnectionBegintransactionMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#if 0
 const static Tcl_MethodType ConnectionColumnsMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
-    "Columns",			/* name */
+    "columns",			/* name */
     ConnectionColumnsMethod,	/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#endif
 const static Tcl_MethodType ConnectionCommitMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -419,7 +417,6 @@ const static Tcl_MethodType ConnectionCommitMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#if 0
 const static Tcl_MethodType ConnectionConfigureMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -428,7 +425,6 @@ const static Tcl_MethodType ConnectionConfigureMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#endif
 const static Tcl_MethodType ConnectionRollbackMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -447,9 +443,9 @@ const static Tcl_MethodType ConnectionTablesMethodType = {
 };
 const static Tcl_MethodType* ConnectionMethods[] = {
     &ConnectionBegintransactionMethodType,
-//  &ConnectionColumnsMethodType,
+    &ConnectionColumnsMethodType,
     &ConnectionCommitMethodType,
-//  &ConnectionConfigureMethodType,
+    &ConnectionConfigureMethodType,
     &ConnectionRollbackMethodType,
     &ConnectionTablesMethodType,
     NULL
@@ -465,7 +461,6 @@ const static Tcl_MethodType StatementConstructorType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#if 0
 const static Tcl_MethodType StatementParamsMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -474,7 +469,6 @@ const static Tcl_MethodType StatementParamsMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
-#endif
 const static Tcl_MethodType StatementParamtypeMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -488,7 +482,7 @@ const static Tcl_MethodType StatementParamtypeMethodType = {
  */
 
 const static Tcl_MethodType* StatementMethods[] = {
-//  &StatementParamsMethodType,
+    &StatementParamsMethodType,
     &StatementParamtypeMethodType,
     NULL
 };
@@ -675,7 +669,6 @@ QueryConnectionOption (
 
 static int
 ConfigureConnection(
-    PerInterpData* pidata,	/* Per interpreter data*/
     ConnectionData* cdata,	/* Connection data */
     Tcl_Interp* interp,		/* Tcl interpreter */
     int objc,			/* Parameter count */
@@ -788,7 +781,7 @@ ConfigureConnection(
 
 	OCIAttrSet(cdata->ociSvcHp, OCI_HTYPE_SVCCTX,
 	       	cdata->ociSrvHp, 0, OCI_ATTR_SERVER, cdata->ociErrHp);
-	OCIHandleAlloc(pidata->ociEnvHp, (dvoid**) &cdata->ociAutHp,
+	OCIHandleAlloc(cdata->pidata->ociEnvHp, (dvoid**) &cdata->ociAutHp,
 		OCI_HTYPE_SESSION, 0, NULL);
 	
 	/* Set login data */
@@ -878,16 +871,16 @@ ConnectionConstructor(
     /* Allocate OCI error, server and service handles */
 
     OCIHandleAlloc( (dvoid *) pidata->ociEnvHp, (dvoid **) &cdata->ociErrHp, OCI_HTYPE_ERROR,
-	    (size_t) 0, NULL);
+	    0, NULL);
     OCIHandleAlloc( (dvoid *) pidata->ociEnvHp, (dvoid **) &cdata->ociSrvHp, OCI_HTYPE_SERVER,
-	    (size_t) 0, NULL);
+	    0, NULL);
     OCIHandleAlloc( (dvoid *) pidata->ociEnvHp, (dvoid **) &cdata->ociSvcHp, OCI_HTYPE_SVCCTX,
-	    (size_t) 0, NULL);
+	    0, NULL);
 
 
     /* Configure the connection */
 
-    if (ConfigureConnection(pidata, cdata, interp, objc, objv, skip) != TCL_OK) {
+    if (ConfigureConnection(cdata, interp, objc, objv, skip) != TCL_OK) {
 	skip = TCL_ERROR;
 	//TODO: o co tu chodzilo?
 	return skip;
@@ -1007,6 +1000,216 @@ CloneCmd(
 /*
  *-----------------------------------------------------------------------------
  *
+ * ConnectionColumnsMethod --
+ *
+ *	Method that asks for the names of columns in a table
+ *	in the database (optionally matching a given pattern)
+ *
+ * Usage:
+ * 	$connection columns table ?pattern?
+ * 
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns the list of tables
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionColumnsMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    PerInterpData* pidata = cdata->pidata;
+				/* Per-interpreter data */
+    Tcl_Obj** literals = pidata->literals;
+				/* Literal pool */
+    char* patternStr;		/* Pattern to match table names */
+    Tcl_Obj* retval;		/* List of table names */
+    Tcl_Obj* name;		/* Name of a column */
+    Tcl_Obj* attrs;		/* Attributes of the column */
+    Tcl_HashEntry* entry;	/* Hash entry for data type */
+    OCIDescribe *ociDscHp = NULL;
+				/* OCI describe handle */
+    OCIParam *ociTParmH;        /* Table parameter handle */
+    OCIParam *ociColLstH;	/* Column list parameter handle */
+    OCIParam *ociColH;		/* Column handle */
+    ub2 numCols;		/* Number of columns */
+    sword status;		/* Status returned by OCI calls */
+    int i;
+
+    /* Check parameters */
+
+    if (objc == 3) {
+	patternStr = NULL;
+    } else if (objc == 4) {
+	int escape = 0; 
+	patternStr = ckalloc(strlen(Tcl_GetString(objv[3])));
+	strcpy(patternStr, Tcl_GetString(objv[3]));
+
+	/* We must change SLQ wildcards to TCL ones, 
+	 * as pattern matching will be done by Tcl_StringCaseMatch*/
+
+	for (i=0; i<strlen(patternStr); i++) {
+	    if (escape == 0) {
+		if (patternStr[i] == '\\') {
+		    escape = 1; 
+		} else {
+		    switch (patternStr[i]) {
+			case '%':
+			    patternStr[i] = '*';
+			    break;
+			case '_':
+			    patternStr[i] = '?';
+			    break;
+		    }
+		}
+	    } else {
+		escape = 0; 
+	    }
+	}
+    } else {
+	Tcl_WrongNumArgs(interp, 2, objv, "table ?pattern?");
+	return TCL_ERROR;
+    }
+
+    OCIHandleAlloc(pidata->ociEnvHp, (dvoid **)&ociDscHp,
+	        OCI_HTYPE_DESCRIBE, 0, NULL);
+
+    status = OCIDescribeAny(cdata->ociSvcHp, cdata->ociErrHp, 
+	    Tcl_GetString(objv[2]), strlen(Tcl_GetString(objv[2])), 
+	    OCI_OTYPE_NAME, OCI_DEFAULT, OCI_PTYPE_TABLE, ociDscHp);
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freeDesc;
+    }
+    status = OCIAttrGet(ociDscHp, OCI_HTYPE_DESCRIBE, &ociTParmH, 0, 
+	    OCI_ATTR_PARAM, cdata->ociErrHp);
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freeDesc;;
+    }
+    status = OCIAttrGet(ociTParmH, OCI_DTYPE_PARAM, &numCols, 0, 
+	    OCI_ATTR_NUM_COLS, cdata->ociErrHp); 
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freeTParmH;
+    }
+    OCIAttrGet(ociTParmH, OCI_DTYPE_PARAM, &ociColLstH, 0, 
+	    OCI_ATTR_LIST_COLUMNS, cdata->ociErrHp);
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freeColLstH;
+    }
+    retval = Tcl_NewObj();
+    Tcl_IncrRefCount(retval);
+    for (i = 0; i < numCols; ++i) {
+	char* nameStr, * nameStrLower; 
+	ub4 nameStrLen; 
+	ub2 dataType;
+	ub1 precision;
+	ub2 charSize;
+	ub1 nullable;
+	sb1 scale;
+	attrs = Tcl_NewObj();
+	status = OCIParamGet(ociColLstH, OCI_DTYPE_PARAM,
+		cdata->ociErrHp, (dvoid**) &ociColH, i + 1);
+	if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	    goto freeColLstH;
+	}
+
+	status = OCIAttrGet(ociColH, OCI_DTYPE_PARAM, &nameStr, &nameStrLen,
+		OCI_ATTR_NAME, cdata->ociErrHp); 
+	if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	    OCIDescriptorFree(ociColH, OCI_DTYPE_PARAM);
+	    goto freeColLstH;
+	}
+	nameStrLower = ckalloc(nameStrLen);
+	strcpy(nameStrLower, nameStr);
+	nameStrLower[nameStrLen] = '\0';
+	Tcl_UtfToLower(nameStrLower);
+	name = Tcl_NewStringObj(nameStrLower, -1);
+	ckfree(nameStrLower);
+	if (patternStr != NULL) {
+	    if (Tcl_StringCaseMatch(Tcl_GetString(name), patternStr, TCL_MATCH_NOCASE) == 0) {
+		OCIDescriptorFree(ociColH, OCI_DTYPE_PARAM);
+		continue;
+	    }
+	}
+
+	Tcl_DictObjPut(NULL, attrs, literals[LIT_NAME], name);
+
+	OCIAttrGet(ociColH, OCI_DTYPE_PARAM, &dataType, 0, 
+		OCI_ATTR_DATA_TYPE, cdata->ociErrHp);
+	entry = Tcl_FindHashEntry(&(pidata->typeNumHash),
+				  (char*) (int)dataType);
+	if (entry != NULL) {
+	    Tcl_DictObjPut(NULL, attrs, literals[LIT_TYPE],
+			   (Tcl_Obj*) Tcl_GetHashValue(entry));
+	} else { 
+	    //toDO: delete it 
+	    printf("new datatype %d\n", (int)dataType);
+	}
+	OCIAttrGet(ociColH, OCI_DTYPE_PARAM, &precision, 0, 
+		OCI_ATTR_PRECISION, cdata->ociErrHp);
+	if (precision != 0) {
+	    Tcl_DictObjPut(NULL, attrs, literals[LIT_PRECISION],
+		    Tcl_NewIntObj(precision));
+	} else {
+	    OCIAttrGet(ociColH, OCI_DTYPE_PARAM, &charSize, 0,
+		    OCI_ATTR_CHAR_SIZE, cdata->ociErrHp);
+	    Tcl_DictObjPut(NULL, attrs, literals[LIT_PRECISION],
+		    Tcl_NewIntObj(charSize));
+	}
+
+	OCIAttrGet(ociColH, OCI_DTYPE_PARAM, &scale, 0, 
+		OCI_ATTR_SCALE, cdata->ociErrHp);
+	if (scale != -127) {
+	    Tcl_DictObjPut(NULL, attrs, literals[LIT_SCALE],
+		     Tcl_NewIntObj(scale));
+	}
+    
+	OCIAttrGet(ociColH, OCI_DTYPE_PARAM, &nullable, 0, 
+		OCI_ATTR_IS_NULL, cdata->ociErrHp);
+	Tcl_DictObjPut(NULL, attrs, literals[LIT_NULLABLE],
+		       Tcl_NewIntObj(nullable != 0));
+	Tcl_DictObjPut(NULL, retval, name, attrs);
+
+	OCIDescriptorFree(ociColH, OCI_DTYPE_PARAM);
+    }
+    Tcl_SetObjResult(interp, retval);
+    Tcl_DecrRefCount(retval);
+
+    OCIDescriptorFree(ociColLstH, OCI_DTYPE_PARAM);
+    OCIDescriptorFree(ociTParmH, OCI_DTYPE_PARAM);
+    if (patternStr != NULL) {
+	ckfree(patternStr);
+    }
+    return TCL_OK;
+  
+freeColLstH:
+    OCIDescriptorFree(ociColLstH, OCI_DTYPE_PARAM);
+freeTParmH:
+    OCIDescriptorFree(ociTParmH, OCI_DTYPE_PARAM);
+freeDesc:
+    OCIHandleFree(ociDscHp, OCI_HTYPE_DESCRIBE);
+    if (patternStr != NULL) {
+	ckfree(patternStr);
+    }
+    
+    return TCL_ERROR;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * ConnectionCommitMethod --
  *
  *	Method that requests that a pending transaction against a database
@@ -1065,6 +1268,57 @@ ConnectionCommitMethod(
     }
     return TCL_OK;
 }
+
+/*-----------------------------------------------------------------------------
+ *
+ * ConnectionConfigureMethod --
+ *
+ *	Change configuration parameters on an open connection.
+ *
+ * Usage:
+ *	$connection configure ?-keyword? ?value? ?-keyword value ...?
+ *
+ * Parameters:
+ *	Keyword-value pairs (or a single keyword, or an empty set)
+ *	of configuration options.
+ *
+ * Options:
+ *	The following options are supported;
+ *	    -database
+ *		Name of the database to use by default in queries
+ *	    -encoding
+ *		Character encoding to use with the server. (Must be utf-8)
+ *	    -isolation
+ *		Transaction isolation level.
+ *	    -readonly
+ *		Read-only flag (must be a false Boolean value)
+ *	    -timeout
+ *		Timeout value (both wait_timeout and interactive_timeout)
+ *
+ *	Other options supported by the constructor are here in read-only
+ *	mode; any attempt to change them will result in an error.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int ConnectionConfigureMethod(
+     ClientData clientData, 
+     Tcl_Interp* interp,
+     Tcl_ObjectContext objectContext,
+     int objc, 
+     Tcl_Obj *const objv[]
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    int skip = Tcl_ObjectContextSkippedArgs(objectContext);
+				/* Number of arguments to skip */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    return ConfigureConnection(cdata, interp, objc, objv, skip);
+}
+
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1831,6 +2085,95 @@ StatementParamtypeMethod(
     return TCL_ERROR;
 }
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StatementParamsMethod --
+ *
+ *	Lists the parameters in a Oracle statement.
+ *
+ * Usage:
+ *	$statement params
+ *
+ * Results:
+ *	Returns a standard Tcl result containing a dictionary. The keys
+ *	of the dictionary are parameter names, and the values are parameter
+ *	types, themselves expressed as dictionaries containing the keys,
+ *	'name', 'direction', 'type', 'precision', 'scale' and 'nullable'.
+ *
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StatementParamsMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    StatementData* sdata	/* The current statement */
+	= (StatementData*) Tcl_ObjectGetMetadata(thisObject,
+						 &statementDataType);
+    ConnectionData* cdata = sdata->cdata;
+    PerInterpData* pidata = cdata->pidata; /* Per-interp data */
+    Tcl_Obj** literals = pidata->literals; /* Literal pool */
+    int nParams;		/* Number of parameters to the statement */
+    Tcl_Obj* paramName;		/* Name of a parameter */
+    Tcl_Obj* paramDesc;		/* Description of one parameter */
+    Tcl_Obj* dataTypeName;	/* Name of a parameter's data type */
+    Tcl_Obj* retVal;		/* Return value from this command */
+    Tcl_HashEntry* typeHashEntry;
+    int i;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+
+    retVal = Tcl_NewObj();
+    Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
+    for (i = 0; i < nParams; ++i) {
+	paramDesc = Tcl_NewObj();
+	Tcl_ListObjIndex(NULL, sdata->subVars, i, &paramName);
+	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_NAME], paramName);
+	switch (sdata->params[i].flags & (PARAM_IN | PARAM_OUT)) {
+	case PARAM_IN:
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_DIRECTION], 
+			   literals[LIT_IN]);
+	    break;
+	case PARAM_OUT:
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_DIRECTION], 
+			   literals[LIT_OUT]);
+	    break;
+	case PARAM_IN | PARAM_OUT:
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_DIRECTION], 
+			   literals[LIT_INOUT]);
+	    break;
+	default:
+	    break;
+	}
+	typeHashEntry =
+	    Tcl_FindHashEntry(&(pidata->typeNumHash),
+			      (const char*) (sdata->params[i].dataType));
+	if (typeHashEntry != NULL) {
+	    dataTypeName = (Tcl_Obj*) Tcl_GetHashValue(typeHashEntry);
+	    Tcl_DictObjPut(NULL, paramDesc, literals[LIT_TYPE], dataTypeName);
+	}
+	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_PRECISION],
+		       Tcl_NewIntObj(sdata->params[i].precision));
+	Tcl_DictObjPut(NULL, paramDesc, literals[LIT_SCALE],
+		       Tcl_NewIntObj(sdata->params[i].scale));
+	Tcl_DictObjPut(NULL, retVal, paramName, paramDesc);
+    }
+	
+    Tcl_SetObjResult(interp, retVal);
+    return TCL_OK;
+}
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2689,9 +3032,9 @@ Tdbcoracle_Init(
     Tcl_DecrRefCount(nameObj);
 
     /*
-     * Initialize the Oracle library if this is the first interp using it
+     * Initialize the Oracle library
      */
-    OCIInitialize(OCI_DEFAULT, NULL, NULL, NULL, NULL);
+    OCIInitialize(OCI_OBJECT, NULL, NULL, NULL, NULL);
     
     (void) OCIEnvInit(&pidata->ociEnvHp, OCI_DEFAULT, 0, NULL);
 

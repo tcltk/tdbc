@@ -6,6 +6,12 @@ readonly for now, but needs some improval or renaming.
 
 -check if QueryConnectionOption for isolations doesn't need ToLower ot ToUpper.
 
+-check if connection columns return valid fields.
+
+-use hashmap for types
+
+-write actual comment intro for ConnectionConfigureMethod
+
 -----
 
 Not to forget:

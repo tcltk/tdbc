@@ -42,51 +42,6 @@ test tdbc::oracle-1.8 {create a connection, bad port} {*}{
 
 ############################################
 
-
-
-
-
-test tdbc::oracle-16.2 {database tables - empty set} {
-    -body {
-	::db tables q%
-    }
-    -result {}
-}
-
-test tdbc::oracle-16.3 {enumerate database tables} {*}{
-    -body {
-	set dict [::db tables]
-	list [dict exists $dict people] [dict exists $dict property]
-    } 
-    -result {1 0}
-}
-
-test tdbc::oracle-16.4 {enumerate database tables} {*}{
-    -body {
-	set dict [::db tables p%]
-	list [dict exists $dict people] [dict exists $dict property]
-    } 
-    -result {1 0}
-}
-
-test tdbc::oracle-17.1 {database columns - wrong # args} {*}{
-    -body {
-	set dict [::db columns people % rubbish]
-    }
-    -returnCodes error
-    -match glob
-    -result {wrong # args*}
-}
-
-test tdbc::oracle-17.2 {database columns - no such table} {*}{
-    -body {
-	::db columns rubbish
-    }
-    -returnCodes error
-    -match glob
-    -result {Table * doesn't exist}
-}
-
 test tdbc::oracle-17.3 {database columns - no match pattern} {*}{
     -body {
 	set result {}
