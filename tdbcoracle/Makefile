@@ -165,7 +165,7 @@ CLEANFILES	=  pkgIndex.tcl
 CPPFLAGS	= 
 LIBS		=  -L/usr/local/lib/tdbc1.0b12 -ltdbcstub1.0b12 -L/usr/lib/oracle/xe/app/oracle/product/10.2.0/server/lib -lclntsh 
 AR		= ar
-CFLAGS		= -g -pipe ${CFLAGS_DEFAULT} ${CFLAGS_WARNING} ${SHLIB_CFLAGS} 
+CFLAGS		=  -pipe ${CFLAGS_DEFAULT} ${CFLAGS_WARNING} ${SHLIB_CFLAGS} 
 COMPILE		= $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 
 #========================================================================

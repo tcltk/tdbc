@@ -6,12 +6,11 @@
  *
  *	Bridge between TDBC (Tcl DataBase Connectivity) and ORACLE.
  *
- * Copyright (c) 2008, 2009 by Kevin B. Kenny.
+ * Copyright (c) 2009 Slawomir Cygan
  *
  * Please refer to the file, 'license.terms' for the conditions on
  * redistribution of this file and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * $Id: $
  *
  *-----------------------------------------------------------------------------
  */

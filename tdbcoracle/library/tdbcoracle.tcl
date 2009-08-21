@@ -2,11 +2,10 @@
 #
 #	Class definitions and Tcl-level methods for the tdbc::oracle bridge.
 #
-# Copyright (c) 2008 by Kevin B. Kenny
+# Copyright (c) 2009 by Slawomir Cygan
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tdbcoracle.tcl,v 1.47 2008/02/27 02:08:27 kennykb Exp $
 #
 #------------------------------------------------------------------------------
 
