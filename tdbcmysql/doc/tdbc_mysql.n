@@ -60,7 +60,7 @@ package require \fBtdbc::mysql 1.0\fR
 .sp
 \fBtdbc::mysql::connection create\fR \fIdb\fR ?\fI-option value...\fR?
 .br
-\fBtdbc::mysql::connction new\fR ?\fI-option value...\fR?
+\fBtdbc::mysql::connection new\fR ?\fI-option value...\fR?
 .sp
 \fBtdbc::mysql::datasources\fR ?\fB-system\fR|\fB-user\fR?
 .sp
