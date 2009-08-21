@@ -294,6 +294,7 @@ typedef struct ResultSetData {
     } while(0)
 
 
+/* Tables of isolation levels: Tcl, SQL, and MySQL 'tx_isolation' */
 
 static const char* TclIsolationLevels[] = {
     "readuncommitted",

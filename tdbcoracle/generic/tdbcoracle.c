@@ -115,6 +115,10 @@ typedef struct ConnectionData {
     int refCount;		/* Reference count. */
     PerInterpData* pidata;	/* Per-interpreter data */
     int flags;
+    int isolation;		/* Current isolation level */
+    int readOnly;		/* Read only connection indicator */
+    const char * ociDbLink;	/* OCI Database Link */ 
+    const char * ociPassword;	/* OCI Database Password */ 
     OCIError*	ociErrHp;	/* OCI Error handle */
     OCIServer*	ociSrvHp;	/* OCI Server handle */
     OCISvcCtx*	ociSvcHp;	/* OCI Service handle */
@@ -237,6 +241,8 @@ typedef struct ResultSetData {
 
 enum OptType {
     TYPE_STRING,		/* Arbitrary character string */
+    TYPE_ISOLATION,		/* Transaction isolation level */
+    TYPE_READONLY,		/* Read-only indicator */
 };
 
 /* Locations of the string options in the string array */
@@ -249,7 +255,6 @@ enum OptStringIndex {
 
 #define CONN_OPT_FLAG_MOD 0x1	/* Configuration value changable at runtime */
 #define CONN_OPT_FLAG_ALIAS 0x2	/* Configuration option is an alias */
-
  /* Table of configuration options */
 
 static const struct {
@@ -263,13 +268,40 @@ static const struct {
     { "-db",	    TYPE_STRING,    INDX_DBLINK,    CONN_OPT_FLAG_ALIAS,    NULL},
     { "-user",	    TYPE_STRING,    INDX_USER,	    0,			    NULL},
     { "-passwd",    TYPE_STRING,    INDX_PASS,	    0,			    NULL},
+    { "-isolation", TYPE_ISOLATION, 0,		    CONN_OPT_FLAG_MOD,	NULL},
+    { "-readonly",  TYPE_READONLY,  0,		    CONN_OPT_FLAG_MOD,	NULL},
     { NULL,	    0,		    0,		    0,			    NULL}
 };
 
+/* Tables of isolation levels: Tcl, SQL, and MySQL 'tx_isolation' */
+
+static const char* TclIsolationLevels[] = {
+    "readcommitted",
+    "serializable",
+    NULL
+};
+
+static const char* SqlIsolationLevels[] = {
+    "SET TRANSACTION ISOLATION LEVEL READ COMMITTED",
+    "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+    NULL
+};
+
+enum IsolationLevel {
+    ISOL_READ_COMMITTED,
+    ISOL_SERIALIZABLE,
+    ISOL_NONE = -1
+};
+
+/* Default isolation level (from doc) */
+
+#define DEFAULT_ISOL_LEVEL ISOL_READ_COMMITTED
+
 /* Declarations of static functions appearing in this file */
 
+static int ExecSimpleQuery(Tcl_Interp* interp, ConnectionData* cdata, const char * query);
+
 static int TransferOracleError(Tcl_Interp* interp, OCIError* ociErrHp,	sword status);
-//static void TransferOracleStmtError(Tcl_Interp* interp, ORACLE_STMT* oraclePtr);
 
 static Tcl_Obj* QueryConnectionOption(ConnectionData* cdata, Tcl_Interp* interp,
 				      int optionNum);
@@ -541,6 +573,55 @@ static const char initScript[] =
 /*
  *-----------------------------------------------------------------------------
  *
+ * ExecSimpleQuery --
+ *	Executes given query. 
+ * Results:
+ *	TCL_OK on success or the error was non fatal,
+ *	otherwise TCL_ERROR .
+ *
+ * Side effects:
+ *	Sets the interpreter result and error code appropiately to
+ *	query execution process
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int ExecSimpleQuery(
+	Tcl_Interp* interp,	    /* Tcl interpreter */
+       	ConnectionData* cdata,	    /* Connection data handle */
+       	const char * query	    /* Query to execute */
+) {
+    OCIStmt * ociStmtHp;	/* OCI statement handle */
+    sword status;		/* Status returned from OCI calls */
+
+    OCIHandleAlloc(cdata->pidata->ociEnvHp,
+	    (dvoid **) &ociStmtHp, OCI_HTYPE_STMT, 0, NULL);
+
+    status = OCIStmtPrepare(ociStmtHp, cdata->ociErrHp, (text*) query, 
+		strlen(query), OCI_NTV_SYNTAX, OCI_DEFAULT);
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freeHandle;
+    }
+
+    status = OCIStmtExecute(cdata->ociSvcHp, ociStmtHp,
+	    cdata->ociErrHp, 1, 0, NULL, NULL, OCI_DEFAULT);
+    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+	goto freeHandle;
+    }
+
+    OCIHandleFree((dvoid *) ociStmtHp, OCI_HTYPE_STMT);
+    return TCL_OK;
+
+freeHandle:
+    OCIHandleFree((dvoid *) ociStmtHp, OCI_HTYPE_STMT);
+    return TCL_ERROR;
+}
+
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * TransferOracleError --
  *
  *	Check if there is any error decribed by oci error handle. 
@@ -645,7 +726,54 @@ QueryConnectionOption (
     Tcl_Interp* interp,		/* Tcl interpreter */
     int optionNum		/* Position of the option in the table */
 ) {
-    return NULL;
+    PerInterpData* pidata = cdata->pidata;
+				/* Per-interpreter data */
+    Tcl_Obj** literals = pidata->literals;
+				/* Literal pool */
+    char * str;			/* String containing attribute */
+    ub4 strLen;			/* String length */
+    Tcl_Obj* retval = NULL;	/* Return value */
+    
+    if (ConnOptions[optionNum].type == TYPE_STRING) {
+	switch(ConnOptions[optionNum].info) {
+	    case INDX_USER:
+	       OCIAttrGet((dvoid *) cdata->ociAutHp, OCI_HTYPE_SESSION,
+		       &str, &strLen, OCI_ATTR_USERNAME,
+		       cdata->ociErrHp);
+	       retval = Tcl_NewStringObj(str, strLen);
+		break;
+	    case INDX_PASS:
+		if (cdata->ociPassword != NULL) {
+    		    retval = Tcl_NewStringObj(cdata->ociPassword, -1);
+		} else {
+		    retval = literals[LIT_EMPTY];
+		}
+
+		break;
+	    case INDX_DBLINK:
+		if (cdata->ociDbLink != NULL) {
+    		    retval = Tcl_NewStringObj(cdata->ociDbLink, -1);
+		} else {
+		    retval = literals[LIT_EMPTY];
+		}
+		break;
+	}
+    }
+
+    if (ConnOptions[optionNum].type == TYPE_ISOLATION) {
+	return Tcl_NewStringObj(
+		TclIsolationLevels[cdata->isolation], -1);
+    }
+
+    if (ConnOptions[optionNum].type == TYPE_READONLY) {
+	if (cdata->readOnly == 0) {
+	    return literals[LIT_0];
+	} else {
+	    return literals[LIT_1];
+	}
+    }
+
+    return retval;
 }
 
 
@@ -679,6 +807,8 @@ ConfigureConnection(
     const char* stringOpts[INDX_MAX];
 				/* String-valued options */
     int optionIndex;		/* Index of the current option in ConnOptions */
+    int isolation = ISOL_NONE;	/* Isolation level */
+    int readOnly = -1;		/* Read only indicator */
     sword status;		/* Result returned by OCI functions */
     int i;
     Tcl_Obj* retval;
@@ -760,6 +890,19 @@ ConfigureConnection(
 	    stringOpts[ConnOptions[optionIndex].info] =
 		Tcl_GetString(objv[i+1]);
 	    break;
+	case TYPE_ISOLATION:
+	    if (Tcl_GetIndexFromObj(interp, objv[i+1], TclIsolationLevels,
+				    "isolation level", TCL_EXACT, &isolation)
+		!= TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    break;
+	case TYPE_READONLY:
+	    if (Tcl_GetBooleanFromObj(interp, objv[i+1], &readOnly)
+		!= TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    break;
 	}
     }
 	
@@ -768,6 +911,7 @@ ConfigureConnection(
 	/* Configuring a new connection.*/
 
 	if (stringOpts[INDX_DBLINK] != NULL ) {
+	    cdata->ociDbLink = stringOpts[INDX_DBLINK];
 	    status = OCIServerAttach(cdata->ociSrvHp, cdata->ociErrHp, 
 		    (text *) stringOpts[INDX_DBLINK],
 		    strlen(stringOpts[INDX_DBLINK]), 0);
@@ -784,7 +928,7 @@ ConfigureConnection(
 	OCIHandleAlloc(cdata->pidata->ociEnvHp, (dvoid**) &cdata->ociAutHp,
 		OCI_HTYPE_SESSION, 0, NULL);
 	
-	/* Set login data */
+	/* Set login and other parameters */	
 
 	if (stringOpts[INDX_USER] != NULL ) {
 	    OCIAttrSet((dvoid *) cdata->ociAutHp, OCI_HTYPE_SESSION,
@@ -793,6 +937,7 @@ ConfigureConnection(
 	}
 
 	if (stringOpts[INDX_PASS] != NULL ) {
+	    cdata->ociPassword = stringOpts[INDX_PASS];
 	    OCIAttrSet(cdata->ociAutHp, OCI_HTYPE_SESSION,
 		    (void *) stringOpts[INDX_PASS], strlen(stringOpts[INDX_PASS]),
 		    OCI_ATTR_PASSWORD, cdata->ociErrHp);
@@ -817,7 +962,64 @@ ConfigureConnection(
 
     }
 
-    /* Setting of mutable presets */
+    /* Transaction isolation level */
+
+    if (isolation != ISOL_NONE) {
+
+	/* Oracle requires "SET TRANSACTION" to be first query in transaction.
+	 * So, if this driver is not in explicit transaction, we tell oracle
+	 * to do an empty commit, just to start a new transaction, so no error
+	 * will be raised. 
+	 * Otherwise, if in explicit transaction, we let Oracle to decide, if
+	 * this is the right moment to do "SET TRANSACTION" */
+    
+	if (!(cdata->flags & CONN_FLAG_IN_XCN)) {
+	    status = OCITransCommit(cdata->ociSvcHp, cdata->ociErrHp, OCI_DEFAULT); 
+	    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	}
+
+	if (ExecSimpleQuery(interp, cdata,
+		    SqlIsolationLevels[isolation]) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	cdata->isolation = isolation;
+    }
+
+    /* Readonly indicator */
+
+    if (readOnly != -1) {
+	
+	/* Oracle requires "SET TRANSACTION" to be first query in transaction.
+	 * So, if this driver is not in explicit transaction, we tell oracle
+	 * to do an empty commit, just to start a new transaction, so no error
+	 * will be raised. 
+	 * Otherwise, if in explicit transaction, we let Oracle to decide, if
+	 * this is the right moment to do "SET TRANSACTION" */
+
+        if (!(cdata->flags & CONN_FLAG_IN_XCN)) {
+	    status = OCITransCommit(cdata->ociSvcHp, cdata->ociErrHp, OCI_DEFAULT); 
+	    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	}
+
+	if (readOnly == 0) {
+	    if (ExecSimpleQuery(interp, cdata, 
+			"SET TRANSACTION READ WRITE") != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	} else {
+	    if (ExecSimpleQuery(interp, cdata, 
+			"SET TRANSACTION READ ONLY") != TCL_OK) {
+		return TCL_ERROR;
+	    }
+
+	}
+	cdata->readOnly = readOnly; 
+    }
+
 
     return TCL_OK;
 }
@@ -864,6 +1066,10 @@ ConnectionConstructor(
     cdata->pidata = pidata;
     cdata->flags = 0;
     cdata->ociAutHp = NULL; 
+    cdata->ociDbLink = NULL;
+    cdata->ociPassword = NULL;
+    cdata->readOnly = 0; 
+    cdata->isolation = DEFAULT_ISOL_LEVEL;
     IncrPerInterpRefCount(pidata);
     Tcl_ObjectSetMetadata(thisObject, &connectionDataType, (ClientData) cdata);
    
@@ -1453,20 +1659,20 @@ ConnectionTablesMethod(
     status = OCIStmtPrepare(ociStmtHp, cdata->ociErrHp, (text*) sqlQuery, 
 		strlen(sqlQuery), OCI_NTV_SYNTAX, OCI_DEFAULT);
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
-	goto freePat;
+	goto freeStmt;
     }
 
     status = OCIBindByPos(ociStmtHp, &ociBind, cdata->ociErrHp,
 	    1, patternStr, strlen(patternStr) + 1, SQLT_STR, NULL, NULL,
 	    NULL, 0 , NULL, OCI_DEFAULT);
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
-	goto freePat;
+	goto freeStmt;
     }
   
     status = OCIStmtExecute(cdata->ociSvcHp, ociStmtHp,
 	    cdata->ociErrHp, 0, 0, NULL, NULL, OCI_DEFAULT);
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
-	goto freePat;
+	goto freeStmt;
     }
 
     OCIParamGet(ociStmtHp, OCI_HTYPE_STMT, 
@@ -1476,7 +1682,7 @@ ConnectionTablesMethod(
     
     OCIDescriptorFree(ociParamH, OCI_DTYPE_PARAM); 
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
-	goto freePat;
+	goto freeStmt;
     }
 
     tableName = ckalloc(colSize);
@@ -1485,7 +1691,7 @@ ConnectionTablesMethod(
 	    cdata->ociErrHp, 1, tableName, colSize, SQLT_STR, NULL,
 	    &tableNameLen, NULL, OCI_DEFAULT);
     if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
-	goto freePat;
+	goto freeStmt;
     }
     retval = Tcl_NewObj();
     Tcl_IncrRefCount(retval);
@@ -1497,7 +1703,7 @@ ConnectionTablesMethod(
 	    break;
 	} else {
 	    if (TransferOracleError(interp, cdata->ociErrHp, status) != TCL_OK) {
-		goto freeStmt;
+		goto freeRet;
 	    }
 	}
 	tableNameLower = ckalloc(tableNameLen);
@@ -1517,11 +1723,11 @@ ConnectionTablesMethod(
     ckfree(patternStr);
     return TCL_OK;
 
-freeStmt:
-    OCIHandleFree((dvoid *) ociStmtHp, OCI_HTYPE_STMT);
+freeRet:
     ckfree(tableName);
     Tcl_DecrRefCount(retval);
-freePat:
+freeStmt:
+    OCIHandleFree((dvoid *) ociStmtHp, OCI_HTYPE_STMT);
     ckfree(patternStr);
     return TCL_ERROR;
 }

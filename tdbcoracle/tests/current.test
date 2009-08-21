@@ -2760,18 +2760,25 @@ test tdbc::oracle-18.3 {$statement params - try a few data types} {*}{
     }
     -result {in decimal 10 0 in varchar 40}
 }
-
+#test tdbc::oracle-19.1 {$connection configure - no args} \
+#    -body {
+#	::db configure
+#    } \
+#    -match glob \
+#    -result [list \
+#		 -compress * -database * -encoding utf-8 \
+#		 -host * -interactive * -isolation repeatableread \
+#		 -password {} -port * -readonly 0 -socket * \
+#		 -ssl_ca * -ssl_capath * -ssl_cert * -ssl_cipher * \
+#		 -ssl_key * -timeout * -user *]
 test tdbc::oracle-19.1 {$connection configure - no args} \
     -body {
 	::db configure
     } \
     -match glob \
     -result [list \
-		 -compress * -database * -encoding utf-8 \
-		 -host * -interactive * -isolation repeatableread \
-		 -password {} -port * -readonly 0 -socket * \
-		 -ssl_ca * -ssl_capath * -ssl_cert * -ssl_cipher * \
-		 -ssl_key * -timeout * -user *]
+	-dblink * -user * -passwd *]
+
 
 test tdbc::oracle-19.2 {$connection configure - unknown arg} {*}{
     -body {
@@ -2790,4 +2797,97 @@ test tdbc::oracle-19.3 {$connection configure - unknown arg} {*}{
     -result {1 {bad option "-rubbish": must be *} {TCL LOOKUP INDEX option -rubbish}}
 }
 
+test tdbc::oracle-19.4 {$connection configure - set unknown arg} {*}{
+    -body {
+	list [catch {::db configure -rubbish rubbish} result] \
+	    $result $::errorCode
+    }
+    -match glob
+    -result {1 {bad option "-rubbish": must be *} {TCL LOOKUP INDEX option -rubbish}}
+}
 
+test tdbc::oracle-19.5 {$connection configure - set inappropriate arg} {*}{
+    -body {
+	list [catch {::db configure -dblink rubbish} result] \
+	    $result $::errorCode
+    }
+    -result {1 {"-dblink" option cannot be changed dynamically} {TDBC GENERAL_ERROR HY000 ORACLE -1}}
+}
+
+test tdbc::oracle-19.6 {$connection configure - wrong # args} {*}{
+    -body {
+	::db configure -parent . -junk
+    }
+    -returnCodes error
+    -match glob
+    -result "wrong # args*"
+}
+
+test tdbc::oracle-19.10 {$connection configure - -isolation} {*}{
+    -body {
+	::db configure -isolation junk
+    }
+    -returnCodes error
+    -match glob
+    -result {bad isolation level "junk"*}
+}
+
+test tdbc::oracle-19.11 {$connection configure - -isolation} {*}{
+    -body {
+	list [::db configure -isolation readcommitted] \
+	    [::db configure -isolation] \
+	    [::db configure -isolation serializable] \
+	    [::db configure -isolation]
+    }
+    -result {{} readcommitted {} serializable}
+}
+
+test tdbc::postgres-19.12 {$connection configure - -readonly set inappropriate arg } {*}{
+    -body {
+	::db configure -readonly junk
+    }
+    -returnCodes error
+    -result {expected boolean value but got "junk"}
+}
+
+test tdbc::postgres-19.13 {$connection configure - -readonly} {*}{
+    -body {
+	list [::db configure -readonly] \
+	    [::db configure -readonly 1] \
+	    [::db configure -readonly] \
+	    [::db configure -readonly 0] \
+	    [::db configure -readonly] 
+    }
+    -result {0 {} 1 {} 0}
+}
+
+test tdbc::oracle-22.1 {duplicate column name} {*}{
+    -body {
+	set stmt [::db prepare {
+	    SELECT a.idnum, b.idnum 
+	    FROM people a, people b
+	    WHERE a.name = 'hud rockstone' 
+	    AND b.info = a.info
+	}]
+	set rs [$stmt execute]
+	$rs columns
+    }
+    -result {idnum idnum#2}
+    -cleanup {
+	$rs close
+	$stmt close
+    }
+}
+
+#-------------------------------------------------------------------------------
+
+# Test cleanup. Get rid of the test database
+
+catch {rename ::db {}}
+
+cleanupTests
+return
+
+# Local Variables:
+# mode: tcl
+# End:
