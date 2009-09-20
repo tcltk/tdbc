@@ -1,3 +1,16 @@
-2009-06-22  Slawomir Cygan  <slawomir.cygan@gmail.com>
+2009-09-19  Kevin B. Kenny  <kennykb@acm.org>
 
-	Initial baseline of a TDBC driver for Postgre.
+	* configure (New file): autoconf 2.59
+		(Added pre-built 'configure' so that TEA users don't
+		need autoconf, m4 and all that stuff pre-installed)
+	* generic/tdbcpostgres.c:   Many changes to upgrade to Tcl Engineering
+	* library/tdbcpostgres.tcl: Manual conventions and correct memory
+        * tests/current.test:       mismanagement.
+	
+2009-09-01  Kevin B. Kenny  <kennykb@acm.org>
+
+	Accepted tdbcpostgres from Slawomir Cygan for inclusion in
+	the standard tdbc driver distribution.
+	
+2009-06-22  Slawomir Cygan  <slawomir.cygan@gmail.com>
+	Initial baseline of a TDBC driver for Postgres.

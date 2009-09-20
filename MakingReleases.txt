@@ -18,6 +18,11 @@ To advance the version number:
     tdbcmysql/configure - Regenerate
     tdbcmysql/ChangeLog
 
+    tdbcpostgres/configure.in - AC_INIT()
+    tdbcpostgres/README
+    tdbcpostgres/configure - Regenerate
+    tdbcpostgres/ChangeLog
+
     tdbcsqlite3/library/tdbcsqlite3.tcl - [package provide]
     tdbcsqlite3/configure.in - AC_INIT()
     tdbcsqlite3/README
@@ -28,6 +33,9 @@ To advance the version number:
     packages inside a virgin Tcl/Tk.  Copy libmysql.dll into the tdbcmysql
     lib directory, and install the sqlite3 package. Run tests against
     the installed version.
+
+    (mysql TEST_DB=test)
+    (postgres TEST_USER=tdbc_test TEST_PASSWD=tdbc_test TEST_DB=tdbc_test)
 
 (3) make dist
 

@@ -3,9 +3,9 @@
 #	Class definitions and Tcl-level methods for the tdbc::postgres bridge.
 #
 # Copyright (c) 2009 by Slawomir Cygan
+#
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-#
 #
 #------------------------------------------------------------------------------
 
@@ -16,12 +16,12 @@ package require tdbc
     namespace export connection datasources drivers
 
 }
-
+
 #------------------------------------------------------------------------------
 #
 # tdbc::postgres::connection --
 #
-#	Class representing a connection to a database through MYSQL.
+#	Class representing a connection to a Postgres database.
 #
 #-------------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@ package require tdbc
     superclass ::tdbc::connection
 
     # The constructor is written in C. It takes alternating keywords
-    # and values pairs as its argumenta.  (See the manual page for the
+    # and values pairs as its arguments.  (See the manual page for the
     # available options.)
 
     # The 'statementCreate' method delegates to the constructor of the
@@ -57,13 +57,13 @@ package require tdbc
     #  and 'columns' methods are implemented in C.
 
 }
-
+
 #------------------------------------------------------------------------------
 #
 # tdbc::postgres::statement --
 #
 #	The class 'tdbc::postgres::statement' models one statement against a
-#       database accessed through an MYSQL connection
+#       database accessed through a Postgres connection
 #
 #------------------------------------------------------------------------------
 
@@ -90,13 +90,13 @@ package require tdbc
     #   Declares the type of a parameter in the statement
 
 }
-
+
 #------------------------------------------------------------------------------
 #
 # tdbc::postgres::resultset --
 #
 #	The class 'tdbc::postgres::resultset' models the result set that is
-#	produced by executing a statement against an MYSQL database.
+#	produced by executing a statement against a Postgres database.
 #
 #------------------------------------------------------------------------------
 

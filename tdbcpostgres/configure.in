@@ -18,7 +18,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([tdbcpostgres], [1.0b12])
+AC_INIT([tdbcpostgres], [1.0b13])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -229,6 +229,10 @@ AC_CHECK_LIB(pq, PQconnectdb, [
 
 LDFLAGS="${TDBCPOSTGRES_SAVED_LDFLAGS}"
 TEA_ADD_LIBS([${POSTGRES_LIB_SPEC}])
+
+AC_CHECK_LIB(ws2_32,main,TEA_ADD_LIBS([-lws2_32]),[
+    AC_CHECK_LIB(winsock,main,TEA_ADD_LIBS([-lwinsock]))
+])
 
 #--------------------------------------------------------------------
 # This macro generates a line to use when building a library.  It

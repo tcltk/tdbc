@@ -1,6 +1,6 @@
 README: tdbcmysql
 
-    This is the 1.0b12 source distribution of the driver for Tcl
+    This is the 1.0b13 source distribution of the driver for Tcl
     Database Connectivity (TDBC) to access MySQL databases.. TDBC and
     its drivers are available from a Fossil version control repository
     at http://tdbc.tcl.tk/
@@ -62,8 +62,8 @@ load module.
 
 NOTE THAT ON WINDOWS, THE 'libmysql.dll' LIBRARY MUST BE ON THE PATH
 AT RUNTIME.  Probably the easiest way to ensure this happens is to
-put it either in the Windows 'system32' directory or the directory
-containing the tdbcmysqlX.Y.dll.
+put it either in the Windows 'system32' directory or the 'bin'
+directory of your Tcl distribution.
 
 3. Documentation
 

@@ -161,7 +161,6 @@ test tdbc::postgres-2.4 {semicolons in statements} {*}{
     -result {tdbc::postgres does not support semicolons in statements}
 }
 
-
 test tdbc::postgres-3.1 {prepare an invalid statement} {*}{
     -body {
 	set status [catch {
@@ -2652,15 +2651,19 @@ test tdbc::postgres-18.3 {$statement params - try a few data types} {*}{
 }
 
 test tdbc::postgres-19.1 {$connection configure - no args} \
+    -setup {
+	::db configure -encoding UTF8
+    } \
     -body {
 	::db configure
     } \
     -match glob \
     -result [list \
 		 -host * -hostaddr * -port * \
-		 -database * -user * -password {} \
+		 -database * -user * -password * \
 		 -options {} -tty {} -service {} -timeout {} \
-		 -encoding SQL_ASCII -isolation readcommitted \
+		 -sslmode * -requiressl * -krbsrvname * \
+		 -encoding UTF8 -isolation readcommitted \
 		 -readonly 0 ]
 
 test tdbc::postgres-19.2 {$connection configure - unknown arg} {*}{
@@ -2707,10 +2710,13 @@ test tdbc::postgres-19.6 {$connection configure - wrong # args} {*}{
 }
 
 test tdbc::postgres-19.9 {$connection configure - -encoding} {*}{
+    -setup {
+	::db configure -encoding UTF8
+    }
     -body {
 	::db configure -encoding
     }
-    -result SQL_ASCII
+    -result UTF8
 }
 
 
@@ -2812,7 +2818,7 @@ test tdbc::postgres-20.1 {bit values} {*}{
     -body {
 	db allrows {SELECT bitstring FROM bittest}
     }
-    -result {{bitstring 13398}}
+    -result {{bitstring 11010001010110}}
     -cleanup {
 	db allrows {DROP TABLE bittest}
     }
@@ -2821,7 +2827,10 @@ test tdbc::postgres-20.1 {bit values} {*}{
 test tdbc::postgres-20.2 {direct value transfers} {*}{
     -setup {
 	set bigtext [string repeat a 200]
-	set bigbinary [string repeat \xc2\xa1 100]
+	set bigbinary {}
+	for {set i 1} {$i < 256} {incr i} {
+		append bigbinary [format %c $i]
+	}
 	catch {db allrows {DROP TABLE typetest}}
 	db allrows {
 	    CREATE TABLE typetest (
@@ -2881,14 +2890,17 @@ test tdbc::postgres-20.2 {direct value transfers} {*}{
 	set xbig1 0xbc614e
 	set xdate1 2001-02-03
 	set xtime1 04:05:06
-	set xbit1 011010001010110
+	set xbit1 01101000101011
 	set xdec1 0xbc614e
 	set xtext1 $bigtext
 	set xvarb1 $bigbinary
 	set xvarc1 $bigtext
 	set xchar1 [string repeat a 20]
+	puts stderr "starting to populate"
 	$stmt allrows
+	puts stderr "done populating; reading rows"
 	db foreach row {select * from typetest} {
+	    puts stderr "got a row"; flush stderr
 	    foreach v {
 		xsmall1		xint1		xfloat1
 		xdouble1	xtimestamp1	xbig1		
@@ -2909,9 +2921,11 @@ test tdbc::postgres-20.2 {direct value transfers} {*}{
     -result {}
     -cleanup {
 	$stmt close
+	puts stderr "cleaning up typetest"
 	db allrows {
 	    DROP TABLE typetest
 	}
+	puts stderr "done cleaning up"
     }
 }
 

@@ -1,3 +1,9 @@
+2009-09-20  Kevin B. Kenny  <kennykb@acm.org>
+
+	* README:
+	* configure.in:		Advance version number to 1.0b13
+	* configure:		autoconf-2.59
+	
 2009-07-02  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in:		Added testing on SQL Server Express so that
