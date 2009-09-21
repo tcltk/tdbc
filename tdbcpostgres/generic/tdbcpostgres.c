@@ -1812,7 +1812,7 @@ UnallocateStatement(
     Tcl_Obj * sqlQuery = Tcl_NewStringObj("DEALLOCATE ", -1);
     Tcl_IncrRefCount(sqlQuery);
     Tcl_AppendToObj(sqlQuery, stmtName, -1);
-    PQexec(pgPtr, Tcl_GetString(sqlQuery));
+    PQclear(PQexec(pgPtr, Tcl_GetString(sqlQuery)));
     Tcl_DecrRefCount(sqlQuery);
 }
 
@@ -2099,11 +2099,14 @@ StatementConstructor(
     /* Prepare the statement */
 
     res = PrepareStatement(interp, sdata, NULL);
-    if (res == NULL) 
+    if (res == NULL) {
 	goto freeSData;
+    }
     
-    if (TransferResultError(interp, res) != TCL_OK)
+    if (TransferResultError(interp, res) != TCL_OK) {
+	PQclear(res);
 	goto freeSData;
+    }
 
     PQclear(res);
 
@@ -2530,8 +2533,10 @@ ResultSetConstructor(
 	    return TCL_ERROR;
 	}
 	if (TransferResultError(interp, res) != TCL_OK) {
+	    PQclear(res);
 	    return TCL_ERROR;
 	}
+	PQclear(res);
     } else {
 	rdata->stmtName = sdata->stmtName;
 	sdata->flags |= STMT_FLAG_BUSY;
@@ -2550,8 +2555,10 @@ ResultSetConstructor(
 		return TCL_ERROR;
 	    }
 	    if (TransferResultError(interp, res) != TCL_OK) {
+		PQclear(res);
 		return TCL_ERROR;
 	    }
+	    PQclear(res);
 	    sdata->paramTypesChanged = 0; 
 	}
     }
@@ -2671,8 +2678,9 @@ ResultSetConstructor(
 
 	    case BYTEAOID:
 		paramFormats[i] = 1;
-		paramValues[i] = Tcl_GetByteArrayFromObj(paramValObj,
-							 &paramLengths[i]);
+		paramValues[i] =
+		    (char*)Tcl_GetByteArrayFromObj(paramValObj,
+						   &paramLengths[i]);
 		break;
 		
 	    case TIMESTAMPOID:
@@ -2762,7 +2770,7 @@ ResultSetColumnsMethod(
 	return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, sdata->columnNames);
+    Tcl_SetObjResult(interp, (sdata->columnNames));
 
     return TCL_OK;
 }
@@ -2887,7 +2895,7 @@ ResultSetNextrowMethod(
 		Tcl_DecrRefCount(toSubst);
 #endif
 	    } else {
-		colObj = Tcl_NewStringObj((unsigned char*)buffer, buffSize);
+		colObj = Tcl_NewStringObj((char*)buffer, buffSize);
 	    }
 	}
 
@@ -2939,7 +2947,6 @@ static void
 DeleteResultSetMetadata(
     ClientData clientData	/* Instance data for the connection */
 ) {
-
     DecrResultSetRefCount((ResultSetData*)clientData);
 }
 static void

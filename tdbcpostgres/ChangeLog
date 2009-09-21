@@ -5,7 +5,8 @@
 		need autoconf, m4 and all that stuff pre-installed)
 	* generic/tdbcpostgres.c:   Many changes to upgrade to Tcl Engineering
 	* library/tdbcpostgres.tcl: Manual conventions and correct memory
-        * tests/current.test:       mismanagement.
+	* tests/current.test:       mismanagement. Introduced a workaround
+			            for a suspected bug in Tcl_SubstObj.
 	
 2009-09-01  Kevin B. Kenny  <kennykb@acm.org>
 
