@@ -752,8 +752,6 @@ test tdbc::postgres-8.1 {nextrow - as dicts} {*}{
 	set names {}
 	while {[$rs nextrow -- row]} {
 	    if {$idnum != [dict get $row idnum]} {
-		binary scan [dict get $row idnum] c* v; puts $v
-		binary scan [dict get $row name] c* v; puts $v
 		error [list bad idnum [dict get $row idnum] should be $idnum]
 	    }
 	    lappend names [dict get $row name]
@@ -2896,11 +2894,8 @@ test tdbc::postgres-20.2 {direct value transfers} {*}{
 	set xvarb1 $bigbinary
 	set xvarc1 $bigtext
 	set xchar1 [string repeat a 20]
-	puts stderr "starting to populate"
 	$stmt allrows
-	puts stderr "done populating; reading rows"
 	db foreach row {select * from typetest} {
-	    puts stderr "got a row"; flush stderr
 	    foreach v {
 		xsmall1		xint1		xfloat1
 		xdouble1	xtimestamp1	xbig1		
@@ -2921,11 +2916,9 @@ test tdbc::postgres-20.2 {direct value transfers} {*}{
     -result {}
     -cleanup {
 	$stmt close
-	puts stderr "cleaning up typetest"
 	db allrows {
 	    DROP TABLE typetest
 	}
-	puts stderr "done cleaning up"
     }
 }
 

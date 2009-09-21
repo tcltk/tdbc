@@ -1151,6 +1151,7 @@ ConnectionConstructor(
     /* Hang client data on this connection */
 
     cdata = (ConnectionData*) ckalloc(sizeof(ConnectionData));
+    memset(cdata, 0, sizeof(ConnectionData));
     cdata->refCount = 1;
     cdata->pidata = pidata;
     cdata->pgPtr = NULL;
@@ -1833,6 +1834,7 @@ NewStatement(
     ConnectionData* cdata	/* Instance data for the connection */
 ) {
     StatementData* sdata = (StatementData*) ckalloc(sizeof(StatementData));
+    memset(sdata, 0, sizeof(StatementData));
     sdata->refCount = 1;
     sdata->cdata = cdata;
     IncrConnectionRefCount(cdata);
@@ -2084,7 +2086,9 @@ StatementConstructor(
 
     Tcl_ListObjLength(NULL, sdata->subVars, &sdata->nParams);
     sdata->params = (ParamData*) ckalloc(sdata->nParams * sizeof(ParamData));
+    memset(sdata->params, 0, sdata->nParams * sizeof(ParamData));
     sdata->paramDataTypes = (Oid*) ckalloc(sdata->nParams * sizeof(Oid));
+    memset(sdata->paramDataTypes, 0, sdata->nParams * sizeof(Oid));
     for (i = 0; i < sdata->nParams; ++i) {
 	sdata->params[i].flags = PARAM_IN;
 	sdata->paramDataTypes[i] = UNTYPEDOID ;
@@ -2367,7 +2371,6 @@ static void
 DeleteStatement(
     StatementData* sdata	/* Metadata for the statement */
 ) {
-    fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
     if (sdata->columnNames != NULL) {
 	Tcl_DecrRefCount(sdata->columnNames);
     }
@@ -2504,6 +2507,7 @@ ResultSetConstructor(
     cdata = sdata->cdata;
 
     rdata = (ResultSetData*) ckalloc(sizeof(ResultSetData));
+    memset(rdata, 0, sizeof(ResultSetData));
     rdata->refCount = 1;
     rdata->sdata = sdata;
     rdata->stmtName = NULL;
@@ -2705,28 +2709,19 @@ ResultSetConstructor(
 
     /* Clean up allocated memory */
 
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
  freeParamTables:
     for (i = 0; i < sdata->nParams; ++i) {
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
 	if (paramNeedsFreeing[i]) {
 	    ckfree((char*) paramValues[i]);
 	}
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
 	if (paramTempObjs[i] != NULL) {
 	    Tcl_DecrRefCount(paramTempObjs[i]);
 	}
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
     }
 
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
     ckfree((char*)paramValues);
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
     ckfree((char*)paramLengths);
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
     ckfree((char*)paramFormats);
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
-
 
     return status;
     
@@ -2838,8 +2833,6 @@ ResultSetNextrowMethod(
 	return TCL_ERROR;
     }
 
-    fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
-
     /* Check if row counter haven't already rech the last row */
     if (rdata->rowCount >= PQntuples(rdata->execResult)) {
 	Tcl_SetObjResult(interp, literals[LIT_0]);
@@ -2859,21 +2852,40 @@ ResultSetNextrowMethod(
 
     /* Retrieve one column at a time. */
     for (i = 0; i < nColumns; ++i) {
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
-	fprintf(stderr, "    i = %d\n", i); fflush(stderr);
 	colObj = NULL; 
 	if (PQgetisnull(rdata->execResult, rdata->rowCount, i) == 0) { 
 	    buffSize = PQgetlength(rdata->execResult, rdata->rowCount, i); 
 	    buffer = PQgetvalue(rdata->execResult, rdata->rowCount, i);
 
 	    if (PQftype(rdata->execResult, i) == BYTEAOID) {
-		Tcl_Obj* toSubst;
+#ifndef TCL_SUBST_OBJ_FIXED
+		/* 
+		 * This code is a workaround; it appears that in the
+		 * test suite, Tcl_SubstObj runs but returns something
+		 * utterly bogus.
+		 */
+		Tcl_Obj* command;
+		int status2;
 		/* Postgres formats the result with backslash escapes, and
 		 * they need to be substituted away. */
+		command = Tcl_NewObj();
+		Tcl_ListObjAppendElement(NULL, command, Tcl_NewStringObj("::subst", -1));
+		Tcl_ListObjAppendElement(NULL, command, Tcl_NewStringObj("-novariables", -1));
+		Tcl_ListObjAppendElement(NULL, command, Tcl_NewStringObj("-nocommands", -1));
+		Tcl_ListObjAppendElement(NULL, command, Tcl_NewStringObj(buffer, buffSize));
+		Tcl_IncrRefCount(command);
+		status2 = Tcl_EvalObj(interp, command);
+		colObj = Tcl_GetObjResult(interp);
+		Tcl_DecrRefCount(command);
+#else
+		/* This is what I wanted to do, but it returns a malformed
+		 * object. Something about NR callbacks? */
+		Tcl_Obj* toSubst;
 		toSubst = Tcl_NewStringObj(buffer, buffSize);
 		Tcl_IncrRefCount(toSubst);
 		colObj = Tcl_SubstObj(interp, toSubst, TCL_SUBST_BACKSLASHES);
 		Tcl_DecrRefCount(toSubst);
+#endif
 	    } else {
 		colObj = Tcl_NewStringObj((unsigned char*)buffer, buffSize);
 	    }
@@ -2892,8 +2904,6 @@ ResultSetNextrowMethod(
 	}
     }
 
-    fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
-
     /* Advance to the next row */
     rdata->rowCount += 1; 
 
@@ -2903,19 +2913,12 @@ ResultSetNextrowMethod(
 		      resultRow, TCL_LEAVE_ERR_MSG) == NULL) {
 	goto cleanup;
     }
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
 
     Tcl_SetObjResult(interp, literals[LIT_1]);
     status = TCL_OK;
 
 cleanup:
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
-	fprintf(stderr, "result row (refcount=%d) = %s\n",
-		resultRow->refCount, Tcl_GetString(resultRow)); fflush(stderr);
-
     Tcl_DecrRefCount(resultRow);
-	fprintf(stderr, "at %s:%d return from nextrow\n", __FILE__, __LINE__); fflush(stderr);
-	fprintf(stderr, "result = %s\n", Tcl_GetString(Tcl_GetObjResult(interp))); fflush(stderr);
     return status;
 }
 
@@ -2936,7 +2939,6 @@ static void
 DeleteResultSetMetadata(
     ClientData clientData	/* Instance data for the connection */
 ) {
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
 
     DecrResultSetRefCount((ResultSetData*)clientData);
 }
@@ -2946,7 +2948,6 @@ DeleteResultSet(
 ) {
     StatementData* sdata = rdata->sdata;
     
-	fprintf(stderr, "at %s:%d\n", __FILE__, __LINE__); fflush(stderr);
     if (rdata->stmtName != NULL) {
 	if (rdata->stmtName != sdata->stmtName) {
 	    UnallocateStatement(sdata->cdata->pgPtr, rdata->stmtName);
