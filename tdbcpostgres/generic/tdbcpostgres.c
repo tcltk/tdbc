@@ -2864,36 +2864,16 @@ ResultSetNextrowMethod(
 	if (PQgetisnull(rdata->execResult, rdata->rowCount, i) == 0) { 
 	    buffSize = PQgetlength(rdata->execResult, rdata->rowCount, i); 
 	    buffer = PQgetvalue(rdata->execResult, rdata->rowCount, i);
-
 	    if (PQftype(rdata->execResult, i) == BYTEAOID) {
-#ifndef TCL_SUBST_OBJ_FIXED
 		/* 
-		 * This code is a workaround; it appears that in the
-		 * test suite, Tcl_SubstObj runs but returns something
-		 * utterly bogus.
+		 * Postgres returns backslash-escape sequences for
+		 * binary data. Substitute them away.
 		 */
-		Tcl_Obj* command;
-		int status2;
-		/* Postgres formats the result with backslash escapes, and
-		 * they need to be substituted away. */
-		command = Tcl_NewObj();
-		Tcl_ListObjAppendElement(NULL, command, Tcl_NewStringObj("::subst", -1));
-		Tcl_ListObjAppendElement(NULL, command, Tcl_NewStringObj("-novariables", -1));
-		Tcl_ListObjAppendElement(NULL, command, Tcl_NewStringObj("-nocommands", -1));
-		Tcl_ListObjAppendElement(NULL, command, Tcl_NewStringObj(buffer, buffSize));
-		Tcl_IncrRefCount(command);
-		status2 = Tcl_EvalObj(interp, command);
-		colObj = Tcl_GetObjResult(interp);
-		Tcl_DecrRefCount(command);
-#else
-		/* This is what I wanted to do, but it returns a malformed
-		 * object. Something about NR callbacks? */
 		Tcl_Obj* toSubst;
 		toSubst = Tcl_NewStringObj(buffer, buffSize);
 		Tcl_IncrRefCount(toSubst);
 		colObj = Tcl_SubstObj(interp, toSubst, TCL_SUBST_BACKSLASHES);
 		Tcl_DecrRefCount(toSubst);
-#endif
 	    } else {
 		colObj = Tcl_NewStringObj((char*)buffer, buffSize);
 	    }
