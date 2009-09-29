@@ -8,7 +8,7 @@ lappend pathlist {*}[glob -types d \
 		  -directory $instdir \
 		  -tails 1 \
 		  {tdbc[a-z]*}]
-lappend pathlist sqlite33.6.4
+lappend pathlist sqlite33.6.14.2
 lappend pathlist tcl8/8.6/tdbc
 
 set distdir d:/tmp/dist/tdbc${ver}-win32
@@ -23,6 +23,7 @@ puts $f {
 }
 
 foreach dir $pathlist {
+    puts "processing $dir"
     file mkdir [file join $distdir $dir]
     puts $f "file mkdir \[file join \$instdir [list $dir]\]"
     foreach file [glob -directory [file join $instdir $dir] -tails *] {

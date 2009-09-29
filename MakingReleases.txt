@@ -59,7 +59,7 @@ To advance the version number:
 
     tclsh86 tdbc/tools/tdbc-man2html.tcl \
         --srcdir=. --htmldir=/tmp/dist/tdbc${VERSION}-doc \
-        --tdbc --tdbcmysql --tdbcodbc --tdbcsqlite3
+        --tdbc --tdbcmysql --tdbcodbc --tdbcpostgres --tdbcsqlite3
 
     Result is a /tmp/dist/tdbc${VERSION}-doc directory containing the 
     HTML manual.
