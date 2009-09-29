@@ -1,3 +1,9 @@
+2009-09-29  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tests/tdbcmysql.test: Changed all TEST_* environment variables
+				to TDBCMYSQL_* for easier high-level scripting
+				of the tests.
+	
 2009-09-20  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:

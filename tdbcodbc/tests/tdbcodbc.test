@@ -17,12 +17,38 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
     namespace import -force ::tcltest::*
 }
 
-# Test setup.  We need a database to work on, so copy 'test.mdb' to a
-# temp file, and run from it.
+# Test setup. Figure out what sort of database we have.  Default on Windows
+# is SQL Server Express, and on Unix is SQLite3
 
-if {![info exists env(TEST_TYPE)] || $env(TEST_TYPE) eq {default}} {
+if {![info exists env(TDBCODBC_TYPE)] || $env(TDBCODBC_TYPE) eq {default}} {
     set testdir [makeDirectory tdbctest]
     if {$tcl_platform(platform) eq {windows}} {
+	set env(TDBCODBC_TYPE) sqlserver
+    } else {
+	set env(TDBCODBC_TYPE) sqlite
+    }
+}
+
+# Jet and SQL Server are Windows-only
+
+if {$env(TDBCODBC_TYPE) in {jet sqlserver}} {
+    if {$::tcl_platform(platform) ne {windows}} {
+	puts stderr "$env(TDBCODBC_TYPE) testing is available on the\
+                     Windows platform only"
+	cleanupTests
+	return
+    }
+}
+
+# Configure the selected database
+
+switch -exact -- $env(TDBCODBC_TYPE) {
+
+    jet {
+
+	# Begin by creating an empty .MDB file
+
+	set testdir [makeDirectory tdbctest]
 	set testFileName test.mdb
 	set testDBName [makeFile {} $testFileName $testdir]
 	set f [open [file join [file dirname [info script]] test.mdb] rb]
@@ -31,25 +57,49 @@ if {![info exists env(TEST_TYPE)] || $env(TEST_TYPE) eq {default}} {
 	set f [open $testDBName wb]
 	puts -nonewline $f $emptyMDB
 	close $f
+
+	# Set connection string
+
 	set testDBQ [file native [file normalize $testDBName]]
 	set connStr "DRIVER={Microsoft Access Driver (*.mdb)};FIL={MS Access};"
 	append connStr DBQ= $testDBQ
+
 	tcltest::testConstraint jet 1
-    } else {
+
+    }
+    sqlite {
+
+	# Begin with a nonexistent file for the test database
+
+	set testdir [makeDirectory tdbctest]
 	set testFileName test.db
 	set testDBName [file join $testdir $testFileName]
 	catch {file delete $testDBName}
-	set connStr "DRIVER=SQLite3;"
+
+	# Set up the connection string
+
+	if {$::tcl_platform(platform) eq {windows}} {
+	    set connStr "DRIVER=SQLite3 ODBC Driver;"
+	} else {
+	    set connStr "DRIVER=SQLite3;"
+	}
 	append connStr Database= $testDBName
+
 	tcltest::testConstraint sqlite 1
     }
-} elseif {$env(TEST_TYPE) eq {sqlserver}} {
-    tcltest::testConstraint sqlserver 1
-    set dataSource "Provider=SQLNCLI"
-    append dataSource \; "Server=." \\ "SQLEXPRESS"
-    append dataSource \; "Initial Catalog=kevinTestDB"
-    append dataSource \; "Trusted_Connection=yes"
-    set connStr "DRIVER=SQL Native Client;$dataSource"
+    sqlserver {
+
+	# Set up the connection string for 'tdbcTestDB' on the
+	# local machine using SQLEXPRESS
+
+	set dataSource "Provider=SQLNCLI"
+	append dataSource \; "Server=." \\ "SQLEXPRESS"
+	append dataSource \; "Initial Catalog=tdbcTestDB"
+	append dataSource \; "Trusted_Connection=yes"
+	set connStr "DRIVER=SQL Native Client;$dataSource"
+
+	tcltest::testConstraint sqlserver 1
+    }
 }
 
 tcltest::testConstraint odbcinst \
@@ -2526,8 +2576,7 @@ test tdbc::odbc-17.2 {database columns - no such table} {*}{
 }
 
 # Jet driver promotes varchar to wvarchar
-test tdbc::odbc-17.3a {database columns - no match pattern} {*}{
-    -constraints jet||sqlserver
+test tdbc::odbc-17.3 {database columns - no match pattern} {*}{
     -body {
 	set result {}
 	dict for {colname attrs} [::db columns people] {
@@ -2542,26 +2591,7 @@ test tdbc::odbc-17.3a {database columns - no match pattern} {*}{
 	set result
     }
     -match glob
-    -result {idnum integer * 0 * name *varchar 40 * * info integer * 0 1}
-}
-
-test tdbc::odbc-17.3b {database columns - no match pattern} {*}{
-    -constraints sqlite
-    -body {
-	set result {}
-	dict for {colname attrs} [::db columns people] {
-	    lappend result $colname \
-		[dict get $attrs type] \
-		[expr {[dict exists $attrs precision] ?
-		       [dict get $attrs precision] : {NULL}}] \
-		[expr {[dict exists $attrs scale] ?
-		       [dict get $attrs scale] : {NULL}}] \
-		[dict get $attrs nullable]
-	}
-	set result
-    }
-    -match glob
-    -result {idnum integer * 0 * name varchar 40 * info integer * 0 1}
+    -result {idnum integer * * * name *varchar 40 * * info integer * * 1}
 }
 
 # sqlite driver appears not to implement pattern matching for SQLGetColumns
@@ -2734,12 +2764,21 @@ test tdbc::odbc-19.10 {$connection configure - -isolation} {*}{
     -result {bad isolation level "junk"*}
 }
 
-test tdbc::odbc-19.11 {$connection configure - -isolation} {*}{
+test tdbc::odbc-19.11a {$connection configure - -isolation} {*}{
+    -constraints !win||!sqlite
     -body {
 	list [::db configure -isolation readcommitted] \
 	    [::db configure -isolation]
     }
     -result {{} readcommitted}
+}
+test tdbc::odbc-19.11b {$connection configure - -isolation} {*}{
+    -constraints win&&sqlite
+    -body {
+	list [::db configure -isolation readcommitted] \
+	    [::db configure -isolation]
+    }
+    -result {{} serializable}
 }
 
 test tdbc::odbc-19.12 {$connection configure - -readonly} {*}{

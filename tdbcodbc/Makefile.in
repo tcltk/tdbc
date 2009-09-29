@@ -225,11 +225,22 @@ install-doc: doc
 	    $(INSTALL_DATA) $$i $(DESTDIR)$(mandir)/mann ; \
 	done
 
-test: binaries libraries
-	TEST_TYPE=default $(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+test: test-jet test-sqlserver test-sqlite
+
+test-jet: binaries libraries
+	@echo testing tdbcodbc against Jet
+	TDBCODBC_TYPE=jet \
+		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
 
 test-sqlserver: binaries libraries
-	TEST_TYPE=sqlserver $(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+	@echo testing tdbcodbc against SQL Server
+	TDBCODBC_TYPE=sqlserver \
+		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+
+test-sqlite: binaries libraries
+	@echo testing tdbcodbc against SQLite
+	TDBCODBC_TYPE=sqlite \
+		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
 
 shell: binaries libraries
 	@$(TCLSH) $(SCRIPT)

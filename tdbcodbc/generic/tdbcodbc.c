@@ -2039,8 +2039,19 @@ SetAutocommitFlag(
     SQLINTEGER flag		/* Auto-commit indicator */
 ) {
     SQLRETURN rc;
+#if 0
+    /*
+     * This form is allegedly preferred, but fails with the Windows
+     * SQLite3 driver
+     */
     rc = SQLSetConnectAttr(cdata->hDBC, SQL_ATTR_AUTOCOMMIT,
 			   (SQLPOINTER) flag, 0);
+#else
+    /*
+     * This form is deprecated, but actually works.
+     */
+    rc = SQLSetConnectOption(cdata->hDBC, SQL_AUTOCOMMIT, flag);
+#endif
     if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
 	TransferSQLError(interp, SQL_HANDLE_DBC, cdata->hDBC,
 			 "(changing the 'autocommit' attribute)");

@@ -34,8 +34,8 @@ To advance the version number:
     lib directory, and install the sqlite3 package. Run tests against
     the installed version.
 
-    (mysql TEST_DB=test)
-    (postgres TEST_USER=tdbc_test TEST_PASSWD=tdbc_test TEST_DB=tdbc_test)
+    (mysql TDBCMYSQL_DB=test)
+    (postgres TDBCPOSTGRES_USER=tdbc_test TDBCPOSTGRES_PASSWD=tdbc_test TDBCPOSTGRES_DB=tdbc_test)
 
 (3) make dist
 

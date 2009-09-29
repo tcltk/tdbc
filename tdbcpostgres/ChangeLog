@@ -1,7 +1,16 @@
+2009-09-29  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tests/tdbcpostgres.test: Changed all TEST_* environment variables
+				   to TDBCPOSTGRES_* for easier scripting
+			 	   of combined builds and tests.
+	
 2009-09-23  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcpostgres.c: Removed an ugly workaround for a
 	                          bug in Tcl_SubstObj.
+	* configure.in: 
+	* README:		Advanced version to 1.0b13
+	* configure:		autoconf 2.59
 	
 2009-09-19  Kevin B. Kenny  <kennykb@acm.org>
 

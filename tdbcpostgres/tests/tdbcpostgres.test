@@ -19,22 +19,22 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
 # We need to know the parameters of the Postgre database for testing.
 
 set connFlags {}
-if {[info exists env(TEST_HOST)]} {
-    lappend connFlags -host $env(TEST_HOST)
+if {[info exists env(TDBCPOSTGRES_HOST)]} {
+    lappend connFlags -host $env(TDBCPOSTGRES_HOST)
 }
-if {[info exists env(TEST_USER)]} {
-    lappend connFlags -user $env(TEST_USER)
+if {[info exists env(TDBCPOSTGRES_USER)]} {
+    lappend connFlags -user $env(TDBCPOSTGRES_USER)
 }
-if {[info exists env(TEST_PASSWD)]} {
-    lappend connFlags -password $env(TEST_PASSWD)
+if {[info exists env(TDBCPOSTGRES_PASSWD)]} {
+    lappend connFlags -password $env(TDBCPOSTGRES_PASSWD)
 }
-if {[info exists env(TEST_DB)]} {
-    lappend connFlags -db $env(TEST_DB)
+if {[info exists env(TDBCPOSTGRES_DB)]} {
+    lappend connFlags -db $env(TDBCPOSTGRES_DB)
 } else {
     lappend connFlags -db tdbc_test
 }
-if {[info exists env(TEST_PORT)]} {
-    lappend connFlags -port $env(TEST_PORT)
+if {[info exists env(TDBCPOSTGRES_PORT)]} {
+    lappend connFlags -port $env(TDBCPOSTGRES_PORT)
 }
 
 #------------------------------------------------------------------------------
