@@ -2009,6 +2009,65 @@ test tdbcsqlite3-13.2 {resultsets - various statements and results} {*}{
     -result {9 0 1 1 2 2 3}
 }
 
+# reset the database again
+
+catch {
+    db allrows {DELETE FROM people}
+    set stmt [db prepare {
+	INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+    }]
+    $stmt paramtype idnum integer
+    $stmt paramtype name varchar 40
+    set idnum 1
+    foreach name {fred wilma pebbles barney betty bam-bam} {
+	set rs [$stmt execute]
+	rename $rs {}
+	incr idnum
+    }
+    rename $stmt {}
+}
+
+test tdbcsqlite3-13.3 {duplicate column names} {*}{
+    -constraints knownBug
+    -body {
+	::db allrows -as dicts -- {
+	    select a.name, b.name, c.name from people a, people b, people c
+	    where a.idnum = 1
+	    and b.idnum = a.idnum + 1
+	    and c.idnum = a.idnum + 2
+	}
+    }
+    -result {{name fred name#2 wilma name#3 pebbles}}
+}
+
+test tdbcsqlite3-13.4 {duplicate column names} {*}{
+    -constraints knownBug
+    -body {
+	::db allrows -as dicts -- {
+	    select a.name, b.name, c.name as "name#2" 
+	    from people a, people b, people c
+	    where a.idnum = 1
+	    and b.idnum = a.idnum + 1
+	    and c.idnum = a.idnum + 2
+	}
+    }
+    -result {{name fred name#2 wilma name#2#1 pebbles}}
+}
+
+test tdbcsqlite3-13.5 {duplicate column names} {*}{
+    -constraints knownBug
+    -body {
+	::db allrows -as dicts -- {
+	    select a.name, b.name as "name#2", c.name
+	    from people a, people b, people c
+	    where a.idnum = 1
+	    and b.idnum = a.idnum + 1
+	    and c.idnum = a.idnum + 2
+	}
+    }
+    -result {{name fred name#2 wilma name#2#1 pebbles}}
+}
+
 #-------------------------------------------------------------------------------
 #
 # next tests require a fresh database connection.  Close the existing one down

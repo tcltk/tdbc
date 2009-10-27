@@ -98,6 +98,14 @@ are implemented. Other isolation levels are promoted to
 .PP
 The \fB-readonly\fR flag is not implemented. \fB-readonly 0\fR is
 accepted silently, while \fB-readonly 1\fR reports an error.
+.SH "BUGS"
+If any column name is not unique among the columns in a result set, the
+results of \fB-as dicts\fR returns will be missing all but the rightmost
+of the duplicated columns. This limitation can be worked around by adding
+appropriate \fBAS\fR clauses to \fBSELECT\fR statements to ensure that
+all returned column names are unique.  Plans are to fix this bug by using
+a C implementation of the driver, which will also improve performance
+significantly.
 .SH "SEE ALSO"
 tdbc(n), tdbc::connection(n),  tdbc::resultset(n), tdbc::statement(n)
 .SH "KEYWORDS"

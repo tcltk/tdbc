@@ -1,3 +1,16 @@
+2009-10-26  Kevin B. Kenny  <kennykb@acm.org>
+
+	* README:			Advanced version number to 1.0b14.
+	* configure.in:
+	* library/tdbcsqlite3.tcl:
+	* configure:			autoconf 2.59
+
+	* tests/tdbcsqlite3.test:	Added test cases (known bugs) for
+					duplicate column names in results.
+	* doc/tdbcsqlite3.n:		Added a BUGS section documenting the
+					known problem with duplicate column
+					names.
+	
 2009-09-29  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:			Advanced version number to 1.0b13
