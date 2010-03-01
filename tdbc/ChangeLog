@@ -1,3 +1,9 @@
+2010-03-01  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tools/tdbc-man2html.tcl: Added SourceForge logo to the HTML
+	documentation, to comply with requirements for hosting the
+	documentation at SourceForge.
+
 2009-09-20  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tools/tdbc-man2html.tcl: Added tdbcpostgres to the documentation set.
