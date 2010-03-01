@@ -68,3 +68,8 @@ To advance the version number:
 
 (9) Make win32 and doc ZIPS and upload to
     https://frs.sourceforge.net/webupload
+
+(10) Upload the manual
+
+    scp -r /tmp/dist/tdbc$(VERSION)-doc/* \
+        userid,tcl@web.sourceforge.net:/home/groups/t/tc/tcl/htdocs/tdbc/

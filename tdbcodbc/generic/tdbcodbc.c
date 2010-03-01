@@ -29,21 +29,11 @@
 #include <tkPlatDecls.h>
 #endif
 
-#if 0
-				/* Comment out the inclusion of system
-				 * ODBC headers. We'll try to build entirely
-				 * without them, and instead have our own
-				 * imports. */
 #include <sql.h>
 #include <sqlucode.h>
 #ifndef NO_ODBCINST_H
 #include <odbcinst.h>
 #endif
-
-#endif
-
-#include "fakesql.h"
-#include "../odbcStubDecls.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -53,15 +43,12 @@
 /* Static data contained in this file */
 
 TCL_DECLARE_MUTEX(hEnvMutex);	/* Mutex protecting the environment handle
-				 * and its reference count, as well as
-				 * the Stubs table */
+				 * and its reference count */
 
 static SQLHENV hEnv = SQL_NULL_HENV;
 				/* Handle to the global ODBC environment */
 
 static int hEnvRefCount = 0;	/* Reference count on the global environment */
-
-static odbcStubDefs odbcStubs;
 
 #ifdef USE_TK
 static int tkStubsInited = 0;	/* Flag == 1 if Tk stubs are initialized */
@@ -374,11 +361,10 @@ static const char initScript[] =
 static void DStringAppendWChars(Tcl_DString* ds, SQLWCHAR* ws, int len);
 static SQLWCHAR* GetWCharStringFromObj(Tcl_Obj* obj, int* lengthPtr);
 
-static void TransferSQLError(Tcl_Interp* interp,
-			     SQLSMALLINT handleType,
+static void TransferSQLError(Tcl_Interp* interp, SQLSMALLINT handleType,
 			     SQLHANDLE handle, const char* info);
-static int SQLStateIs(SQLSMALLINT handleType,
-		      SQLHANDLE handle, const char* sqlstate);
+static int SQLStateIs(SQLSMALLINT handleType, SQLHANDLE handle,
+		      const char* sqlstate);
 static int LookupOdbcConstant(Tcl_Interp* interp, const OdbcConstant* table,
 			      const char* kind, Tcl_Obj* name,
 			      SQLSMALLINT* valuePtr);
