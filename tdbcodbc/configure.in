@@ -37,13 +37,6 @@ TEA_PATH_TCLCONFIG
 TEA_LOAD_TCLCONFIG
 
 #--------------------------------------------------------------------
-# Load the tkConfig.sh file if necessary (Tk extension)
-#--------------------------------------------------------------------
-
-TEA_PATH_TKCONFIG
-TEA_LOAD_TKCONFIG
-
-#--------------------------------------------------------------------
 # Load the tclooConfig.sh file on Tcl versions where oo is an
 # extension.
 #--------------------------------------------------------------------
@@ -91,87 +84,6 @@ AC_CHECK_TYPE([long long],[
 AC_CHECK_SIZEOF([long])
 AC_DEFINE([DONT_TD_VOID],[1])
 
-#----------------------------------------------------------------------
-# Locate ODBC include files, and set ODBC_INCLUDE_SPEC accordingly
-#----------------------------------------------------------------------
-
-TDBCODBC_SAVED_CPPFLAGS="${CPPFLAGS}"
-AC_ARG_WITH(odbc-includedir,
-    AC_HELP_STRING([--with-odbc-includedir],
-                   [directory where ODBC header files reside]),
-    with_odbcincludedir=${withval})
-if test x"${with_odbcincludedir}" != x ; then
-    CPPFLAGS="${CPPFLAGS} -I\"${odbc_includedir}\""
-    ODBC_INCLUDE_SPEC=-I\"${odbc_includedir}\"
-fi
-AC_CHECK_HEADER([sql.h], , AC_MSG_ERROR("cannot find a working sql.h"), [
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#undef WIN32_LEAN_AND_MEAN
-#endif
-])
-AC_CHECK_HEADER([odbcinst.h], HAVE_ODBCINST=1, AC_DEFINE(NO_ODBCINST), [
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#undef WIN32_LEAN_AND_MEAN
-#endif
-#include <sql.h>
-])
-CPPFLAGS="${TDBCODBC_SAVED_CPPLFAGS}"
-TEA_ADD_INCLUDES([${ODBC_INCLUDE_SPEC}])
-
-#----------------------------------------------------------------------
-# Locate the ODBC libraries. Right now, these must be on the default
-# path.
-#----------------------------------------------------------------------
-
-AC_CHECK_LIB([odbc32],[strlen],[
-    eval "ODBC_LIB_SPEC=\"-lodbc32\""
-], [
-    AC_CHECK_LIB([odbc],[strlen],[
-        eval "ODBC_LIB_SPEC=\"-lodbc\""
-    ], [
-        AC_MSG_ERROR([Cannot find an ODBC library])
-    ],[$PKG_LIBS])
-],[$PKG_LIBS])
-TEA_ADD_LIBS([${ODBC_LIB_SPEC}])
-AC_CHECK_LIB([odbccp32],[strlen],[
-    eval "ODBCINST_LIB_SPEC=\"-lodbccp32\""
-], [
-   AC_CHECK_LIB([odbccp],[strlen],[
-        eval "ODBCINST_LIB_SPEC=\"-lodbccp\""
-    ],[
-       AC_CHECK_LIB([odbcinst],[strlen],[
-            eval "ODBCINST_LIB_SPEC=\"-lodbcinst\""
-        ],[],[$PKG_LIBS])
-    ],[$PKG_LIBS])
-],[$PKG_LIBS])
-if test x"${HAVE_ODBCINST}" != x ; then
-    TDBCODBC_SAVED_LIBS="${LIBS}"
-    LIBS="${ODBCINST_LIB_SPEC} ${ODBC_LIB_SPEC} ${LIBS}"
-    AC_MSG_CHECKING([for Unicode interface to odbcinst])
-    AC_LINK_IFELSE([
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#undef WIN32_LEAN_AND_MEAN
-#endif
-#include <sql.h>
-#include <odbcinst.h>
-int main(int argc, char* argv[]) {
-    SQLConfigDataSourceW(NULL, 0, (WCHAR*)NULL, (WCHAR*)NULL);
-    return 0;
-}
-    ],[AC_MSG_RESULT([yes])],[
-        AC_MSG_RESULT(no)
-        AC_DEFINE(NO_UNICODE_ODBCINST)
-    ])
-    LIBS="${TDBCODBC_SAVED_LIBS}"
-fi
-TEA_ADD_LIBS([${ODBCINST_LIB_SPEC}])
-
 #-----------------------------------------------------------------------
 # Specify the C source files to compile in TEA_ADD_SOURCES,
 # public headers that need to be installed in TEA_ADD_HEADERS,
@@ -181,8 +93,8 @@ TEA_ADD_LIBS([${ODBCINST_LIB_SPEC}])
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES(generic/tdbcodbc.c)
-TEA_ADD_HEADERS()
+TEA_ADD_SOURCES(generic/tdbcodbc.c generic/odbcStubInit.c)
+TEA_ADD_HEADERS(generic/fakesql.h generic/odbcStubs.h)
 if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
   if test "${TCL_MINOR_VERSION}" -eq 5 ; then
     TEA_ADD_INCLUDES([${TCLOO_INCLUDE_SPEC}])
@@ -269,7 +181,7 @@ TEA_ENABLE_SYMBOLS
 
 AC_DEFINE(BUILD_tdbcodbc,[1],[Set to 1 when building the tdbcodbc package])
 AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
-AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
+#AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
 
 #--------------------------------------------------------------------
 # This macro generates a line to use when building a library.  It

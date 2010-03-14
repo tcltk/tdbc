@@ -1,3 +1,10 @@
+2010-03-14  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tools/genExtStubs.tcl (new file): Added a tool so that
+	drivers can resolve imports into Stubs tables at run time, allowing
+	them to avoid compile-dependencies on the respective databases'
+	build systems.
+	
 2010-03-01  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tools/tdbc-man2html.tcl: Added SourceForge logo to the HTML

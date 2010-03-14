@@ -1,3 +1,25 @@
+2010-03-14  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in: Removed all dependency on the native ODBC headers
+	and import libraries. All ODBC references are now resolved at
+	run time and contained in a 'fakesql.h' file. Removed references to
+	Tk as well.
+	* configure: autoconf-2.59
+	* generic/fakesql.h (new file): Added file containing declarations
+	of all ODBC API's used in this package, to avoid dependence on native
+	headers.
+	* generic/odbcStubsDefs.txt (new file): Declarations of functions
+	imported from odbc32.dll using Tcl_LoadLibrary.
+	* generic/odbcStubInit.c (new file): Code to load odbc32.dll and
+	odbccp32.dll and initialize Stubs tables with the routines in them
+	that are used in tdbc::odbc.
+	* generic/odbcStubs.h (new file): Generated .h file with the Stubs
+	structure defined in generic/odbcStubsDefs.txt.
+	* tdbcodbc.c: Updated to use run-time-loaded ODBC libraries instead
+	of associating to system headers at compile time and import libraries
+	at link time. Revised handling of the '-parent' option so that the
+	dependence on Tk is only at run time.
+	
 2009-09-29  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in:		Changed 'test' rule to test all available
