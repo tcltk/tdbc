@@ -17,6 +17,8 @@
 #ifndef FAKESQL_H_INCLUDED
 #define FAKESQL_H_INCLUDED
 
+#include <stddef.h>
+
 #ifndef MODULE_SCOPE
 #define MODULE_SCOPE extern
 #endif
@@ -28,6 +30,18 @@
 
 /* Fundamental data types */
 
+#ifndef _WIN32
+typedef int BOOL;
+typedef unsigned int DWORD;
+typedef void* HANDLE;
+typedef HANDLE HWND;
+typedef unsigned short WCHAR;
+typedef char* LPSTR;
+typedef WCHAR* LPWSTR;
+typedef const char* LPCSTR;
+typedef const WCHAR* LPCWSTR;
+typedef unsigned short WORD;
+#endif
 typedef Tcl_WideInt INT64;
 typedef void* PVOID;
 typedef short RETCODE;
@@ -50,7 +64,7 @@ typedef UINT64 SQLUBIGINT;
 typedef unsigned char SQLUCHAR;
 typedef unsigned int SQLUINTEGER;
 typedef UWORD SQLUSMALLINT;
-typedef wchar_t SQLWCHAR;
+typedef WCHAR SQLWCHAR;
 
 typedef SQLSMALLINT SQLRETURN;
 
@@ -233,8 +247,14 @@ enum _SQL_DIAG {
 
 /* ODBC client library entry points */
 
+#ifdef _WIN32
 #define SQL_API __stdcall
 #define INSTAPI __stdcall
+#else
+#define SQL_API /* nothing */
+#define INSTAPI /* nothing */
+#endif
+
 #include "odbcStubs.h"
 MODULE_SCOPE odbcStubDefs* odbcStubs;
 

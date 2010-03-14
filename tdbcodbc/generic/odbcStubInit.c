@@ -4,7 +4,7 @@
  *	Stubs tables for the foreign ODBC libraries so that
  *	Tcl extensions can use them without the linker's knowing about them.
  *
- * @CREATED@ 2010-03-14 19:34:37Z by genExtStubs.tcl from ../generic/odbcStubDefs.txt
+ * @CREATED@ 2010-03-14 21:21:09Z by genExtStubs.tcl from ../generic/odbcStubDefs.txt
  *
  * Copyright (c) 2010 by Kevin B. Kenny.
  *
@@ -31,11 +31,12 @@
 
 static const char* odbcStubLibNames[] = {
     /* @LIBNAMES@: DO NOT EDIT THESE NAMES */
-    "odbc32", "odbc", NULL
+    "odbc32", "odbc", "libodbc32", "libodbc", NULL
     /* @END@ */
 };
 static const char* odbcOptLibNames[] = {
-    "odbccp", "odbccp32", "odbcinst", NULL
+    "odbccp", "odbccp32", "odbcinst", 
+    "libodbccp", "libodbccp32", "libodbcinst", NULL
 };
 
 /*
@@ -154,7 +155,7 @@ OdbcInitStubs(Tcl_Interp* interp,
 	 * Try to load a client library and resolve the ODBC API within it.
 	 */
 	status = Tcl_LoadFile(interp, path, symc, odbcSymbolNames,
-			      odbcStubs, &handle);
+			      (void*)odbcStubs, &handle);
 	Tcl_DecrRefCount(path);
     }
 

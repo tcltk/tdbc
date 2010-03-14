@@ -12,7 +12,7 @@
 #-----------------------------------------------------------------------------
 
 * STUBSTRUCT: odbcStubs
-* LIBRARY: odbc32 odbc
+* LIBRARY: odbc32 odbc libodbc32 libodbc
 
 SQLRETURN SQL_API SQLAllocHandle(SQLSMALLINT,SQLHANDLE,SQLHANDLE*);
 SQLRETURN SQL_API SQLBindParameter(SQLHSTMT,SQLUSMALLINT,SQLSMALLINT,SQLSMALLINT,SQLSMALLINT,SQLULEN,SQLSMALLINT,SQLPOINTER,SQLLEN,SQLLEN*);
