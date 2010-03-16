@@ -1,3 +1,7 @@
+2010-03-15  Kevin B. Kenny <kennykb@acm.org>
+
+	* generic/odbcStubInit.c: Adjusted to revised TIP 357 API.
+	
 2010-03-14  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Removed all dependency on the native ODBC headers

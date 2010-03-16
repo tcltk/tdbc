@@ -119,8 +119,6 @@ OdbcInitStubs(Tcl_Interp* interp,
 				 * that represents the ODBCINST library */
 {
     int i;
-    int symc = sizeof(odbcSymbolNames)/sizeof(*odbcSymbolNames) - 1;
-				/* TEMP - API to be revisited */
     int status;			/* Status of Tcl library calls */
     Tcl_Obj* path;		/* Path name of a module to be loaded */
     Tcl_Obj* shlibext;		/* Extension to use for load modules */
@@ -154,7 +152,7 @@ OdbcInitStubs(Tcl_Interp* interp,
 	/*
 	 * Try to load a client library and resolve the ODBC API within it.
 	 */
-	status = Tcl_LoadFile(interp, path, symc, odbcSymbolNames,
+	status = Tcl_LoadFile(interp, path, odbcSymbolNames,
 			      (void*)odbcStubs, &handle);
 	Tcl_DecrRefCount(path);
     }
@@ -168,7 +166,7 @@ OdbcInitStubs(Tcl_Interp* interp,
 	    path = Tcl_NewStringObj(odbcOptLibNames[i], -1);
 	    Tcl_AppendObjToObj(path, shlibext);
 	    Tcl_IncrRefCount(path);
-	    status2 = Tcl_LoadFile(interp, path, 0, NULL, NULL, handle2Ptr);
+	    status2 = Tcl_LoadFile(interp, path, NULL, NULL, handle2Ptr);
 	    if (status2 == TCL_OK) {
 		SQLConfigDataSourceW = 
 		    (BOOL INSTAPI (*)(HWND, WORD, LPCWSTR, LPCWSTR))
