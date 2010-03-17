@@ -1,3 +1,8 @@
+2010-03-17  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/odbcStubInit.c: Revised TIP 357 API yet again, adding a
+	'flags' parameter to Tcl_LoadFile.
+	
 2010-03-15  Kevin B. Kenny <kennykb@acm.org>
 
 	* generic/odbcStubInit.c: Adjusted to revised TIP 357 API.

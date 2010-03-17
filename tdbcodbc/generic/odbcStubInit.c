@@ -152,7 +152,7 @@ OdbcInitStubs(Tcl_Interp* interp,
 	/*
 	 * Try to load a client library and resolve the ODBC API within it.
 	 */
-	status = Tcl_LoadFile(interp, path, odbcSymbolNames,
+	status = Tcl_LoadFile(interp, path, odbcSymbolNames, 0,
 			      (void*)odbcStubs, &handle);
 	Tcl_DecrRefCount(path);
     }
@@ -166,7 +166,7 @@ OdbcInitStubs(Tcl_Interp* interp,
 	    path = Tcl_NewStringObj(odbcOptLibNames[i], -1);
 	    Tcl_AppendObjToObj(path, shlibext);
 	    Tcl_IncrRefCount(path);
-	    status2 = Tcl_LoadFile(interp, path, NULL, NULL, handle2Ptr);
+	    status2 = Tcl_LoadFile(interp, path, NULL, 0, NULL, handle2Ptr);
 	    if (status2 == TCL_OK) {
 		SQLConfigDataSourceW = 
 		    (BOOL INSTAPI (*)(HWND, WORD, LPCWSTR, LPCWSTR))
