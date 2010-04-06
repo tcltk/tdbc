@@ -10,9 +10,16 @@
 	Tcl source tree that make the documentation fit better with the
 	Tcl manuals. (Tickets [02c0131ba1] and [18c90402fb]).
 
-	* tdbc/Makefile.in: Corrected a misinstallation of the manual
+	* Makefile.in: Corrected a misinstallation of the manual
 	pages in the case where $(MANDIR)/man3 doesn't exist.
 	(Ticket [99e97fb098])
+
+	* generic/tdbc.c:
+	* generic/tdbcDecls.h:
+	* generic/tdbcStubInit.c:
+	* generic/tdbcStubLib.c:
+	* tools/genStubs.tcl: Made the Stubs tables (and a few other constants
+	formally 'const'. (Ticket [cf7bc364cc])
 	
 2010-03-14  Kevin B. Kenny  <kennykb@acm.org>
 
