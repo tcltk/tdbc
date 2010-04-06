@@ -1,3 +1,19 @@
+2010-04-06  Kevin B. Kenny  <kennykb@acm.org>
+
+	* doc/Tdbc_Init.3:
+	* doc/tdbc.n:
+	* doc/tdbc_connection.n:
+	* doc/tdbc_mapSqlState.n:
+	* doc/tdbc_resultset.n:
+	* doc/tdbc_statement.n:
+	* doc/tdbc_tokenize.n: Merged changes from the trunk of the 
+	Tcl source tree that make the documentation fit better with the
+	Tcl manuals. (Tickets [02c0131ba1] and [18c90402fb]).
+
+	* tdbc/Makefile.in: Corrected a misinstallation of the manual
+	pages in the case where $(MANDIR)/man3 doesn't exist.
+	(Ticket [99e97fb098])
+	
 2010-03-14  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tools/genExtStubs.tcl (new file): Added a tool so that
