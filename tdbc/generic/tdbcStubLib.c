@@ -19,6 +19,13 @@
 #define USE_TDBC_STUBS 1
 #include "tdbc.h"
 
+/* 
+ * 'extern' is the best scope that we can come up with for linking
+ * tdbcStubsPtr.  We have no idea what linker scope a caller might
+ * want for it. MODULE_SCOPE would be right, but we don't know even
+ * whether the caller has the concept.
+ */
+
 extern const TdbcStubs *tdbcStubsPtr;
 const TdbcStubs *tdbcStubsPtr = NULL;
 
