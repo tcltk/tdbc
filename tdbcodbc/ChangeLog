@@ -1,3 +1,11 @@
+2010-04-08  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in: Revised TDBC_ names to be tdbc_, because that's
+	what TEA_LOAD_CONFIG does. Added a check to find 'tdbc.h' in the
+	build directory if necessary.
+	
+	* configure: autoconf 2.59.
+	
 2010-03-17  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/odbcStubInit.c: Revised TIP 357 API yet again, adding a

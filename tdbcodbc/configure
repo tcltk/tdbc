@@ -2009,6 +2009,14 @@ echo "$as_me: WARNING: Found Makefile - using build library specs for tdbc" >&2;
 
 
 
+# The next bit probably ought to be in TEA_LOAD_CONFIG
+{ echo "$as_me:$LINENO: WARNING: Looking for \"${tdbc_BIN_DIR}/Makefile\"" >&5
+echo "$as_me: WARNING: Looking for \"${tdbc_BIN_DIR}/Makefile\"" >&2;}
+if test -f "${tdbc_BIN_DIR}/Makefile" ; then
+    { echo "$as_me:$LINENO: WARNING: Found Makefile - using build include spec for tdbc" >&5
+echo "$as_me: WARNING: Found Makefile - using build include spec for tdbc" >&2;}
+    tdbc_INCLUDE_SPEC=${tdbc_BUILD_INCLUDE_SPEC}
+fi
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.
@@ -7508,14 +7516,14 @@ fi
 
 
 
-    vars="${TDBC_INCLUDE_SPEC}"
+    vars="${tdbc_INCLUDE_SPEC}"
     for i in $vars; do
 	PKG_INCLUDES="$PKG_INCLUDES $i"
     done
 
 
 
-    vars="${TDBC_STUB_LIB_SPEC}"
+    vars="${tdbc_STUB_LIB_SPEC}"
     for i in $vars; do
 	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
 	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
@@ -7526,7 +7534,7 @@ fi
 
 
 
-    PKG_CFLAGS="$PKG_CFLAGS ${TDBC_CFLAGS}"
+    PKG_CFLAGS="$PKG_CFLAGS ${tdbc_CFLAGS}"
 
 
 

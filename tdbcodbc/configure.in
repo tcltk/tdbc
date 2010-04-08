@@ -60,6 +60,12 @@ fi
 
 TEA_PATH_CONFIG(tdbc)
 TEA_LOAD_CONFIG(tdbc)
+# The next bit probably ought to be in TEA_LOAD_CONFIG
+AC_MSG_WARN([Looking for "${tdbc_BIN_DIR}/Makefile"])
+if test -f "${tdbc_BIN_DIR}/Makefile" ; then
+    AC_MSG_WARN([Found Makefile - using build include spec for tdbc])
+    tdbc_INCLUDE_SPEC=${tdbc_BUILD_INCLUDE_SPEC}
+fi
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.
@@ -102,9 +108,9 @@ if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
   fi
 fi
 TEA_ADD_CFLAGS([${TCLOO_CFLAGS}])
-TEA_ADD_INCLUDES([${TDBC_INCLUDE_SPEC}])
-TEA_ADD_LIBS([${TDBC_STUB_LIB_SPEC}])
-TEA_ADD_CFLAGS([${TDBC_CFLAGS}])
+TEA_ADD_INCLUDES([${tdbc_INCLUDE_SPEC}])
+TEA_ADD_LIBS([${tdbc_STUB_LIB_SPEC}])
+TEA_ADD_CFLAGS([${tdbc_CFLAGS}])
 TEA_ADD_STUB_SOURCES()
 TEA_ADD_TCL_SOURCES([library/tdbcodbc.tcl])
 

@@ -1,3 +1,15 @@
+2010-04-08  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in: 
+	* tdbcConfig.sh.in:  Revised names starting with TDBC_ to start
+	with tdbc_ in order to conform with the expectations of
+	TEA_LOAD_CONFIG. Added tdbc_BUILD_STUB_LIB_SPEC and
+	tdbc_BUILD_INCLUDE_SPEC to the generated tdbcConfig.sh so that
+	the Stubs library and include files for tdbc can be found in
+	the build directory as well as the install directory.
+
+	* configure: autoconf 2.59
+	
 2010-04-06  Kevin B. Kenny  <kennykb@acm.org>
 
 	* doc/Tdbc_Init.3:
