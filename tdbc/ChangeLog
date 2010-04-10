@@ -1,3 +1,12 @@
+2010-04-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in:
+	* tdbcConfig.sh.in: Modified to pass the build-time and run-time
+	                    Tcl script library directories in tdbcConfig.sh,
+	                    so that driver tests can be run before tdbc itself
+	                    is installed.
+	* configure: autoconf 2.59
+	
 2010-04-08  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: 

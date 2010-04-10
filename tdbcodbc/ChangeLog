@@ -1,3 +1,15 @@
+2010-04-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in:
+	* Makefile.in:  Added code to specify to 'make test' and 'make shell'
+	                the value of TDBC_LIBRARY, needed for
+	                [package require tdbc] to work. This library is
+	                either the 'library' subdirectory of the TDBC source
+	                directory (when running from an un-installed TDBC)
+	                or else the TDBC library directory in the installed
+	                Tcl.
+	* configure: autoconf 2.59
+	
 2010-04-08  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Revised TDBC_ names to be tdbc_, because that's
