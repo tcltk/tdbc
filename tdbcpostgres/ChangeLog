@@ -1,3 +1,9 @@
+2010-04-25  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in: Changed TDBC_* environment variables to tdbc_* for
+	                better TEA compatibility.
+	* configure:    autoconf 2.59
+	
 2009-09-29  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tests/tdbcpostgres.test: Changed all TEST_* environment variables
