@@ -1,3 +1,10 @@
+2010-04-25  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in:     Advance release to 1.0b14
+	* generic/tdbc.h:
+	* README:
+	* configure:        autoconf-2.59
+	
 2010-04-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in:

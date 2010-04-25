@@ -1,3 +1,9 @@
+2010-04-25  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in:
+	* README:       Advance version to 1.0b14
+	* configure:    autoconf 2-59
+	
 2010-04-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in:
