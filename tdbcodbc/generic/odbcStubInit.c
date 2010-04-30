@@ -202,3 +202,4 @@ OdbcInitStubs(Tcl_Interp* interp,
     }
     return handle;
 }
+

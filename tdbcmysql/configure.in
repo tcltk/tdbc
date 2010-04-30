@@ -100,8 +100,8 @@ AC_DEFINE([DONT_TD_VOID],[1])
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES(generic/tdbcmysql.c)
-TEA_ADD_HEADERS()
+TEA_ADD_SOURCES(generic/tdbcmysql.c generic/mysqlStubInit.c)
+TEA_ADD_HEADERS(generic/fakemysql.h generic/mysqlStubs.h)
 if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
   if test "${TCL_MINOR_VERSION}" -eq 5 ; then
     TEA_ADD_INCLUDES([${TCLOO_INCLUDE_SPEC}])
@@ -192,64 +192,6 @@ TEA_ENABLE_SYMBOLS
 AC_DEFINE(BUILD_tdbcmysql,[1],[Set to 1 when building the tdbcmysql package])
 AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
 AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
-
-#----------------------------------------------------------------------
-# Locate MySQL include files, and set MYSQL_INCLUDE_SPEC accordingly
-#----------------------------------------------------------------------
-
-TDBCMYSQL_SAVED_CPPFLAGS="${CPPFLAGS}"
-AC_ARG_WITH(mysql-includedir,
-    AC_HELP_STRING([--with-mysql-includedir],
-                   [directory where MySQL header files reside]),
-    with_mysqlincludedir=${withval})
-if test x"${with_mysqlincludedir}" != "x" ; then
-    CPPFLAGS="${CPPFLAGS} -I${with_mysqlincludedir}"
-    if test "${TEA_PLATFORM}" = "windows" ; then
-        CPPFLAGS="${CPPFLAGS} -D_WIN32"
-    fi
-    MYSQL_INCLUDE_SPEC="-I${with_mysqlincludedir}"
-fi
-AC_CHECK_HEADERS([mysql/my_global.h])
-AC_CHECK_HEADER([mysql/mysql.h], , 
-    AC_MSG_ERROR("cannot find a working mysql.h"), [
-#include <stdio.h>
-#ifdef HAVE_MYSQL_MY_GLOBAL_H
-#include <mysql/my_global.h>
-#endif
-])
-CPPFLAGS="${TDBCMYSQL_SAVED_CPPLFAGS}"
-TEA_ADD_INCLUDES([${MYSQL_INCLUDE_SPEC}])
-
-#----------------------------------------------------------------------
-# Locate the MySQL libraries.
-#----------------------------------------------------------------------
-
-AC_ARG_WITH(mysql-libdir,
-  AC_HELP_STRING([--with-mysql-libdir],
-                 [directory where MySQL library files reside]),
-  with_mysqllibdir=${withval})
-if test x"${with_mysqllibdir}" != x ; then
-  LDFLAGS="${LDFLAGS} -L${with_mysqllibdir}"
-  MYSQL_LIB_SPEC="-L${with_mysqllibdir}"
-else
-  MYSQL_LIB_SPEC=""
-fi
-if test "${TEA_PLATFORM}" = "windows" ; then
-      MYSQL_LIB_SPEC="-lmysql"
-else
-    TDBCMYSQL_SAVED_LDFLAGS="${LDFLAGS}"
-    AC_CHECK_LIB(mysqlclient_r, mysql_reconnect, [
-        MYSQL_LIB_SPEC="${MYSQL_LIB_SPEC} -lmysqlclient_r"
-    ], [
-        AC_CHECK_LIB(mysql_client, mysql_reconnect, [
-            MYSQL_LIB_SPEC="${MYSQL_LIB_SPEC} -lmysql_client"
-        ], [
-            AC_MSG_ERROR("cannot find a working mysqlclient library")
-        ])
-    ])
-fi
-LDFLAGS="${TDBCMSYQL_SAVED_LDFLAGS}"
-TEA_ADD_LIBS([${MYSQL_LIB_SPEC}])
 
 #--------------------------------------------------------------------
 # This macro generates a line to use when building a library.  It

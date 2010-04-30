@@ -322,6 +322,7 @@ proc main {stubDefs stubStruct stubInit} {
     # Write the Stub structure declarations
 
     set structFile [open $stubStruct w]
+    chan configure $structFile -translation lf
     writeStructHeader $stubDefs $stubStruct $structFile
     writeStubDeclarations $structFile $imports
     writeStructFooter $stubDefs $structFile
@@ -337,6 +338,7 @@ proc main {stubDefs stubStruct stubInit} {
     set initProgram [rewriteInitProgram $stubDefs $initProgram $imports]
     chan seek $initFile 0
     chan truncate $initFile
+    chan configure $initFile -translation lf
     chan puts -nonewline $initFile $initProgram
     close $initFile
 

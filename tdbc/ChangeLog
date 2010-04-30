@@ -1,3 +1,15 @@
+2010-04-30  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in: Updated 'make dist' to include the tools that
+	               generate Stubs for external libs to support
+	               run-time loading.
+	* configure.in: Removed a stray backslash that caused a shell
+	                error message while configuring (and otherwise
+	                appeared harmless).
+	* tools/genExtStubs.tcl: Adjusted to generate the Stubs files in
+	                         Unix format only to avoid DOS-formatted files
+	                         sneaking into the repository.
+	
 2010-04-26  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tools/genStubs.tcl: Revised 'genStubs' to write files in Unix

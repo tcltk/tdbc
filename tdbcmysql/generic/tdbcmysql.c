@@ -20,10 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef HAVE_MYSQL_MY_GLOBAL_H
-#include <mysql/my_global.h>
-#endif
-#include <mysql/mysql.h>
+#include "fakemysql.h"
 
 /* Static data contained in this file */
 
@@ -31,7 +28,8 @@ TCL_DECLARE_MUTEX(mysqlMutex);	/* Mutex protecting the global environment
 				 * and its reference count */
 
 static int mysqlRefCount = 0;	/* Reference count on the global environment */
-
+Tcl_LoadHandle mysqlLoadHandle = NULL;
+				/* Handle to the MySQL library */
 /*
  * Objects to create within the literal pool
  */
@@ -1650,11 +1648,12 @@ ConnectionTablesMethod(
 				/* Instance data */
     Tcl_Obj** literals = cdata->pidata->literals;
 				/* Literal pool */
-    const char* patternStr;	/* Pattern to match table names */
-    MYSQL_RES* results;		/* Result set */
-    MYSQL_ROW row;		/* Row in the result set */
+    const char* patternStr = NULL;
+				/* Pattern to match table names */
+    MYSQL_RES* results = NULL;	/* Result set */
+    MYSQL_ROW row = NULL;	/* Row in the result set */
     int status = TCL_OK;	/* Return status */
-    Tcl_Obj* retval;		/* List of table names */
+    Tcl_Obj* retval = NULL;	/* List of table names */
 
     /* Check parameters */
 
@@ -3318,6 +3317,10 @@ Tdbcmysql_Init(
 
     Tcl_MutexLock(&mysqlMutex);
     if (mysqlRefCount == 0) {
+	if ((mysqlLoadHandle = MysqlInitStubs(interp)) == NULL) {
+	    Tcl_MutexUnlock(&mysqlMutex);
+	    return TCL_ERROR;
+	}
 	mysql_library_init(0, NULL, NULL);
     }
     ++mysqlRefCount;
@@ -3372,6 +3375,7 @@ DeletePerInterpData(
     Tcl_MutexLock(&mysqlMutex);
     if (--mysqlRefCount == 0) {
 	mysql_library_end();
+	Tcl_FSUnloadFile(NULL, mysqlLoadHandle);
     }
     Tcl_MutexUnlock(&mysqlMutex);
 }

@@ -2236,7 +2236,7 @@ test tdbc::mysql-14.7 {empty rolled-back transaction} {*}{
     -result {}
 }
 
-test tdbcobdc-14.8 {rollback does not change database} {*}{
+test tdbc::mysql-14.8 {rollback does not change database} {*}{
     -body {
 	::db begintransaction
 	set stmt [::db prepare {DELETE FROM people WHERE name = 'fred'}]

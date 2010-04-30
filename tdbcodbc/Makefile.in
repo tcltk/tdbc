@@ -336,13 +336,17 @@ dist: dist-clean
 	cp -p $(srcdir)/doc/tdbc_odbc.n $(DIST_DIR)/doc/
 
 	mkdir $(DIST_DIR)/generic
-	cp -p $(srcdir)/generic/tdbcodbc.c $(DIST_DIR)/generic/
+	cp -p $(srcdir)/generic/fakesql.h $(srcdir)/generic/odbcStubDefs.txt \
+		$(srcdir)/generic/odbcStubInit.c $(srcdir)/generic/odbcStubs.h \
+		$(srcdir)/generic/tdbcodbc.c \
+		$(DIST_DIR)/generic/
 
 	mkdir $(DIST_DIR)/library
 	cp -p $(srcdir)/library/tdbcodbc.tcl $(DIST_DIR)/library/
 
 	mkdir $(DIST_DIR)/tests
 	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/tdbcodbc.test \
+		$(srcdir)/tests/test.mdb \
 		$(DIST_DIR)/tests/
 
 	(cd $(DIST_ROOT); $(COMPRESS);)
@@ -351,9 +355,15 @@ dist: dist-clean
 # How to rebuild the package's stub table.
 #========================================================================
 
-genstubs: $(srcdir)/tools/genStubs.tcl $(srcdir)/generic/tdbcodbc.decls
-	@echo $(TCLSH_PROGRAM) $(srcdir)/tools/genStubs.tcl $(srcdir)/generic $(srcdir)/generic/tdbcodbc.decls
-	@$(TCLSH) `@CYGPATH@ $(srcdir)/tools/genStubs.tcl` `@CYGPATH@ $(srcdir)/generic` `@CYGPATH@ $(srcdir)/generic/tdbcodbc.decls`
+genstubs: $(srcdir)/../tdbc/tools/genExtStubs.tcl $(srcdir)/generic/odbcStubDefs.txt
+	@echo $(TCLSH_PROGRAM) $(srcdir)/../tdbc/tools/genExtStubs.tcl \
+		$(srcdir)/generic/odbcStubDefs.txt \
+		$(srcdir)/generic/odbcStubs.h \
+		$(srcdir)/generic/odbcStubInit.c
+	@$(TCLSH) $(srcdir)/../tdbc/tools/genExtStubs.tcl \
+		$(srcdir)/generic/odbcStubDefs.txt \
+		$(srcdir)/generic/odbcStubs.h \
+		$(srcdir)/generic/odbcStubInit.c
 
 #========================================================================
 # End of user-definable section

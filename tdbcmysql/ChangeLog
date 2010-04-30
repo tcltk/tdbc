@@ -1,3 +1,28 @@
+2010-04-30  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in: Added explicit reference to the TDBC library in the
+		       TCLSH_ENV. Updated the 'dist' rule to include new files.
+		       Added a 'genstubs' rule to make the stubs to load
+	               the MySQL libraries at run time.
+	* configure.in: Removed compile-time references to the MySQL headers
+	                and libraries. Added new files to SOURCES and HEADERS.
+	* generic/fakemysql.h (new file):
+		Minimal subset of mysql.h needed to make tdbc::mysql compile.
+	* generic/mysqlStubDefs.txt (new file):
+		Definitions of MySQL runtime library routines brought
+		in by dynamic loading.
+	* generic/mysqlStubInit.c (new file):
+		Code to load the MySQL runtime library and build a stub
+		table for it.
+	* generic/mysqlStubDefs.txt (new file):
+		Definitions of the routines to be resolved when loading
+		the MySQL library at run time.
+	* generic/tdbcmysql.c:
+		Changed tdbc::mysql to load the MySQL library at run time
+		and to have no compile-time dependencies on MySQL.
+	* tests/tdbcodbc.test (tdbc::mysql-14.8):
+		Corrected a misnamed test.
+	
 2010-04-25  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Adjusted TDBC_* environment vars to be tdbc_*

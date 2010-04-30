@@ -3,13 +3,4 @@ db indexes?
 
 Compound statements
 
-Use tailcalls:  if [package present Tcl 8.6] around the method
-definitions that need 'em.  (Recent bug! Defer this)
-
 Restore 8.5 buildability.
-
-Write up informational TIP and edit manpages about:
-    SQLSTATE
-    method forwarding for statement and result set classes.
-    Compound statements
-

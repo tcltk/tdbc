@@ -1,3 +1,13 @@
+2010-04-30  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in: Added missing files to 'make dist.' Added a 'genstubs'
+	               rule to automate building of the Stubs table from the
+		       ODBC library added at run time.
+	* generic/fakesql.h:
+	* generic/odbcStubDefs.txt:
+	* generic/odbcStubInit.c:
+		Fixed DOS line endings.
+	
 2010-04-25  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in:

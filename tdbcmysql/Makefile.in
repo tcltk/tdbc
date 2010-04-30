@@ -130,7 +130,8 @@ TCL_SRC_DIR	= @TCL_SRC_DIR@
 EXTRA_PATH	= $(top_builddir):$(TCL_BIN_DIR)
 #EXTRA_PATH	= $(top_builddir):$(TCL_BIN_DIR):$(TK_BIN_DIR)
 TCLLIBPATH	= $(top_builddir)
-TCLSH_ENV	= TCL_LIBRARY=`@CYGPATH@ $(TCL_SRC_DIR)/library`
+TCLSH_ENV	= TCL_LIBRARY=`@CYGPATH@ $(TCL_SRC_DIR)/library` \
+		  TDBC_LIBRARY=`@CYGPATH@ @tdbc_LIBRARY_PATH@`
 PKG_ENV		= @LD_LIBRARY_PATH_VAR@="$(EXTRA_PATH):$(@LD_LIBRARY_PATH_VAR@)" \
 		  PATH="$(EXTRA_PATH):$(PATH)" \
 		  TCLLIBPATH="$(TCLLIBPATH)" \
@@ -329,7 +330,12 @@ dist: dist-clean
 	cp -p $(srcdir)/doc/tdbc_mysql.n $(DIST_DIR)/doc/
 
 	mkdir $(DIST_DIR)/generic
-	cp -p $(srcdir)/generic/tdbcmysql.c $(DIST_DIR)/generic/
+	cp -p $(srcdir)/generic/fakemysql.h \
+		$(srcdir)/generic/mysqlStubDefs.txt \
+		$(srcdir)/generic/mysqlStubInit.c \
+		$(srcdir)/generic/mysqlStubs.h \
+		$(srcdir)/generic/tdbcmysql.c \
+		$(DIST_DIR)/generic/
 
 	mkdir $(DIST_DIR)/library
 	cp -p $(srcdir)/library/tdbcmysql.tcl $(DIST_DIR)/library/
@@ -344,9 +350,15 @@ dist: dist-clean
 # How to rebuild the package's stub table.
 #========================================================================
 
-genstubs: $(srcdir)/tools/genStubs.tcl $(srcdir)/generic/tdbcmysql.decls
-	@echo $(TCLSH_PROGRAM) $(srcdir)/tools/genStubs.tcl $(srcdir)/generic $(srcdir)/generic/tdbcmysql.decls
-	@$(TCLSH) `@CYGPATH@ $(srcdir)/tools/genStubs.tcl` `@CYGPATH@ $(srcdir)/generic` `@CYGPATH@ $(srcdir)/generic/tdbcmysql.decls`
+genstubs: $(srcdir)/../tdbc/tools/genExtStubs.tcl $(srcdir)/generic/mysqlStubDefs.txt
+	@echo $(TCLSH_PROGRAM) $(srcdir)/../tdbc/tools/genExtStubs.tcl \
+		$(srcdir)/generic/mysqlStubDefs.txt \
+		$(srcdir)/generic/mysqlStubs.h \
+		$(srcdir)/generic/mysqlStubInit.c
+	@$(TCLSH) $(srcdir)/../tdbc/tools/genExtStubs.tcl \
+		$(srcdir)/generic/mysqlStubDefs.txt \
+		$(srcdir)/generic/mysqlStubs.h \
+		$(srcdir)/generic/mysqlStubInit.c
 
 #========================================================================
 # End of user-definable section

@@ -8,7 +8,7 @@ lappend pathlist {*}[glob -types d \
 		  -directory $instdir \
 		  -tails 1 \
 		  {tdbc[a-z]*}]
-lappend pathlist sqlite33.6.14.2
+lappend pathlist sqlite33.6.21
 lappend pathlist tcl8/8.6/tdbc
 
 set distdir d:/tmp/dist/tdbc${ver}-win32
