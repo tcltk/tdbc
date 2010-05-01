@@ -1,3 +1,17 @@
+2010-05-01  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in:
+	* Makefile.in:
+	* generic/fakepq.h (new file):
+	* generic/pqStubDefs.txt (new file):
+	* generic/pqStubInit.c (new file):
+	* generic/pqStubs.h (new file):
+	* generic/tdbcpostgres.c: 
+		Modified to load libpq using Tcl_LoadFile and not
+		link to its client library, nor include the standard
+		pq-fe headers. This change allows tdbc::postgres to
+		build when the build system lacks a PostgreSQL installation.
+	
 2010-04-25  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Changed TDBC_* environment variables to tdbc_* for

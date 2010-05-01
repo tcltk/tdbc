@@ -6,6 +6,7 @@
  *	C code for the driver to interface TDBC and Postgres
  *
  * Copyright (c) 2009 by Slawomir Cygan.
+ * Copyright (c) 2010 by Kevin B. Kenny.
  *
  * Please refer to the file, 'license.terms' for the conditions on
  * redistribution of this file and for a DISCLAIMER OF ALL WARRANTIES.
@@ -21,7 +22,11 @@
 #include <string.h>
 #include <stdint.h>
 
+#ifdef USE_NATIVE_POSTGRES
 #include <libpq-fe.h>
+#else
+#include "fakepq.h"
+#endif
 
 /* Include the files needed to locate htons() and htonl() */
 
@@ -33,6 +38,11 @@
 #endif
 
 /* Static data contained within this file */
+
+static Tcl_Mutex pgMutex;	/* Mutex protecting per-process structures */
+static int pgRefCount = 0;	/* Reference count for the PG load handle */
+static Tcl_LoadHandle pgLoadHandle = NULL;
+				/* Load handle of the PG library */
 
 /* Pool of literal values used to avoid excess Tcl_NewStringObj calls */
 
@@ -145,6 +155,19 @@ const char *  optStringNames[] = {
 #define CONN_OPT_FLAG_MOD 0x1	/* Configuration value changable at runtime */
 #define CONN_OPT_FLAG_ALIAS 0x2	/* Configuration option is an alias */
 
+/* 
+ * Relay functions to allow Stubbed functions in the configuration options
+ * table.
+ */
+
+static char* _PQdb(const PGconn* conn) { return PQdb(conn); }
+static char* _PQhost(const PGconn* conn) { return PQhost(conn); }
+static char* _PQoptions(const PGconn* conn) { return PQoptions(conn); }
+static char* _PQpass(const PGconn* conn) { return PQpass(conn); }
+static char* _PQport(const PGconn* conn) { return PQport(conn); }
+static char* _PQuser(const PGconn* conn) { return PQuser(conn); }
+static char* _PQtty(const PGconn* conn) { return PQtty(conn); }
+
 /* Table of configuration options */
 
 static const struct {
@@ -156,15 +179,15 @@ static const struct {
     char *(*queryF)(const PGconn*); /* Function used to determine the 
 				     * option value */
 } ConnOptions [] = {
-    { "-host",	   TYPE_STRING,    INDX_HOST,	0,		     PQhost},
-    { "-hostaddr", TYPE_STRING,    INDX_HOSTA,	0,		     PQhost},
-    { "-port",	   TYPE_PORT,      INDX_PORT,	0,		     PQport},
-    { "-database", TYPE_STRING,    INDX_DB,	0,		     PQdb},
-    { "-db",	   TYPE_STRING,    INDX_DB,	CONN_OPT_FLAG_ALIAS, PQdb},
-    { "-user",	   TYPE_STRING,    INDX_USER,	0,		     PQuser},
-    { "-password", TYPE_STRING,    INDX_PASS,	0,		     PQpass},
-    { "-options",  TYPE_STRING,    INDX_OPT,	0,		     PQoptions},
-    { "-tty",	   TYPE_STRING,    INDX_TTY,	0,		     PQtty},
+    { "-host",	   TYPE_STRING,    INDX_HOST,	0,		     _PQhost},
+    { "-hostaddr", TYPE_STRING,    INDX_HOSTA,	0,		     _PQhost},
+    { "-port",	   TYPE_PORT,      INDX_PORT,	0,		     _PQport},
+    { "-database", TYPE_STRING,    INDX_DB,	0,		     _PQdb},
+    { "-db",	   TYPE_STRING,    INDX_DB,	CONN_OPT_FLAG_ALIAS, _PQdb},
+    { "-user",	   TYPE_STRING,    INDX_USER,	0,		     _PQuser},
+    { "-password", TYPE_STRING,    INDX_PASS,	0,		     _PQpass},
+    { "-options",  TYPE_STRING,    INDX_OPT,	0,		     _PQoptions},
+    { "-tty",	   TYPE_STRING,    INDX_TTY,	0,		     _PQtty},
     { "-service",  TYPE_STRING,    INDX_SERV,	0,		     NULL},
     { "-timeout",  TYPE_STRING,    INDX_TOUT,	0,		     NULL},
     { "-sslmode",  TYPE_STRING,    INDX_SSLM,	0,		     NULL},
@@ -354,6 +377,7 @@ enum IsolationLevel {
 
 /* Static functions defined within this file */
 
+static void DummyNoticeReceiver(void*, const PGresult*);
 static int ExecSimpleQuery(Tcl_Interp* interp, PGconn * pgPtr,
 			   const char * query, PGresult** resOut);
 static void TransferPostgresError(Tcl_Interp* interp, PGconn * pgPtr);
@@ -632,6 +656,30 @@ static const char initScript[] =
     "namespace eval ::tdbc::postgres {}\n"
     "tcl_findLibrary tdbcpostgres " PACKAGE_VERSION " " PACKAGE_VERSION
     " tdbcpostgres.tcl TDBCPOSTGRES_LIBRARY ::tdbc::postgres::Library";
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DummyNoticeReceiver --
+ *
+ *	Ignores warnings and notices from the PostgreSQL client library
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ * This procedure does precisely nothing.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+DummyNoticeProcessor(void* clientData,
+		     const PGresult* message)
+{
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -1072,7 +1120,7 @@ ConfigureConnection(
 	    TransferPostgresError(interp, cdata->pgPtr);
 	    return TCL_ERROR; 
 	}
-
+	PQsetNoticeProcessor(cdata->pgPtr, DummyNoticeProcessor, NULL);
     }
 
     /* Character encoding */
@@ -3195,6 +3243,19 @@ Tdbcpostgres_Init(
 		  (ClientData) 0);
     Tcl_DecrRefCount(nameObj);
 
+    /*
+     * Initialize the PostgreSQL library if this is the first interp using it.
+     */
+
+    Tcl_MutexLock(&pgMutex);
+    if (pgRefCount == 0) {
+	if ((pgLoadHandle = PostgresqlInitStubs(interp)) == NULL) {
+	    Tcl_MutexUnlock(&pgMutex);
+	    return TCL_ERROR;
+	}
+    }
+    ++pgRefCount;
+    Tcl_MutexUnlock(&pgMutex);
 
     return TCL_OK;
 }
@@ -3234,5 +3295,12 @@ DeletePerInterpData(
        Tcl_DecrRefCount(pidata->literals[i]);
    } 
    ckfree((char *) pidata);
+
+   Tcl_MutexLock(&pgMutex);
+   if (--pgRefCount == 0) {
+       Tcl_FSUnloadFile(NULL, pgLoadHandle);
+       pgLoadHandle = NULL;
+   }
+   Tcl_MutexUnlock(&pgMutex);
 
 }

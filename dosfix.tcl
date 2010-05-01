@@ -64,6 +64,7 @@ proc doit {file} {
 	    if {[regsub -all {\r+\n} $data \n data]} {
 		puts "converting from DOS format: $file"
 		set f [open $file w]
+		chan configure $f -translation lf
 		puts -nonewline $f $data
 		close $f
 	    }

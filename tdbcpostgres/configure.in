@@ -93,8 +93,8 @@ AC_DEFINE([DONT_TD_VOID],[1])
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES(generic/tdbcpostgres.c)
-TEA_ADD_HEADERS()
+TEA_ADD_SOURCES(generic/tdbcpostgres.c generic/pqStubInit.c)
+TEA_ADD_HEADERS(generic/fakepq.h generic/pqStubs.h)
 if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
   if test "${TCL_MINOR_VERSION}" -eq 5 ; then
     TEA_ADD_INCLUDES([${TCLOO_INCLUDE_SPEC}])
@@ -187,48 +187,8 @@ AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
 AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
 
 #--------------------------------------------------------------------
-# Locale the Postre pg_config utility
+# Locate the ws2_32 library; we need it for ntohs and friends
 #--------------------------------------------------------------------
-AC_PATH_PROG([PG_CONFIG], [pg_config])
-if test ! -x "${PG_CONFIG}" ; then
-	AC_MSG_ERROR("cannot find pq_config utility. Please check if Postgres is installed")
-fi
-
-#----------------------------------------------------------------------
-# Get Postgre libpq include files, and set POSTGRESS_INCLUDE_SPEC accordingly
-#----------------------------------------------------------------------
-
-AC_MSG_CHECKING([for PostgreSQL include directory])
-POSTGRES_COMMAND="\"${PG_CONFIG}\" --includedir"
-POSTGRES_INCLUDE_DIR=`eval ${POSTGRES_COMMAND}`
-AC_MSG_RESULT(${POSTGRES_INCLUDE_DIR})
-TDBCPOSTGRES_SAVED_CPPFLAGS="${CPPFLAGS}"
-POSTGRES_INCLUDE_SPEC="-I${POSTGRES_INCLUDE_DIR}"
-CPPFLAGS="${CPPFLAGS} ${POSTGRES_INCLUDE_SPEC}"
-AC_CHECK_HEADERS([libpq-fe.h], , AC_MSG_ERROR("cannot find a working libpq-fe.h"))
-CPPFLAGS="${TDBCPOSTGRES_SAVED_CPPLFAGS}"
-TEA_ADD_INCLUDES([${POSTGRES_INCLUDE_SPEC}])
-
-#----------------------------------------------------------------------
-# Locate the libpq library
-#----------------------------------------------------------------------
-
-
-AC_MSG_CHECKING([for PostgreSQL library directory])
-POSTGRES_COMMAND="\"${PG_CONFIG}\" --libdir"
-POSTGRES_LIB_DIR=`eval ${POSTGRES_COMMAND}`
-AC_MSG_RESULT(${POSTGRES_LIB_DIR})
-POSTGRES_LIB_SPEC="-L${POSTGRES_LIB_DIR}"
-TDBCPOSTGRES_SAVED_LDFLAGS="${LDFLAGS}"
-LDFLAGS="${LDFLAGS} ${POSTGRES_LIB_SPEC}"
-AC_CHECK_LIB(pq, PQconnectdb, [
-	POSTGRES_LIB_SPEC="${POSTGRES_LIB_SPEC} -lpq"
-    ],  [
-            AC_MSG_ERROR("cannot find a working libpq library")
-	    ])
-
-LDFLAGS="${TDBCPOSTGRES_SAVED_LDFLAGS}"
-TEA_ADD_LIBS([${POSTGRES_LIB_SPEC}])
 
 AC_CHECK_LIB(ws2_32,main,TEA_ADD_LIBS([-lws2_32]),[
     AC_CHECK_LIB(winsock,main,TEA_ADD_LIBS([-lwinsock]))

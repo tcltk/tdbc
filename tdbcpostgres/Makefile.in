@@ -345,9 +345,15 @@ dist: dist-clean
 # How to rebuild the package's stub table.
 #========================================================================
 
-genstubs: $(srcdir)/tools/genStubs.tcl $(srcdir)/generic/tdbcpostgres.decls
-	@echo $(TCLSH_PROGRAM) $(srcdir)/tools/genStubs.tcl $(srcdir)/generic $(srcdir)/generic/tdbcpostgres.decls
-	@$(TCLSH) `@CYGPATH@ $(srcdir)/tools/genStubs.tcl` `@CYGPATH@ $(srcdir)/generic` `@CYGPATH@ $(srcdir)/generic/tdbcpostgres.decls`
+genstubs: $(srcdir)/generic/pqStubDefs.txt
+	@echo $(TCLSH_PROGRAM) $(srcdir)/../tdbc/tools/genExtStubs.tcl \
+		$(srcdir)/generic/pqStubDefs.txt \
+		$(srcdir)/generic/pqStubs.h \
+		$(srcdir)/generic/pqStubInit.c
+	@$(TCLSH) $(srcdir)/../tdbc/tools/genExtStubs.tcl \
+		$(srcdir)/generic/pqStubDefs.txt \
+		$(srcdir)/generic/pqStubs.h \
+		$(srcdir)/generic/pqStubInit.c
 
 #========================================================================
 # End of user-definable section
