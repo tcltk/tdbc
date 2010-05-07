@@ -1,3 +1,8 @@
+2010-05-07  Andreas Kupries  <andreask@activestate.com>
+
+	* configure.in: Disabled TEA_*_TKCONFIG. Code doesn't depend on Tk.
+	* configure: Regenerated.
+
 2010-04-30  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in: Added explicit reference to the TDBC library in the

@@ -1,3 +1,7 @@
+2010-05-07  Andreas Kupries  <andreask@activestate.com>
+
+	* generic/fakehq.h: Fixed inclusion of pqstubs.h -> pqStubs.h.
+
 2010-05-01  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in:

@@ -39,7 +39,7 @@ typedef void (*PQnoticeProcessor)(void*, const PGresult*);
 #define PG_DIAG_SQLSTATE 'C'
 #define PG_DIAG_MESSAGE_PRIMARY 'M'
 
-#include "pqstubs.h"
+#include "pqStubs.h"
 
 MODULE_SCOPE pqStubDefs* pqStubs;
 
