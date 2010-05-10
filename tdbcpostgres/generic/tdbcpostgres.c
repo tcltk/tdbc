@@ -20,7 +20,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif
 
 #ifdef USE_NATIVE_POSTGRES
 #include <libpq-fe.h>
@@ -1976,13 +1978,15 @@ ResultDescToTcl(
 	unsigned int i;
 	char numbuf[16];
 	for (i = 0; i < fieldCount; ++i) {
-	    fieldName = PQfname(result, i);
-	    Tcl_Obj* nameObj = Tcl_NewStringObj(fieldName, -1);
-	    Tcl_IncrRefCount(nameObj);
 	    int new;
-	    Tcl_HashEntry* entry =
-		Tcl_CreateHashEntry(&names, fieldName, &new);
 	    int count = 1;
+	    Tcl_Obj* nameObj;
+	    Tcl_HashEntry* entry;
+	    fieldName = PQfname(result, i);
+	    nameObj = Tcl_NewStringObj(fieldName, -1);
+	    Tcl_IncrRefCount(nameObj);
+	    entry =
+		Tcl_CreateHashEntry(&names, fieldName, &new);
 	    while (!new) {
 		count = (int) Tcl_GetHashValue(entry);
 		++count;

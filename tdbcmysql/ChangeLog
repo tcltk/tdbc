@@ -1,3 +1,9 @@
+2010-05-10  Andreas Kupries  <andreask@activestate.com>
+
+	* generic/tdbcmysql.c: Fixed violations of strict C89.
+	* Makefile.in: Removed attempt to generate a stub library. Drivers
+	  do not export stub tables.
+
 2010-05-07  Andreas Kupries  <andreask@activestate.com>
 
 	* configure.in: Disabled TEA_*_TKCONFIG. Code doesn't depend on Tk.

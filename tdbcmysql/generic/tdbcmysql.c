@@ -1069,10 +1069,11 @@ ConfigureConnection(
     /* Timeout */
 
     if (timeout != 0) {
+        int result;
 	Tcl_Obj* query = Tcl_ObjPrintf("SET SESSION WAIT_TIMEOUT = %d\n",
 				       timeout);
 	Tcl_IncrRefCount(query);
-	int result = mysql_query(cdata->mysqlPtr, Tcl_GetString(query));
+	result = mysql_query(cdata->mysqlPtr, Tcl_GetString(query));
 	Tcl_DecrRefCount(query);
 	if (result) {
 	    TransferMysqlError(interp, cdata->mysqlPtr);
@@ -1930,13 +1931,13 @@ ResultDescToTcl(
 	unsigned int i;
 	char numbuf[16];
 	for (i = 0; i < fieldCount; ++i) {
+	    int new;
+            int count = 1;
 	    Tcl_Obj* nameObj = Tcl_NewStringObj(fields[i].name,
 						fields[i].name_length);
-	    Tcl_IncrRefCount(nameObj);
-	    int new;
 	    Tcl_HashEntry* entry =
 		Tcl_CreateHashEntry(&names, fields[i].name, &new);
-	    int count = 1;
+	    Tcl_IncrRefCount(nameObj);
 	    while (!new) {
 		count = (int) Tcl_GetHashValue(entry);
 		++count;

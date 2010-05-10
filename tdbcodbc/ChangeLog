@@ -1,3 +1,8 @@
+2010-05-10  Andreas Kupries  <andreask@activestate.com>
+
+	* Makefile.in: Removed attempt to generate a stub library. Drivers
+	  do not export stub tables.
+
 2010-04-30  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in: Added missing files to 'make dist.' Added a 'genstubs'
