@@ -56,6 +56,7 @@ AC_DEFUN([TEAX_ADD_PRIVATE_HEADERS], [
 
 dnl Extra magic to make things work with Vista and VC
 AC_DEFUN([TEAX_VC_MANIFEST], [
+    ADD_MANIFEST=":"
     AS_IF([test "$GCC" != yes \
 	    -a ${TEA_PLATFORM} == "windows" \
 	    -a "${SHARED_BUILD}" = "1"], [
@@ -63,8 +64,8 @@ AC_DEFUN([TEAX_VC_MANIFEST], [
 	AC_CHECK_PROGS(MT, mt, none)
 	AS_IF([test "$MT" != none], [
 	    ADD_MANIFEST="${MT} -nologo -manifest [\$]@.manifest -outputresource:[\$]@\;2"
-	    AC_SUBST(ADD_MANIFEST)
-	    CLEANFILES="$CLEANFILES ${PKG_LIB_FILE}.manifest"])])])
+	    CLEANFILES="$CLEANFILES ${PKG_LIB_FILE}.manifest"])])
+    AC_SUBST(ADD_MANIFEST)])
 
 AC_DEFUN([TEAX_SDX], [
     AC_PATH_PROG(SDX, sdx, none)
@@ -79,6 +80,9 @@ AC_DEFUN([TEAX_SDX], [
 	AC_MSG_NOTICE([building as a normal library still supported])])])
 dnl TODO: Adapt this for OSX Frameworks...
 dnl This next bit is a bit ugly, but it makes things for tclooConfig.sh...
+AC_DEFUN([TEAX_PATH_LINE], [
+    eval "$1=\"[]CygPath($2)\""
+    AC_SUBST($1)])
 AC_DEFUN([TEAX_INCLUDE_LINE], [
     eval "$1=\"-I[]CygPath($2)\""
     AC_SUBST($1)])

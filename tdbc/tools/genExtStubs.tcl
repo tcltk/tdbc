@@ -64,9 +64,11 @@ proc parseImports {stubDefs} {
 	} $line -> m]} {
 	    set libNames $m
 	    lappend imports [linsert $libNames 0 libraries]
-	} elseif {[regexp {^\s*\*\s*STUBSTRUCT: (.*)} $line -> m]} {
+	} elseif {[regexp {^\s*\*\s*STUBSTRUCT:\s*(.*)} $line -> m]} {
 	    set stubPrefix $m
 	    lappend imports [list prefix $m]
+	} elseif {[regexp {^\s*\*\s*CONVENTION:\s*(.*)} $line -> c]} {
+	    lappend imports [list convention $c]
 	} elseif {[regexp -nocase -- {^\s*#} $line]} {
 	    # do nothing
 	} elseif {[regexp -nocase -expanded -- {
@@ -137,13 +139,17 @@ proc writeStructHeader {stubDefs stubStruct structFile} {
 
 proc writeStubDeclarations {structFile imports} {
 
+    set convention {}
     foreach i $imports {
 	set key [lindex $i 0]
 	switch -exact -- $key {
+	    convention {
+		set convention [lindex $i 1]
+	    }
 	    import {
 		lassign $i key type name params
 		chan puts $structFile \
-		    "    $type (*${name}Ptr)($params);"
+		    "    $type (${convention}*${name}Ptr)($params);"
 	    }
 	    libraries {
 		chan puts $structFile {}

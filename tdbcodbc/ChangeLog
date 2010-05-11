@@ -1,3 +1,25 @@
+2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* aclocal.m4:	Synchronized with the 'tdbc' package.
+	* configure.in: Advanced release to 1.0b15 and TEA version to 3.7.
+			Added code to detect VC++ and include the stub
+			library by path rather than with -L and -l.
+	* generic/fakesql.h:
+			Corrected syntax of INSTAPI specifiers.
+	* generic/odbcStubDefs.txt:
+			Added a CONVENTION: SQL_API line so that 
+			genExtStubs.tcl can get the syntax right on the
+			pointer-to-function declarations.
+	* generic/odbcStubInit.txt:
+			Corrected syntax of INSTAPI specifiers. Regenerated.
+	* generic/odbcStubs.h:
+			Regenerated.
+	* generic/tdbcodbc.c:
+			Silenced several VC++ warnings.
+	* README:	Advanced release to 1.0b15.
+	* tclconfig/:	Advanced to TEA 3.7
+	* configure:	autoconf-2.59
+	
 2010-05-10  Andreas Kupries  <andreask@activestate.com>
 
 	* Makefile.in: Removed attempt to generate a stub library. Drivers

@@ -1,3 +1,22 @@
+2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* aclocal.m4:	Synchronize with tdbc.
+	* configure.in:	Advance TEA version to 3.7. Advance release to 1.0b15.
+			Corrected the TDBC stub library specification so that 
+			it works under MSVC.
+	* generic/mysqlStubDefs.txt:
+			Split out the linkage convention so that 
+			genExtStubs.tcl can generate syntactically correct
+			VC++ pointer-to-function declarations.
+	* generic/mysqlStubInit.c:
+	* generic/mysqlStubs.h:
+			Regenerate
+	* generic/tdbcmysql.c:
+			Added code to silence VC++ warnings.
+	* README:	Advance release to 1.0b15
+	* tclconfig/:	Advance to TEA 3.7
+	* configure:	autoconf-2.59
+	
 2010-05-10  Andreas Kupries  <andreask@activestate.com>
 
 	* generic/tdbcmysql.c: Fixed violations of strict C89.

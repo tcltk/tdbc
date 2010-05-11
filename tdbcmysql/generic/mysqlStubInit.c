@@ -4,7 +4,7 @@
  *	Stubs tables for the foreign MySQL libraries so that
  *	Tcl extensions can use them without the linker's knowing about them.
  *
- * @CREATED@ 2010-04-30 15:43:38Z by genExtStubs.tcl from ../generic/mysqlStubDefs.txt
+ * @CREATED@ 2010-05-10 20:00:07Z by genExtStubs.tcl from ../generic/mysqlStubDefs.txt
  *
  * Copyright (c) 2010 by Kevin B. Kenny.
  *

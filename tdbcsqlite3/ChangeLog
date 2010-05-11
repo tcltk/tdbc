@@ -1,3 +1,13 @@
+2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* aclocal.m4:	Synchronized with 'tdbc'.
+	* configure.in: Advanced version to 1.0b15. Advanced TEA to 3.7.
+	* library/tdbcsqlite3.tcl:
+			Advanced version to 1.0b15.
+	* README:	Advanced version to 1.0b15.
+	* tclconfig/:	Advanced TEA to 3.7.
+	* configure:	autoconf-2.59
+	
 2009-10-26  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:			Advanced version number to 1.0b14.

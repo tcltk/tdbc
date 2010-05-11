@@ -4,7 +4,7 @@
  *	Stubs tables for the foreign ODBC libraries so that
  *	Tcl extensions can use them without the linker's knowing about them.
  *
- * @CREATED@ 2010-03-14 21:21:09Z by genExtStubs.tcl from ../generic/odbcStubDefs.txt
+ * @CREATED@ 2010-05-11 01:21:42Z by genExtStubs.tcl from ../generic/odbcStubDefs.txt
  *
  * Copyright (c) 2010 by Kevin B. Kenny.
  *
@@ -87,13 +87,13 @@ odbcStubDefs* odbcStubs = &odbcStubsTable;
  * Pointers to optional functions in ODBCINST
  */
 
-BOOL INSTAPI (*SQLConfigDataSourceW)(HWND, WORD, LPCWSTR, LPCWSTR)
+BOOL (INSTAPI* SQLConfigDataSourceW)(HWND, WORD, LPCWSTR, LPCWSTR)
 = NULL;
-BOOL INSTAPI (*SQLConfigDataSource)(HWND, WORD, LPCSTR, LPCSTR)
+BOOL (INSTAPI* SQLConfigDataSource)(HWND, WORD, LPCSTR, LPCSTR)
 = NULL;
-BOOL INSTAPI (*SQLInstallerErrorW)(WORD, DWORD*, LPWSTR, WORD, WORD*)
+BOOL (INSTAPI* SQLInstallerErrorW)(WORD, DWORD*, LPWSTR, WORD, WORD*)
 = NULL;
-BOOL INSTAPI (*SQLInstallerError)(WORD, DWORD*, LPSTR, WORD, WORD*)
+BOOL (INSTAPI* SQLInstallerError)(WORD, DWORD*, LPSTR, WORD, WORD*)
 = NULL;
 
 /*
@@ -169,20 +169,20 @@ OdbcInitStubs(Tcl_Interp* interp,
 	    status2 = Tcl_LoadFile(interp, path, NULL, 0, NULL, handle2Ptr);
 	    if (status2 == TCL_OK) {
 		SQLConfigDataSourceW = 
-		    (BOOL INSTAPI (*)(HWND, WORD, LPCWSTR, LPCWSTR))
+		    (BOOL (INSTAPI*)(HWND, WORD, LPCWSTR, LPCWSTR))
 		    Tcl_FindSymbol(NULL, *handle2Ptr, "SQLConfigDataSourceW");
 		if (SQLConfigDataSourceW == NULL) {
 		    SQLConfigDataSource =
-			(BOOL INSTAPI(*)(HWND, WORD, LPCSTR, LPCSTR))
+			(BOOL (INSTAPI*)(HWND, WORD, LPCSTR, LPCSTR))
 			Tcl_FindSymbol(NULL, *handle2Ptr,
 				       "SQLConfigDataSource");
 		}
 		SQLInstallerErrorW =
-		    (BOOL INSTAPI(*)(WORD, DWORD*, LPWSTR, WORD, WORD*))
+		    (BOOL (INSTAPI*)(WORD, DWORD*, LPWSTR, WORD, WORD*))
 		    Tcl_FindSymbol(NULL, *handle2Ptr, "SQLInstallerErrorW");
 		if (SQLInstallerErrorW == NULL) {
 		    SQLInstallerError =
-			(BOOL INSTAPI(*)(WORD, DWORD*, LPSTR, WORD, WORD*))
+			(BOOL (INSTAPI*)(WORD, DWORD*, LPSTR, WORD, WORD*))
 			Tcl_FindSymbol(NULL, *handle2Ptr, "SQLInstallerError");
 		}
 	    } else {

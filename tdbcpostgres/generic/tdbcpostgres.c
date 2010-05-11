@@ -14,6 +14,10 @@
  *-----------------------------------------------------------------------------
  */
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
+
 #include <tcl.h>
 #include <tclOO.h>
 #include <tdbc.h>
@@ -22,6 +26,9 @@
 #include <string.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
+#else
+typedef int int32_t;
+typedef short int16_t;
 #endif
 
 #ifdef USE_NATIVE_POSTGRES
@@ -33,10 +40,18 @@
 /* Include the files needed to locate htons() and htonl() */
 
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
+#  ifdef _MSC_VER
+#   pragma comment (lib, "ws2_32")
+#  endif
 #else
 #include <netinet/in.h>
+#endif
+
+#ifdef _MSC_VER
+#define snprintf _snprintf
 #endif
 
 /* Static data contained within this file */
@@ -379,7 +394,7 @@ enum IsolationLevel {
 
 /* Static functions defined within this file */
 
-static void DummyNoticeReceiver(void*, const PGresult*);
+static void DummyNoticeProcessor(void*, const PGresult*);
 static int ExecSimpleQuery(Tcl_Interp* interp, PGconn * pgPtr,
 			   const char * query, PGresult** resOut);
 static void TransferPostgresError(Tcl_Interp* interp, PGconn * pgPtr);
@@ -1428,7 +1443,7 @@ ConnectionColumnsMethod(
 	PQclear(resType);
 	return TCL_ERROR;
     } else {
-	unsigned int i, j;
+	int i, j;
 	retval = Tcl_NewObj();
 	Tcl_IncrRefCount(retval);
 	for (i = 0; i < PQntuples(res); i += 1) {

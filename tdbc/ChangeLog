@@ -1,3 +1,18 @@
+2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* aclocal.m4:	Add a TEAX_PATH_LINE rule to simplify emitting the
+			stub library paths in tdbcConfig.sh.
+	* tools/genExtStubs.tcl (ParseImports, writeStubDeclarations):
+			Add a new '* CONVENTION:' declaration to the
+			stub declarations that specifies the linkage
+			convention (e.g., __stdcall, WINAPI) that is
+			used in an imported library.
+	* configure.in: Add code to put the stub library path (build and
+			(install) in the tdbcConfig.sh file so that extensions
+			that import TDBC stubs can find it.
+	* generic/tdbc.h:
+	* README:	Advance release to 1.0b15
+	
 2010-04-30  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in: Updated 'make dist' to include the tools that

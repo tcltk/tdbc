@@ -1,6 +1,19 @@
+2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* aclocal.m4:	Synchronized with tdbc.
+	* configure.in:	Advanced version number to 1.0b15. Advanced TEA
+			version to 3.7. Corrected the way that stub libraries
+			are located on VC++.
+	* generic/tdbcpostgres.c: 
+			Corrected a number of errors and warnings in the
+			VC++ build.
+	* README:	Advanced to 1.0b15
+	* tclconfig/:	Advanced to TEA 3.7
+	* configure:	autoconf-2.59
+	
 2010-05-10  Andreas Kupries  <andreask@activestate.com>
 
-	* generic/tdbcpostgress.c: Fixed violations of strict C89.
+	* generic/tdbcpostgres.c: Fixed violations of strict C89.
 	* Makefile.in: Removed attempt to generate a stub library. Drivers
 	  do not export stub tables.
 

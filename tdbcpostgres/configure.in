@@ -18,7 +18,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([tdbcpostgres], [1.0b14])
+AC_INIT([tdbcpostgres], [1.0b15])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -27,7 +27,7 @@ AC_INIT([tdbcpostgres], [1.0b14])
 #--------------------------------------------------------------------
 
 AC_CONFIG_AUX_DIR(tclconfig)
-TEA_INIT([3.6])
+TEA_INIT([3.7])
 
 #--------------------------------------------------------------------
 # Load the tclConfig.sh file
@@ -102,8 +102,12 @@ if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
   fi
 fi
 TEA_ADD_CFLAGS([${TCLOO_CFLAGS}])
+if test "x${TEA_PLATFORM}" = "xwindows" -a "x${GCC}" != "xyes" ; then
+    TEA_ADD_LIBS([\"`${CYGPATH} ${tdbc_STUB_LIB_PATH}`\"])
+else
+    TEA_ADD_LIBS([${tdbc_STUB_LIB_SPEC}])
+fi
 TEA_ADD_INCLUDES([${tdbc_INCLUDE_SPEC}])
-TEA_ADD_LIBS([${tdbc_STUB_LIB_SPEC}])
 TEA_ADD_CFLAGS([${tdbc_CFLAGS}])
 TEA_ADD_STUB_SOURCES()
 TEA_ADD_TCL_SOURCES([library/tdbcpostgres.tcl])

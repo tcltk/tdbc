@@ -13,6 +13,10 @@
  *-----------------------------------------------------------------------------
  */
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <tcl.h>
 #include <tclOO.h>
 #include <tdbc.h>
@@ -103,7 +107,7 @@ typedef struct ConnectionData {
     int refCount;		/* Reference count. */
     PerInterpData* pidata;	/* Per-interpreter data */
     MYSQL* mysqlPtr;		/* MySql connection handle */
-    int nCollations;		/* Number of collations defined */
+    unsigned int nCollations;	/* Number of collations defined */
     int* collationSizes;	/* Character lengths indexed by collation ID */
     int flags;
 } ConnectionData;
@@ -1565,8 +1569,9 @@ ConnectionSetCollationInfoMethod(
 				/* Instance data */
     int listLen;
     Tcl_Obj* objPtr;
-    int collationNum;
+    unsigned int collationNum;
     int i;
+    int t;
 
     if (objc <= 2) {
 	Tcl_WrongNumArgs(interp, 2, objv, "{collationNum size}...");
@@ -1595,9 +1600,10 @@ ConnectionSetCollationInfoMethod(
 	    return TCL_ERROR;
 	}
 	if (Tcl_ListObjIndex(interp, objv[i], 0, &objPtr) != TCL_OK
-	    || Tcl_GetIntFromObj(interp, objPtr, &collationNum) != TCL_OK) {
+	    || Tcl_GetIntFromObj(interp, objPtr, &t) != TCL_OK) {
 	    return TCL_ERROR;
 	}
+	collationNum = (unsigned int) t;
 	if (collationNum > cdata->nCollations) {
 	    Tcl_SetObjResult(interp, Tcl_NewStringObj("collations must be "
 						      "in decreasing sequence",
@@ -1924,6 +1930,11 @@ ResultDescToTcl(
 ) {
     Tcl_Obj* retval = Tcl_NewObj();
     Tcl_HashTable names;	/* Hash table to resolve name collisions */
+    Tcl_Obj* nameObj;		/* Name of a result column */
+    int new;			/* Flag == 1 if a result column is unique */
+    Tcl_HashEntry* entry;	/* Hash table entry for a column name */
+    int count;			/* Number used to disambiguate a column name */
+
     Tcl_InitHashTable(&names, TCL_STRING_KEYS);
     if (result != NULL) {
 	unsigned int fieldCount = mysql_num_fields(result);
@@ -1931,13 +1942,10 @@ ResultDescToTcl(
 	unsigned int i;
 	char numbuf[16];
 	for (i = 0; i < fieldCount; ++i) {
-	    int new;
-            int count = 1;
-	    Tcl_Obj* nameObj = Tcl_NewStringObj(fields[i].name,
-						fields[i].name_length);
-	    Tcl_HashEntry* entry =
-		Tcl_CreateHashEntry(&names, fields[i].name, &new);
+	    nameObj = Tcl_NewStringObj(fields[i].name, fields[i].name_length);
 	    Tcl_IncrRefCount(nameObj);
+	    entry = Tcl_CreateHashEntry(&names, fields[i].name, &new);
+	    count = 1;
 	    while (!new) {
 		count = (int) Tcl_GetHashValue(entry);
 		++count;
@@ -2890,7 +2898,8 @@ ResultSetNextrowMethod(
     unsigned char byte;		/* One byte extracted from a bit field */
     Tcl_WideInt bitVal;		/* Value of a bit field */
     int mysqlStatus;		/* Status return from MySQL */
-    int i, j;
+    int i;
+    unsigned int j;
 
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 2, objv, "varName");

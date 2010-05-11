@@ -13,7 +13,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([tdbc], [1.0b14.1])
+AC_INIT([tdbc], [1.0b15])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -210,6 +210,10 @@ TEAX_LINK_LINE(TDBC_STUB_LIB_SPEC,
     [${libdir}/${PACKAGE_NAME}${PACKAGE_VERSION}], [${PACKAGE_NAME}stub])
 TEAX_LINK_LINE(TDBC_BUILD_STUB_LIB_SPEC,
     [${TDBC_BUILDDIR}], [${PACKAGE_NAME}stub])
+TEAX_PATH_LINE(TDBC_STUB_LIB_PATH,
+    [${libdir}/${PACKAGE_NAME}${PACKAGE_VERSION}/${PKG_STUB_LIB_FILE}])
+TEAX_PATH_LINE(TDBC_BUILD_STUB_LIB_PATH,
+    [${TDBC_BUILDDIR}/${PKG_STUB_LIB_FILE}])
 CONFIGURE_OUTPUTS="Makefile tdbcConfig.sh config.cache config.log config.status"
 AC_SUBST(CONFIGURE_OUTPUTS)
 AC_SUBST(srcdir)
