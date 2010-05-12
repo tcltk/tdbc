@@ -82,7 +82,13 @@ typedef Tcl_WideUInt my_ulonglong;
 
 typedef struct st_net NET;
 
-struct st_mysql_bind {
+/* 
+ * There are different version of the MYSQL_BIND structure before and after
+ * MySQL 5.1. We go after the fields of the structure using accessor functions
+ * so that the code in this file is compatible with both versions.
+ */
+
+struct st_mysql_bind_51 {	/* Post-5.1 */
     unsigned long* length;
     my_bool* is_null;
     void* buffer;
@@ -99,10 +105,36 @@ struct st_mysql_bind {
     enum enum_field_types buffer_type;
     my_bool error_value;
     my_bool is_unsigned;
-    my_bool long_datga_used;
+    my_bool long_data_used;
     my_bool is_null_value;
     void* extension;
 };
+
+struct st_mysql_bind_50 {	/* Pre-5.1 */
+    unsigned long* length;
+    my_bool* is_null;
+    void* buffer;
+    my_bool* error;
+    enum enum_field_types buffer_type;
+    unsigned long buffer_length;
+    unsigned char* row_ptr;
+    unsigned long offset;
+    unsigned long length_value;
+    unsigned int param_number;
+    unsigned int pack_length;
+    my_bool error_value;
+    my_bool is_unsigned;
+    my_bool long_data_used;
+    my_bool is_null_value;
+    void (*store_param_func)(NET* net, MYSQL_BIND* param);
+    void (*fetch_result)(MYSQL_BIND*, MYSQL_FIELD*, unsigned char**);
+    void (*skip_result)(MYSQL_BIND*, MYSQL_FIELD*, unsigned char**);
+};
+
+/* 
+ * There are also different versions of the MYSQL_FIELD structure; fortunately,
+ * the 5.1 version is a strict extension of the 5.0 version.
+ */
 
 struct st_mysql_field {
     char* name;
@@ -125,6 +157,12 @@ struct st_mysql_field {
     unsigned int decimals;
     unsigned int charsetnr;
     enum enum_field_types type;
+};
+struct st_mysql_field_50 {
+    struct st_mysql_field field;
+};
+struct st_mysql_field_51 {
+    struct st_mysql_field field;
     void* extension;
 };
 #define NOT_NULL_FLAG 1

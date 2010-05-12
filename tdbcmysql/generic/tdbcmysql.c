@@ -34,6 +34,9 @@ TCL_DECLARE_MUTEX(mysqlMutex);	/* Mutex protecting the global environment
 static int mysqlRefCount = 0;	/* Reference count on the global environment */
 Tcl_LoadHandle mysqlLoadHandle = NULL;
 				/* Handle to the MySQL library */
+unsigned long mysqlClientVersion;
+				/* Version number of MySQL */
+
 /*
  * Objects to create within the literal pool
  */
@@ -384,6 +387,20 @@ enum IsolationLevel {
 
 /* Declarations of static functions appearing in this file */
 
+static MYSQL_BIND* MysqlBindAlloc(int nBindings);
+static MYSQL_BIND* MysqlBindIndex(MYSQL_BIND* b, int i);
+static void* MysqlBindAllocBuffer(MYSQL_BIND* b, int i, unsigned long len);
+static void MysqlBindFreeBuffer(MYSQL_BIND* b, int i);
+static void MysqlBindSetBufferType(MYSQL_BIND* b, int i,
+				   enum enum_field_types t);
+static void* MysqlBindGetBuffer(MYSQL_BIND* b, int i);
+static unsigned long MysqlBindGetBufferLength(MYSQL_BIND* b, int i);
+static void MysqlBindSetLength(MYSQL_BIND* b, int i, unsigned long* p);
+static void MysqlBindSetIsNull(MYSQL_BIND* b, int i, my_bool* p);
+static void MysqlBindSetError(MYSQL_BIND* b, int i, my_bool* p);
+
+static MYSQL_FIELD* MysqlFieldIndex(MYSQL_FIELD* fields, int i);
+
 static void TransferMysqlError(Tcl_Interp* interp, MYSQL* mysqlPtr);
 static void TransferMysqlStmtError(Tcl_Interp* interp, MYSQL_STMT* mysqlPtr);
 
@@ -681,6 +698,258 @@ static const char initScript[] =
     "tcl_findLibrary tdbcmysql " PACKAGE_VERSION " " PACKAGE_VERSION
     " tdbcmysql.tcl TDBCMYSQL_LIBRARY ::tdbc::mysql::Library";
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MysqlBindAlloc --
+ *
+ *	Allocate a number of MYSQL_BIND structures.
+ *
+ * Results:
+ *	Returns a pointer to the array of structures, which will be zeroed out.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static MYSQL_BIND*
+MysqlBindAlloc(int nBindings)
+{
+    int size;
+    void* retval = NULL;
+    if (mysqlClientVersion >= 50100) {
+	size = sizeof(struct st_mysql_bind_51);
+    } else {
+	size = sizeof(struct st_mysql_bind_50);
+    }
+    size *= nBindings;
+    if (size != 0) {
+	retval = ckalloc(size);
+	memset(retval, 0, size);
+    }
+    return (MYSQL_BIND*) retval;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MysqlBindIndex --
+ *
+ *	Returns a pointer to one of an array of MYSQL_BIND objects
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static MYSQL_BIND*
+MysqlBindIndex(
+    MYSQL_BIND* b, 		/* Binding array to alter */
+    int i			/* Index in the binding array */
+) {
+    if (mysqlClientVersion >= 50100) {
+	return (MYSQL_BIND*)(((struct st_mysql_bind_51*) b) + i);
+    } else {
+	return (MYSQL_BIND*)(((struct st_mysql_bind_50*) b) + i);
+    }
+}
+
+/* 
+ *-----------------------------------------------------------------------------
+ *
+ * MysqlBindAllocBuffer --
+ *
+ *	Allocates the buffer in a MYSQL_BIND object
+ *
+ * Results:
+ *	Returns a pointer to the allocated buffer
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void*
+MysqlBindAllocBuffer(
+    MYSQL_BIND* b,		/* Pointer to a binding array */
+    int i,			/* Index into the array */
+    unsigned long len		/* Length of the buffer to allocate or 0 */
+) {
+    void* block = NULL;
+    if (len != 0) {
+	block = ckalloc(len);
+    }
+    if (mysqlClientVersion >= 50100) {
+	((struct st_mysql_bind_51*) b)[i].buffer = block;
+	((struct st_mysql_bind_51*) b)[i].buffer_length = len;
+    } else {
+	((struct st_mysql_bind_50*) b)[i].buffer = block;
+	((struct st_mysql_bind_50*) b)[i].buffer_length = len;
+    }
+    return block;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MysqlBindFreeBuffer --
+ *
+ *	Frees trhe buffer in a MYSQL_BIND object
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Buffer is returned to the system.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static void
+MysqlBindFreeBuffer(
+    MYSQL_BIND* b,		/* Pointer to a binding array */
+    int i			/* Index into the array */
+) {
+    if (mysqlClientVersion >= 50100) {
+	struct st_mysql_bind_51* bindings = (struct st_mysql_bind_51*) b;
+	if (bindings[i].buffer) {
+	    ckfree(bindings[i].buffer);
+	    bindings[i].buffer = NULL;
+	}
+	bindings[i].buffer_length = 0;
+    } else {
+	struct st_mysql_bind_50* bindings = (struct st_mysql_bind_50*) b;
+	if (bindings[i].buffer) {
+	    ckfree(bindings[i].buffer);
+	    bindings[i].buffer = NULL;
+	}
+	bindings[i].buffer_length = 0;
+    }
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MysqlBindGetBufferLength, MysqlBindSetBufferType, MysqlBindGetBufferType,
+ * MysqlBindSetLength, MysqlBindSetIsNull,
+ * MysqlBindSetError --
+ *
+ *	Access the fields of a MYSQL_BIND object
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void*
+MysqlBindGetBuffer(
+    MYSQL_BIND* b, 		/* Binding array to alter */
+    int i			/* Index in the binding array */
+) {
+    if (mysqlClientVersion >= 50100) {
+	return ((struct st_mysql_bind_51*) b)[i].buffer;
+    } else {
+	return ((struct st_mysql_bind_50*) b)[i].buffer;
+    }
+}
+
+static unsigned long
+MysqlBindGetBufferLength(
+    MYSQL_BIND* b, 		/* Binding array to alter */
+    int i			/* Index in the binding array */
+) {
+    if (mysqlClientVersion >= 50100) {
+	return ((struct st_mysql_bind_51*) b)[i].buffer_length;
+    } else {
+	return ((struct st_mysql_bind_50*) b)[i].buffer_length;
+    }
+
+}
+
+static enum enum_field_types
+MysqlBindGetBufferType(
+    MYSQL_BIND* b, 		/* Binding array to alter */
+    int i			/* Index in the binding array */
+) {
+    if (mysqlClientVersion >= 50100) {
+	return ((struct st_mysql_bind_51*) b)[i].buffer_type;
+    } else {
+	return ((struct st_mysql_bind_50*) b)[i].buffer_type;
+    }
+}
+
+static void 
+MysqlBindSetBufferType(
+    MYSQL_BIND* b, 		/* Binding array to alter */
+    int i,			/* Index in the binding array */
+    enum enum_field_types t	/* Buffer type to assign */
+) {
+    if (mysqlClientVersion >= 50100) {
+	((struct st_mysql_bind_51*) b)[i].buffer_type = t;
+    } else {
+	((struct st_mysql_bind_50*) b)[i].buffer_type = t;
+    }
+}
+
+static void 
+MysqlBindSetLength(
+    MYSQL_BIND* b, 		/* Binding array to alter */
+    int i,			/* Index in the binding array */
+    unsigned long* p		/* Length pointer to assign */
+) {
+    if (mysqlClientVersion >= 50100) {
+	((struct st_mysql_bind_51*) b)[i].length = p;
+    } else {
+	((struct st_mysql_bind_50*) b)[i].length = p;
+    }
+}
+
+static void 
+MysqlBindSetIsNull(
+    MYSQL_BIND* b, 		/* Binding array to alter */
+    int i,			/* Index in the binding array */
+    my_bool* p			/* "Is null" indicator pointer to assign */
+) {
+    if (mysqlClientVersion >= 50100) {
+	((struct st_mysql_bind_51*) b)[i].is_null = p;
+    } else {
+	((struct st_mysql_bind_50*) b)[i].is_null = p;
+    }
+}
+
+static void 
+MysqlBindSetError(
+    MYSQL_BIND* b, 		/* Binding array to alter */
+    int i,			/* Index in the binding array */
+    my_bool* p			/* Error indicator pointer to assign */
+) {
+    if (mysqlClientVersion >= 50100) {
+	((struct st_mysql_bind_51*) b)[i].error = p;
+    } else {
+	((struct st_mysql_bind_50*) b)[i].error = p;
+    }
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MysqlFieldIndex --
+ *
+ *	Return a pointer to a given MYSQL_FIELD structure in an array
+ *
+ * The MYSQL_FIELD structure grows by one pointer between 5.0 and 5.1.
+ * Our code never creates a MYSQL_FIELD, nor does it try to access that
+ * pointer, so we handle things simply by casting the types.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static MYSQL_FIELD*
+MysqlFieldIndex(MYSQL_FIELD* fields,
+				/*  Pointer to the array*/
+		int i)		/* Index in the array */
+{
+    MYSQL_FIELD* retval;
+    if (mysqlClientVersion >= 50100) {
+	retval = (MYSQL_FIELD*)(((struct st_mysql_field_51*) fields)+i);
+    } else {
+	retval = (MYSQL_FIELD*)(((struct st_mysql_field_50*) fields)+i);
+    }
+    return retval;
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -1275,29 +1544,30 @@ ConnectionColumnsMethod(
 	retval = Tcl_NewObj();
 	Tcl_IncrRefCount(retval);
 	for (i = 0; i < fieldCount; ++i) {
+	    MYSQL_FIELD* field = MysqlFieldIndex(fields, i);
 	    attrs = Tcl_NewObj();
-	    name = Tcl_NewStringObj(fields[i].name, fields[i].name_length);
+	    name = Tcl_NewStringObj(field->name, field->name_length);
 
 	    Tcl_DictObjPut(NULL, attrs, literals[LIT_NAME], name);
 	    /* TODO - Distinguish CHAR and BINARY */
 	    entry = Tcl_FindHashEntry(&(pidata->typeNumHash),
-				      (char*) fields[i].type);
+				      (char*) field->type);
 	    if (entry != NULL) {
 		Tcl_DictObjPut(NULL, attrs, literals[LIT_TYPE],
 			       (Tcl_Obj*) Tcl_GetHashValue(entry));
 	    }
-	    if (IS_NUM(fields[i].type)) {
+	    if (IS_NUM(field->type)) {
 		Tcl_DictObjPut(NULL, attrs, literals[LIT_PRECISION],
-			       Tcl_NewIntObj(fields[i].length));
-	    } else if (fields[i].charsetnr < cdata->nCollations) {
+			       Tcl_NewIntObj(field->length));
+	    } else if (field->charsetnr < cdata->nCollations) {
 		Tcl_DictObjPut(NULL, attrs, literals[LIT_PRECISION],
-		    Tcl_NewIntObj(fields[i].length
-			/ cdata->collationSizes[fields[i].charsetnr]));
+		    Tcl_NewIntObj(field->length
+			/ cdata->collationSizes[field->charsetnr]));
 	    }		
 	    Tcl_DictObjPut(NULL, attrs, literals[LIT_SCALE],
-			   Tcl_NewIntObj(fields[i].decimals));
+			   Tcl_NewIntObj(field->decimals));
 	    Tcl_DictObjPut(NULL, attrs, literals[LIT_NULLABLE],
-			   Tcl_NewIntObj(!(fields[i].flags 
+			   Tcl_NewIntObj(!(field->flags 
 					   & (NOT_NULL_FLAG))));
 	    Tcl_DictObjPut(NULL, retval, name, attrs);
 	}
@@ -1580,10 +1850,10 @@ ConnectionSetCollationInfoMethod(
     if (Tcl_ListObjIndex(interp, objv[2], 0, &objPtr) != TCL_OK) {
 	return TCL_ERROR;
     }
-    if (Tcl_GetIntFromObj(interp, objPtr, &(cdata->nCollations)) != TCL_OK) {
+    if (Tcl_GetIntFromObj(interp, objPtr, &t) != TCL_OK) {
 	return TCL_ERROR;
     }
-    ++cdata->nCollations;
+    cdata->nCollations = (unsigned int)(t+1);
     if (cdata->collationSizes) {
 	ckfree((char*) cdata->collationSizes);
     }
@@ -1942,9 +2212,10 @@ ResultDescToTcl(
 	unsigned int i;
 	char numbuf[16];
 	for (i = 0; i < fieldCount; ++i) {
-	    nameObj = Tcl_NewStringObj(fields[i].name, fields[i].name_length);
+	    MYSQL_FIELD* field = MysqlFieldIndex(fields, i);
+	    nameObj = Tcl_NewStringObj(field->name, field->name_length);
 	    Tcl_IncrRefCount(nameObj);
-	    entry = Tcl_CreateHashEntry(&names, fields[i].name, &new);
+	    entry = Tcl_CreateHashEntry(&names, field->name, &new);
 	    count = 1;
 	    while (!new) {
 		count = (int) Tcl_GetHashValue(entry);
@@ -2542,9 +2813,7 @@ ResultSetConstructor(
     rdata->resultNulls = (my_bool*) ckalloc(nColumns * sizeof(my_bool));
     resultLengths = rdata->resultLengths = (unsigned long*)
 	ckalloc(nColumns * sizeof(unsigned long));
-    resultBindings = rdata->resultBindings = (MYSQL_BIND*)
-	ckalloc(nColumns * sizeof(MYSQL_BIND));
-    memset(resultBindings, 0, nColumns * sizeof(MYSQL_BIND));
+    rdata->resultBindings = resultBindings = MysqlBindAlloc(nColumns);
     IncrStatementRefCount(sdata);
     Tcl_ObjectSetMetadata(thisObject, &resultSetDataType, (ClientData) rdata);
 
@@ -2555,27 +2824,25 @@ ResultSetConstructor(
 	fields = mysql_fetch_fields(sdata->metadataPtr);
     }
     for (i = 0; i < nColumns; ++i) {
-	switch (fields[i].type) {
+	MYSQL_FIELD* field = MysqlFieldIndex(fields, i);
+	switch (field->type) {
 
 	case MYSQL_TYPE_FLOAT:
 	case MYSQL_TYPE_DOUBLE:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_DOUBLE;
-	    resultBindings[i].buffer = ckalloc(sizeof(double));
-	    resultBindings[i].buffer_length = sizeof(double);
+	    MysqlBindSetBufferType(resultBindings, i,  MYSQL_TYPE_DOUBLE);
+	    MysqlBindAllocBuffer(resultBindings, i, sizeof(double));
 	    resultLengths[i] = sizeof(double);
 	    break;
 
 	case MYSQL_TYPE_BIT:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_BIT;
-	    resultBindings[i].buffer = ckalloc(fields[i].length);
-	    resultBindings[i].buffer_length = fields[i].length;
-	    resultLengths[i] = fields[i].length;
+	    MysqlBindSetBufferType(resultBindings, i,  MYSQL_TYPE_BIT);
+	    MysqlBindAllocBuffer(resultBindings, i, field->length);
+	    resultLengths[i] = field->length;
 	    break;
 
 	case MYSQL_TYPE_LONGLONG:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_LONGLONG;
-	    resultBindings[i].buffer = ckalloc(sizeof(Tcl_WideInt));
-	    resultBindings[i].buffer_length = sizeof(Tcl_WideInt);
+	    MysqlBindSetBufferType(resultBindings, i,  MYSQL_TYPE_LONGLONG);
+	    MysqlBindAllocBuffer(resultBindings, i, sizeof(Tcl_WideInt));
 	    resultLengths[i] = sizeof(Tcl_WideInt);
 	    break;
 
@@ -2583,24 +2850,22 @@ ResultSetConstructor(
 	case MYSQL_TYPE_SHORT:
 	case MYSQL_TYPE_INT24:
 	case MYSQL_TYPE_LONG:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_LONG;
-	    resultBindings[i].buffer = ckalloc(sizeof(long));
-	    resultBindings[i].buffer_length = sizeof(long);
+	    MysqlBindSetBufferType(resultBindings, i,  MYSQL_TYPE_LONG);
+	    MysqlBindAllocBuffer(resultBindings, i, sizeof(long));
 	    resultLengths[i] = sizeof(long);
 	    break;
 
 	default:
-	    resultBindings[i].buffer_type = MYSQL_TYPE_STRING;
-	    resultBindings[i].buffer = NULL;
-	    resultBindings[i].buffer_length = 0;
+	    MysqlBindSetBufferType(resultBindings, i,  MYSQL_TYPE_STRING);
+	    MysqlBindAllocBuffer(resultBindings, i, 0);
 	    resultLengths[i] = 0;
 	    break;
 	}
-	resultBindings[i].length = resultLengths + i;
+	MysqlBindSetLength(resultBindings, i, rdata->resultLengths + i);
 	rdata->resultNulls[i] = 0;
-	resultBindings[i].is_null = rdata->resultNulls + i;
+	MysqlBindSetIsNull(resultBindings, i, rdata->resultNulls + i);
 	rdata->resultErrors[i] = 0;
-	resultBindings[i].error = rdata->resultErrors + i;
+	MysqlBindSetError(resultBindings, i, rdata->resultErrors + i);
     }
 
     /*
@@ -2625,12 +2890,11 @@ ResultSetConstructor(
     Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
     rdata->paramValues = Tcl_NewObj();
     Tcl_IncrRefCount(rdata->paramValues);
-    rdata->paramBindings = (MYSQL_BIND*) ckalloc(nParams * sizeof(MYSQL_BIND));
+    rdata->paramBindings = MysqlBindAlloc(nParams);
     rdata->paramLengths = (unsigned long*) ckalloc(nParams
 						   * sizeof(unsigned long));
-    memset(rdata->paramBindings, 0, nParams * sizeof(MYSQL_BIND));
     for (nBound = 0; nBound < nParams; ++nBound) {
-	rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_NULL;
+	MysqlBindSetBufferType(rdata->paramBindings, nBound, MYSQL_TYPE_NULL);
     }
 
     /* Bind the substituted parameters */
@@ -2682,13 +2946,13 @@ ResultSetConstructor(
 	    case MYSQL_TYPE_FLOAT:
 	    case MYSQL_TYPE_DOUBLE:
 	    real:
-		rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_DOUBLE;
-		rdata->paramBindings[nBound].buffer = bufPtr
-		    = ckalloc(sizeof(double));
+		MysqlBindSetBufferType(rdata->paramBindings, nBound,
+				       MYSQL_TYPE_DOUBLE);
+		bufPtr = MysqlBindAllocBuffer(rdata->paramBindings,
+					      nBound, sizeof(double));
 		rdata->paramLengths[nBound] = sizeof(double);
-		rdata->paramBindings[nBound].buffer_length = sizeof(double);
-		rdata->paramBindings[nBound].length =
-		    &(rdata->paramLengths[nBound]);
+		MysqlBindSetLength(rdata->paramBindings, nBound,
+				   &(rdata->paramLengths[nBound]));
 		if (Tcl_GetDoubleFromObj(interp, paramValObj,
 					 (double*) bufPtr) != TCL_OK) {
 		    return TCL_ERROR;
@@ -2698,14 +2962,13 @@ ResultSetConstructor(
 	    case MYSQL_TYPE_BIT:
 	    case MYSQL_TYPE_LONGLONG:
 	    biginteger:
-		rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_LONGLONG;
-		rdata->paramBindings[nBound].buffer = bufPtr
-		    = ckalloc(sizeof(Tcl_WideInt));
+		MysqlBindSetBufferType(rdata->paramBindings, nBound,
+				       MYSQL_TYPE_LONGLONG);
+		bufPtr = MysqlBindAllocBuffer(rdata->paramBindings, nBound,
+					      sizeof(Tcl_WideInt));
 		rdata->paramLengths[nBound] = sizeof(Tcl_WideInt);
-		rdata->paramBindings[nBound].buffer_length
-		    = sizeof(Tcl_WideInt);
-		rdata->paramBindings[nBound].length =
-		    &(rdata->paramLengths[nBound]);
+		MysqlBindSetLength(rdata->paramBindings, nBound,
+				   &(rdata->paramLengths[nBound]));
 		if (Tcl_GetWideIntFromObj(interp, paramValObj,
 					  (Tcl_WideInt*) bufPtr) != TCL_OK) {
 		    return TCL_ERROR;
@@ -2717,13 +2980,13 @@ ResultSetConstructor(
 	    case MYSQL_TYPE_INT24:
 	    case MYSQL_TYPE_LONG:
 	    smallinteger:
-		rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_LONG;
-		rdata->paramBindings[nBound].buffer = bufPtr
-		    = ckalloc(sizeof(long));
-		rdata->paramLengths[nBound] = sizeof(int);
-		rdata->paramBindings[nBound].buffer_length = sizeof(long);
-		rdata->paramBindings[nBound].length =
-		    &(rdata->paramLengths[nBound]);
+		MysqlBindSetBufferType(rdata->paramBindings, nBound,
+				       MYSQL_TYPE_LONG);
+		bufPtr = MysqlBindAllocBuffer(rdata->paramBindings, nBound,
+					      sizeof(long));
+		rdata->paramLengths[nBound] = sizeof(long);
+		MysqlBindSetLength(rdata->paramBindings, nBound,
+				   &(rdata->paramLengths[nBound]));
 		if (Tcl_GetLongFromObj(interp, paramValObj,
 				       (long*) bufPtr) != TCL_OK) {
 		    return TCL_ERROR;
@@ -2734,26 +2997,27 @@ ResultSetConstructor(
 	    charstring:
 		Tcl_ListObjAppendElement(NULL, rdata->paramValues, paramValObj);
 		if (sdata->params[nBound].dataType & IS_BINARY) {
-		    rdata->paramBindings[nBound].buffer_type
-			= MYSQL_TYPE_BLOB;
+		    MysqlBindSetBufferType(rdata->paramBindings, nBound,
+					   MYSQL_TYPE_BLOB);
 		    paramValStr = (char*)
 			Tcl_GetByteArrayFromObj(paramValObj, &len);
 		} else {
-		    rdata->paramBindings[nBound].buffer_type
-			= MYSQL_TYPE_STRING;
+		    MysqlBindSetBufferType(rdata->paramBindings, nBound,
+					   MYSQL_TYPE_STRING);
 		    paramValStr = Tcl_GetStringFromObj(paramValObj, &len);
 		}		    
-		rdata->paramBindings[nBound].buffer = ckalloc(len+1);
-		memcpy(rdata->paramBindings[nBound].buffer, paramValStr, len);
+		bufPtr = MysqlBindAllocBuffer(rdata->paramBindings, nBound,
+					      len+1);
+		memcpy(bufPtr, paramValStr, len);
 		rdata->paramLengths[nBound] = len;
-		rdata->paramBindings[nBound].buffer_length = len;
-		rdata->paramBindings[nBound].length =
-		    &(rdata->paramLengths[nBound]);
+		MysqlBindSetLength(rdata->paramBindings, nBound,
+				   &(rdata->paramLengths[nBound]));
 		break; 
 
 	    }
 	} else {
-	    rdata->paramBindings[nBound].buffer_type = MYSQL_TYPE_NULL;
+	    MysqlBindSetBufferType(rdata->paramBindings, nBound,
+				   MYSQL_TYPE_NULL);
 	}
     }
 
@@ -2774,7 +3038,7 @@ ResultSetConstructor(
 	|| ((nColumns > 0) && mysql_stmt_bind_result(rdata->stmtPtr,
 						     resultBindings))
 	|| mysql_stmt_execute(rdata->stmtPtr)
-	|| mysql_stmt_store_result(rdata->stmtPtr)) {
+	|| mysql_stmt_store_result(rdata->stmtPtr) ) {
 	TransferMysqlStmtError(interp, sdata->stmtPtr);
 	return TCL_ERROR;
     }
@@ -2782,7 +3046,6 @@ ResultSetConstructor(
     /* Determine and store the row count */
 
     rdata->rowCount = mysql_stmt_affected_rows(sdata->stmtPtr);
-
     return TCL_OK;
 }
 
@@ -2895,6 +3158,7 @@ ResultSetNextrowMethod(
 				/* String lengths of the results */
     my_bool* resultNulls = rdata->resultNulls;
 				/* Indicators that the results are null */
+    void* bufPtr;		/* Pointer to a result's buffer */
     unsigned char byte;		/* One byte extracted from a bit field */
     Tcl_WideInt bitVal;		/* Value of a bit field */
     int mysqlStatus;		/* Status return from MySQL */
@@ -2941,50 +3205,49 @@ ResultSetNextrowMethod(
     /* Retrieve one column at a time. */
 
     for (i = 0; i < nColumns; ++i) {
+	MYSQL_FIELD* field = MysqlFieldIndex(fields, i);
 	colObj = NULL;
 	if (!resultNulls[i]) {
-	    if (resultLengths[i] > resultBindings[i].buffer_length) {
-		if (resultBindings[i].buffer != NULL) {
-		    ckfree(resultBindings[i].buffer);
-		}
-		resultBindings[i].buffer = ckalloc(resultLengths[i] + 1);
-		resultBindings[i].buffer_length = resultLengths[i] + 1;
-		if (mysql_stmt_fetch_column(rdata->stmtPtr, resultBindings + i,
+	    if (resultLengths[i]
+		> MysqlBindGetBufferLength(resultBindings, i)) {
+		MysqlBindFreeBuffer(resultBindings, i);
+		MysqlBindAllocBuffer(resultBindings, i, resultLengths[i] + 1);
+		if (mysql_stmt_fetch_column(rdata->stmtPtr, 
+					    MysqlBindIndex(resultBindings, i),
 					    i, 0)) {
 		    goto cleanup;
 		}
 	    }
-	    switch (resultBindings[i].buffer_type) {
+	    bufPtr = MysqlBindGetBuffer(resultBindings, i);
+	    switch (MysqlBindGetBufferType(resultBindings, i)) {
 
 	    case MYSQL_TYPE_BIT:
 		bitVal = 0;
 		for (j = 0; j < resultLengths[i]; ++j) {
-		    byte = ((unsigned char*) resultBindings[i].buffer)
-			[resultLengths[i]-1-j];
+		    byte = ((unsigned char*) bufPtr)[resultLengths[i]-1-j];
 		    bitVal |= (byte << (8*j));
 		}
 		colObj = Tcl_NewWideIntObj(bitVal);
 		break;
 
 	    case MYSQL_TYPE_DOUBLE:
-		colObj = Tcl_NewDoubleObj(*(double*)(resultBindings[i].buffer));
+		colObj = Tcl_NewDoubleObj(*(double*) bufPtr);
 		break;
 
 	    case MYSQL_TYPE_LONG:
-		colObj = Tcl_NewLongObj(*(long*)(resultBindings[i].buffer));
+		colObj = Tcl_NewLongObj(*(long*) bufPtr);
 		break;
 
 	    case MYSQL_TYPE_LONGLONG:
-		colObj = Tcl_NewWideIntObj
-		    (*(Tcl_WideInt*)(resultBindings[i].buffer));
+		colObj = Tcl_NewWideIntObj(*(Tcl_WideInt*) bufPtr);
 		break;
 
 	    default:
-		if (fields[i].charsetnr == 63) {
-		    colObj = Tcl_NewByteArrayObj(resultBindings[i].buffer,
+		if (field->charsetnr == 63) {
+		    colObj = Tcl_NewByteArrayObj((unsigned char*) bufPtr,
 						 resultLengths[i]);
 		} else {
-		    colObj = Tcl_NewStringObj(resultBindings[i].buffer,
+		    colObj = Tcl_NewStringObj((char*) bufPtr,
 					      resultLengths[i]);
 		}
 		break;
@@ -3093,9 +3356,7 @@ DeleteResultSet(
     Tcl_ListObjLength(NULL, sdata->subVars, &nParams);
     Tcl_ListObjLength(NULL, sdata->columnNames, &nColumns);
     for (i = 0; i < nColumns; ++i) {
-	if (rdata->resultBindings[i].buffer != NULL) {
-	    ckfree(rdata->resultBindings[i].buffer);
-	}
+	MysqlBindFreeBuffer(rdata->resultBindings, i);
     }
     ckfree((char*)(rdata->resultBindings));
     ckfree((char*)(rdata->resultLengths));
@@ -3104,8 +3365,9 @@ DeleteResultSet(
     ckfree((char*)(rdata->paramLengths));
     if (rdata->paramBindings != NULL) {
 	for (i = 0; i < nParams; ++i) {
-	    if (rdata->paramBindings[i].buffer_type != MYSQL_TYPE_NULL) {
-		ckfree((char*) rdata->paramBindings[i].buffer);
+	    if (MysqlBindGetBufferType(rdata->paramBindings, i)
+		!= MYSQL_TYPE_NULL) {
+		MysqlBindFreeBuffer(rdata->paramBindings, i);
 	    }
 	}
 	ckfree((char*)(rdata->paramBindings));
@@ -3332,6 +3594,7 @@ Tdbcmysql_Init(
 	    return TCL_ERROR;
 	}
 	mysql_library_init(0, NULL, NULL);
+	mysqlClientVersion = mysql_get_client_version();
     }
     ++mysqlRefCount;
     Tcl_MutexUnlock(&mysqlMutex);
