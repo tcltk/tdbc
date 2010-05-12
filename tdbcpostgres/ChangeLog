@@ -1,3 +1,9 @@
+2010-05-12  Andreas Kupries  <andreask@activestate.com>
+
+	* generic/tdbcpostgres.c: Moved the int32_t/int16_t types into the
+	  _WIN32 conditional. Conflicted with HPUX own definitions of
+	  these types and required only for windows.
+
 2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* aclocal.m4:	Synchronized with tdbc.
