@@ -140,7 +140,7 @@ struct st_mysql_field {
     char* name;
     char *org_name;
     char* table;
-    char* org_tabkle;
+    char* org_table;
     char* db;
     char* catalog;
     char* def;
