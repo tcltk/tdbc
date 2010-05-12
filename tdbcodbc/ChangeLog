@@ -1,3 +1,12 @@
+2010-05-12  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/fakesql.h: 
+			Eliminated uses of INT64 and UINT64 in 
+			favour of Tcl_WideInt and Tcl_WideUInt
+			respectively.  (Avoids a conflict with
+			INT64 and UINT64 definitions in basetsd.h
+			on Win64.)
+	
 2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* aclocal.m4:	Synchronized with the 'tdbc' package.

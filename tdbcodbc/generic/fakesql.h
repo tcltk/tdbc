@@ -42,25 +42,23 @@ typedef const char* LPCSTR;
 typedef const WCHAR* LPCWSTR;
 typedef unsigned short WORD;
 #endif
-typedef Tcl_WideInt INT64;
 typedef void* PVOID;
 typedef short RETCODE;
 typedef long SDWORD;
 typedef short SWORD;
-typedef Tcl_WideUInt UINT64;
 typedef unsigned short USHORT;
 typedef USHORT UWORD;
 
 /* ODBC data types */
 
-typedef INT64 SQLBIGINT;
+typedef Tcl_WideInt SQLBIGINT;
 typedef unsigned char SQLCHAR;
 typedef double SQLDOUBLE;
 typedef void* SQLHANDLE;
 typedef SDWORD SQLINTEGER;
 typedef PVOID SQLPOINTER;
 typedef SWORD SQLSMALLINT;
-typedef UINT64 SQLUBIGINT;
+typedef Tcl_WideUInt SQLUBIGINT;
 typedef unsigned char SQLUCHAR;
 typedef unsigned int SQLUINTEGER;
 typedef UWORD SQLUSMALLINT;
@@ -72,8 +70,8 @@ typedef SQLSMALLINT SQLRETURN;
  *        64-bit Unix. */
 
 #if defined(__WIN64)
-typedef INT64 SQLLEN;
-typedef UINT64 SQLULEN;
+typedef Tcl_WideInt SQLLEN;
+typedef Tcl_WideUInt SQLULEN;
 #else
 typedef SQLINTEGER SQLLEN;
 typedef SQLUINTEGER SQLULEN;
