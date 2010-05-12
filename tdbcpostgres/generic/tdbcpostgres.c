@@ -26,9 +26,6 @@
 #include <string.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
-#else
-typedef int int32_t;
-typedef short int16_t;
 #endif
 
 #ifdef USE_NATIVE_POSTGRES
@@ -40,6 +37,8 @@ typedef short int16_t;
 /* Include the files needed to locate htons() and htonl() */
 
 #ifdef _WIN32
+typedef int int32_t;
+typedef short int16_t;
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
