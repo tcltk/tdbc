@@ -34,6 +34,8 @@ package require tdbc
     # and values pairs as its argumenta.  (See the manual page for the
     # available options.)
 
+    variable foreignKeysStatement
+
     # The 'statementCreate' method delegates to the constructor of the
     # statement class
 
@@ -80,6 +82,46 @@ package require tdbc
     # 'NeedCollationInfo', 'SetCollationInfo', and 'Columns' methods 
     # are implemented in C.
 
+    # The 'BuildForeignKeysStatements' method builds a SQL statement to
+    # retrieve the foreign keys from a database. (It executes once the
+    # first time the 'foreignKeys' method is executed, and retains the
+    # prepared statements for reuse.)  It is slightly nonstandard because
+    # MYSQL doesn't name the PRIMARY constraints uniquely.
+
+    method BuildForeignKeysStatement {} {
+
+	foreach {exists1 clause1} {
+	    0 {}
+	    1 { AND fkc.REFERENCED_TABLE_NAME = :primary}
+	} {
+	    foreach {exists2 clause2} {
+		0 {}
+		1 { AND fkc.TABLE_NAME = :foreign}
+	    } {
+		set stmt [my prepare "
+	     SELECT rc.CONSTRAINT_SCHEMA AS \"foreignConstraintSchema\",
+                    rc.CONSTRAINT_NAME AS \"foreignConstraintName\",
+                    rc.UPDATE_RULE AS \"updateAction\",
+		    rc.DELETE_RULE AS \"deleteAction\",
+		    fkc.REFERENCED_TABLE_SCHEMA AS \"primarySchema\",
+                    fkc.REFERENCED_TABLE_NAME AS \"primaryTable\",
+                    fkc.REFERENCED_COLUMN_NAME AS \"primaryColumn\",
+                    fkc.TABLE_SCHEMA AS \"foreignSchema\",
+                    fkc.TABLE_NAME AS \"foreignTable\",
+                    fkc.COLUMN_NAME AS \"foreignColumn\",
+                    fkc.ORDINAL_POSITION AS \"keySequence\"
+             FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+             INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE fkc
+                     ON fkc.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+                    AND fkc.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
+             WHERE 1=1
+                 $clause1
+                 $clause2
+"]
+		dict set foreignKeysStatement $exists1 $exists2 $stmt
+	    }
+	}
+    }
 }
 
 #------------------------------------------------------------------------------

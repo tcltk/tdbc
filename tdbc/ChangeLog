@@ -1,3 +1,12 @@
+2010-05-23  Kevin B. Kenny  <kennykb@acm.org>
+
+	* library/tdbc.tcl: Add methods 'primarykeys' and 'foreignkeys'
+			    on the 'tdbc::connection' object
+	                    to inspect database structure, and methods
+			    'BuildPrimaryKeysStatement' and 
+	                    'BuildForeignKeysStatement' to initialize the
+	                    'statement' objects that the methods use.
+	
 2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* aclocal.m4:	Add a TEAX_PATH_LINE rule to simplify emitting the

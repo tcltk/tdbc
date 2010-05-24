@@ -1,4 +1,14 @@
-2011-05-12  Kevin B. Kenny  <kennykb@acm.org>
+2010-05-23  Kevin B. Kenny  <kennykb@acm.org>
+
+	* library/tdbcmysql.tcl: Added a 'BuildForeignKeysStatement' method
+	                         to tdbcmysql::connection that overrides the
+				 one in the base class and accommodates the
+				 nonstandard INFORMATION_SCHEMA provided in
+				 MySQL.
+	* tests/tdbcmysql.test: Added test cases for '$db primarykeys'
+	                        and '$db foreignkeys'
+	
+2010-05-12  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/fakesql.h:
 			Added dual definitions of data structures that change

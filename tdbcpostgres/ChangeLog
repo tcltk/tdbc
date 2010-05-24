@@ -1,3 +1,8 @@
+2010-05-24  Kevin B. Kenny  <kennybk@acm.org>
+
+	* tests/tdbcpostgres.test: Added test cases for '$db primarykeys'
+				   and '$db foreignkeys'
+	
 2010-05-12  Andreas Kupries  <andreask@activestate.com>
 
 	* generic/tdbcpostgres.c: Moved the int32_t/int16_t types into the
