@@ -1,3 +1,9 @@
+2010-06-19  Kevin B. Kenny  <kennykb@acm.org>
+
+	* tdbcsqlite3.tcl:	Added 'primarykeys' and 'foreignkeys'
+	* tdbcsqlite3.test:	methods to the 'connection' object.  Added
+				test cases for these methods.
+	
 2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* aclocal.m4:	Synchronized with 'tdbc'.

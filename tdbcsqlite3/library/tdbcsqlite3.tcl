@@ -256,6 +256,137 @@ namespace eval tdbc::sqlite3 {
 	return $retval
     }
 
+    # The 'primarykeys' method enumerates the primary keys on a table.
+
+    method primarykeys {table} {
+	set result {}
+	my foreach row "PRAGMA table_info($table)" {
+	    if {[dict get $row pk]} {
+		lappend result [dict create ordinalPosition \
+				    [expr {[dict get $row cid]+1}] \
+				    columnName \
+				    [dict get $row name]]
+	    }
+	}
+	return $result
+    }
+
+    # The 'foreignkeys' method enumerates the foreign keys that are
+    # declared in a table or that refer to a given table.
+
+    method foreignkeys {args} {
+
+	variable ::tdbc::generalError
+
+	# Check arguments
+
+	set argdict {}
+	if {[llength $args] % 2 != 0} {
+	    set errorcode $generalError
+	    lappend errorcode wrongNumArgs
+	    return -code error -errorcode $errorcode \
+		"wrong # args: should be [lrange [info level 0] 0 1]\
+                 ?-option value?..."
+	}
+	foreach {key value} $args {
+	    if {$key ni {-primary -foreign}} {
+		set errorcode $generalError
+		lappend errorcode badOption
+		return -code error -errorcode $errorcode \
+		    "bad option \"$key\", must be -primary or -foreign"
+	    }
+	    set key [string range $key 1 end]
+	    if {[dict exists $argdict $key]} {
+		set errorcode $generalError
+		lappend errorcode dupOption
+		return -code error -errorcode $errorcode \
+		    "duplicate option \"$key\" supplied"
+	    }
+	    dict set argdict $key $value
+	}
+
+	# If we know the table with the foreign key, search just its
+	# foreign keys. Otherwise, iterate over all the tables in the
+	# database.
+
+	if {[dict exists $argdict foreign]} {
+	    return [my ForeignKeysForTable [dict get $argdict foreign] \
+			$argdict]
+	} else {
+	    set result {}
+	    foreach foreignTable [dict keys [my tables]] {
+		lappend result {*}[my ForeignKeysForTable \
+				       $foreignTable $argdict]
+	    }
+	    return $result
+	}
+
+    }
+
+    # The private ForeignKeysForTable method enumerates the foreign keys
+    # in a specific table.
+    #
+    # Parameters:
+    #
+    #	foreignTable - Name of the table containing foreign keys.
+    #   argdict - Dictionary that may or may not contain a key,
+    #             'primary', whose value is the name of a table that
+    #             must hold the primary key corresponding to the foreign
+    #             key. If the 'primary' key is absent, all tables are 
+    #             candidates.
+    # Results:
+    #
+    # 	Returns the list of foreign keys that meed the specified
+    # 	conditions, as a list of dictionaries, each containing the
+    # 	keys, foreignConstraintName, foreignTable, foreignColumn,
+    # 	primaryTable, primaryColumn, and keySequence.  Note that the
+    #   foreign constraint name is constructed arbitrarily, since SQLite3
+    #   does not report this information.
+
+    method ForeignKeysForTable {foreignTable argdict} {
+
+	set result {}
+	set n 0
+   
+	# Go through the foreign keys in the given table, looking for
+	# ones that refer to the primary table (if one is given), or
+	# for any primary keys if none is given.
+	my foreach row "PRAGMA foreign_key_list($foreignTable)" {
+	    if {(![dict exists $argdict primary])
+		|| ([string tolower [dict get $row table]]
+		    eq [dict get $argdict primary])} {
+
+		# Construct a dictionary for each key, translating
+		# SQLite names to TDBC ones and converting sequence
+		# numbers to 1-based indexing.
+
+		set rrow [dict create foreignTable $foreignTable \
+			      foreignConstraintName \
+			      ?$foreignTable?[dict get $row id]]
+		if {[dict exists $row seq]} {
+		    dict set rrow keySequence [expr {1 + [dict get $row seq]}]
+		}
+		foreach {to from} {
+		    foreignColumn from
+		    primaryTable table
+		    primaryColumn to
+		    deleteAction on_delete
+		    updateAction on_update
+		} {
+		    if {[dict exists $row $from]} {
+			dict set rrow $to [dict get $row $from]
+		    }
+		}
+		
+		# Add the newly-constucted dictionary to the result list
+
+		lappend result $rrow
+	    }
+	}
+
+	return $result
+    }
+
     # The 'preparecall' method prepares a call to a stored procedure.
     # SQLite3 does not have stored procedures, since it's an in-process
     # server.
