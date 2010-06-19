@@ -666,13 +666,6 @@ const static Tcl_MethodType* StatementMethods[] = {
     NULL
 };
 
-/* Initialization script */
-
-static const char initScript[] =
-    "namespace eval ::tdbc::postgres {}\n"
-    "tcl_findLibrary tdbcpostgres " PACKAGE_VERSION " " PACKAGE_VERSION
-    " tdbcpostgres.tcl TDBCPOSTGRES_LIBRARY ::tdbc::postgres::Library";
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -3138,14 +3131,6 @@ Tdbcpostgres_Init(
     }
 
     /* 
-     * Evaluate the initialization script to make the connection class 
-     */
-
-    if (Tcl_Eval(interp, initScript) != TCL_OK) {
-	return TCL_ERROR;
-    }
-
-    /*
      * Create per-interpreter data for the package
      */
 

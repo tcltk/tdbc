@@ -343,13 +343,6 @@ const static OdbcConstant OdbcErrorCodeNames[] = {
     { NULL,				0 }
 };
 
-/* Initialization script */
-
-static const char initScript[] =
-    "namespace eval ::tdbc::odbc {}\n"
-    "tcl_findLibrary tdbcodbc " PACKAGE_VERSION " " PACKAGE_VERSION
-    " tdbcodbc.tcl TDBCODBC_LIBRARY ::tdbc::odbc::Library";
-
 /* Prototypes for static functions appearing in this file */
 
 static void DStringAppendWChars(Tcl_DString* ds, SQLWCHAR* ws, int len);
@@ -4736,14 +4729,6 @@ Tdbcodbc_Init(
     }
 
     /* 
-     * Evaluate the initialization script to make the connection class 
-     */
-
-    if (Tcl_Eval(interp, initScript) != TCL_OK) {
-	return TCL_ERROR;
-    }
-
-    /*
      * Create per-interpreter data for the package
      */
 

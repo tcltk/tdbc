@@ -227,17 +227,23 @@ test: test-jet test-sqlserver test-sqlite
 test-jet: binaries libraries
 	@echo testing tdbcodbc against Jet
 	TDBCODBC_TYPE=jet \
-		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
+		-load "package ifneeded tdbc::odbc $(PACKAGE_VERSION) \
+			[list source `@CYGPATH@ $(srcdir)/library/tdbcodbc.tcl`]\;[list load `@CYGPATH@ $(PKG_LIB_FILE)` $(PACKAGE_NAME)]"
 
 test-sqlserver: binaries libraries
 	@echo testing tdbcodbc against SQL Server
 	TDBCODBC_TYPE=sqlserver \
-		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
+		-load "package ifneeded tdbc::odbc ${PACKAGE_VERSION} \
+			[list source `@CYGPATH@ $(srcdir)/library/tdbcodbc.tcl`]\;[list load `@CYGPATH@ $(PKG_LIB_FILE)` $(PACKAGE_NAME)]"
 
 test-sqlite: binaries libraries
 	@echo testing tdbcodbc against SQLite
 	TDBCODBC_TYPE=sqlite \
-		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
+		-load "package ifneeded tdbc::odbc ${PACKAGE_VERSION} \
+			[list source `@CYGPATH@ $(srcdir)/library/tdbcodbc.tcl`]\;[list load `@CYGPATH@ $(PKG_LIB_FILE)` $(PACKAGE_NAME)]"
 
 shell: binaries libraries
 	@$(TCLSH) $(SCRIPT)
@@ -287,7 +293,8 @@ pkgIndex.tcl: Makefile
 	-@echo Creating pkgIndex.tcl
 	@( \
 	echo 'package ifneeded tdbc::odbc $(PACKAGE_VERSION) \
-	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]' \
+            "[list source [file join $$dir tdbcodbc.tcl]]; \
+	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]"' \
 	) > pkgIndex.tcl
 
 #========================================================================

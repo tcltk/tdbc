@@ -560,15 +560,6 @@ const static Tcl_MethodType* ResultSetMethods[] = {
     NULL
 };
 
-
-/* Initialization script */
-
-static const char initScript[] =
-    "namespace eval ::tdbc::oracle {}\n"
-    "tcl_findLibrary tdbcoracle " PACKAGE_VERSION " " PACKAGE_VERSION
-    " tdbcoracle.tcl TDBCORACLE_LIBRARY ::tdbc::oracle::Library";
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -3111,14 +3102,6 @@ Tdbcoracle_Init(
     }
 
     /* 
-     * Evaluate the initialization script to make the connection class 
-     */
-
-    if (Tcl_Eval(interp, initScript) != TCL_OK) {
-	return TCL_ERROR;
-    }
-
-    /*
      * Create per-interpreter data for the package
      */
 

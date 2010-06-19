@@ -1,3 +1,18 @@
+2010-06-19  Kevin B. Kenny  <kennykb@acm.org>
+	
+	* Makefile.in:			Revised the code at the suggestion
+	* generic/tdbcpostgres.c:	of Andreas Kupries to avoid using
+	* tests/all.tcl:		'tcl_findLibrary' and instead execute
+	* tests/tdbcpostgres.test:	both 'source' and 'load' commands from
+					'pkgIndex.tcl'. Revised the 'make test'
+					rule, and the test scripts, to
+					test successfully under the new regime.
+					Thanks to Andreas for providing the
+					original patch, and to Joe English
+					for providing ideas for simplifying
+					and repairing 'make test' under the
+					new regime.
+	
 2010-05-24  Kevin B. Kenny  <kennybk@acm.org>
 
 	* tests/tdbcpostgres.test: Added test cases for '$db primarykeys'

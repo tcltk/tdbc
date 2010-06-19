@@ -229,7 +229,9 @@ install-doc: doc
 	done
 
 test: binaries libraries
-	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
+		-load "package ifneeded tdbc::postgres $(PACKAGE_VERSION) \
+			[list source `@CYGPATH@ $(srcdir)/library/tdbcpostgres.tcl`]\;[list load `@CYGPATH@ $(PKG_LIB_FILE)` $(PACKAGE_NAME)]"
 
 shell: binaries libraries
 	@$(TCLSH) $(SCRIPT)
@@ -280,7 +282,8 @@ pkgIndex.tcl: Makefile
 	@( \
 	echo 'if {[catch {package require Tcl $(TCL_VERSION_REQ)}]} return'; \
 	echo 'package ifneeded tdbc::postgres $(PACKAGE_VERSION) \
-	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]' \
+            "[list source [file join $$dir tdbcpostgres.tcl]]; \
+	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]"' \
 	) > pkgIndex.tcl
 
 #========================================================================

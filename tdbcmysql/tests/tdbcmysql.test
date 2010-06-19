@@ -11,11 +11,10 @@
 #------------------------------------------------------------------------------
 
 lappend auto_path .
+package require tcltest 2
+namespace import -force ::tcltest::*
+tcltest::loadTestedCommands
 package require tdbc::mysql
-if {[lsearch [namespace children] ::tcltest] == -1} {
-    package require tcltest 2
-    namespace import -force ::tcltest::*
-}
 
 # We need to know the parameters of the MySQL database for testing.
 

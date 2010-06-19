@@ -242,7 +242,9 @@ install-doc: doc
 	done
 
 test: binaries libraries
-	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+	@$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
+		-load "package ifneeded ${PACKAGE_NAME} ${PACKAGE_VERSION} \
+			[list source `@CYGPATH@ $(srcdir)/library/tdbc.tcl`]\;[list load `@CYGPATH@ $(PKG_LIB_FILE)` $(PACKAGE_NAME)]"
 
 shell: binaries libraries
 	@$(TCLSH) $(SCRIPT)
@@ -304,7 +306,8 @@ pkgIndex.tcl: Makefile
 	echo '    return'; \
 	echo '}'; \
 	echo 'package ifneeded $(PACKAGE_NAME) $(PACKAGE_VERSION) \
-	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]' \
+            "[list source [file join $$dir tdbc.tcl]]; \
+	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]"' \
 	) > pkgIndex.tcl
 
 #========================================================================

@@ -10,12 +10,10 @@
 #
 #------------------------------------------------------------------------------
 
-lappend auto_path .
+package require tcltest 2
+namespace import -force ::tcltest::*
+loadTestedCommands
 package require tdbc::odbc
-if {[lsearch [namespace children] ::tcltest] == -1} {
-    package require tcltest 2
-    namespace import -force ::tcltest::*
-}
 
 # Test setup. Figure out what sort of database we have.  Default on Windows
 # is SQL Server Express, and on Unix is SQLite3

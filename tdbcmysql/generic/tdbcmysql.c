@@ -690,15 +690,6 @@ const static Tcl_MethodType* ResultSetMethods[] = {
     NULL
 };
 
-
-/* Initialization script */
-
-static const char initScript[] =
-    "namespace eval ::tdbc::mysql {}\n"
-    "tcl_findLibrary tdbcmysql " PACKAGE_VERSION " " PACKAGE_VERSION
-    " tdbcmysql.tcl TDBCMYSQL_LIBRARY ::tdbc::mysql::Library";
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -3458,14 +3449,6 @@ Tdbcmysql_Init(
     }
 
     /* 
-     * Evaluate the initialization script to make the connection class 
-     */
-
-    if (Tcl_Eval(interp, initScript) != TCL_OK) {
-	return TCL_ERROR;
-    }
-
-    /*
      * Create per-interpreter data for the package
      */
 

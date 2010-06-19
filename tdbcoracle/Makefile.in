@@ -289,7 +289,8 @@ pkgIndex.tcl: Makefile
 	@( \
 	echo 'if {[catch {package require Tcl $(TCL_VERSION_REQ)}]} return'; \
 	echo 'package ifneeded tdbc::oracle $(PACKAGE_VERSION) \
-	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]' \
+            "[list source [file join $$dir tdbcoracle.tcl]]; \
+	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]"' \
 	) > pkgIndex.tcl
 
 #========================================================================
