@@ -6,8 +6,8 @@ set instdir [file normalize [file join  $::tcl_library ..]]
 set pathlist tdbc${ver}
 lappend pathlist {*}[glob -types d \
 		  -directory $instdir \
-		  -tails 1 \
-		  {tdbc[a-z]*}]
+		  -tails \
+		  -- {tdbc[a-z]*}]
 lappend pathlist sqlite33.6.21
 lappend pathlist tcl8/8.6/tdbc
 
@@ -16,8 +16,13 @@ file mkdir $distdir
 set f [open [file join $distdir INSTALL.tcl] w]
 puts $f {
     package require Tcl 8.6
-    package require Tk
-    grid [label .l -text "Installing TDBC drivers"]
+    if {![catch {
+	package require Tk
+    }]} {
+	grid [label .l -text "Installing TDBC drivers"]
+    } else {
+	puts "Installing TDBC drivers"; flush stdout
+    }
     set distdir [file dirname [info script]]
     set instdir [file normalize [file join $::tcl_library ..]]
 }
@@ -35,10 +40,14 @@ foreach dir $pathlist {
     }
 }
 puts $f {
-    tk_messageBox -type ok \
-	-detail "Files installed in $instdir" \
-	-message "TDBC drivers installed." \
-	-icon info
+    if {[package present Tk]} {
+	tk_messageBox -type ok \
+	    -detail "Files installed in $instdir" \
+	    -message "TDBC drivers installed." \
+	    -icon info
+    } else {
+	puts "Files installed in $instdir"
+    }
     exit
 }
 close $f
