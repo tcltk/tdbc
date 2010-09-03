@@ -180,10 +180,15 @@ install-doc: doc
 	    $(INSTALL_DATA) $$i $(DESTDIR)$(mandir)/mann ; \
 	done
 
+# If the semicolon is omitted after the [list source ...], then
+# at least one version of msys make replaces the slashes in the
+# $(srcdir)/library/tdbcsqlite3.tcl path with backslashes, causing
+# the [package ifneeded] to fail. Leave it in, even though it's
+# spurious.
 test: libraries
 	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
 		-load "package ifneeded tdbc::sqlite3 $(PACKAGE_VERSION) \
-			[list source `@CYGPATH@ $(srcdir)/library/tdbcsqlite3.tcl`]"
+			[list source `@CYGPATH@ $(srcdir)/library/tdbcsqlite3.tcl`]\;"
 
 shell: libraries
 	@$(TCLSH) $(SCRIPT)

@@ -1,5 +1,9 @@
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
+	* configure.in: Added missing TCLOO_CFLAGS because Windows build
+			failed to link without it.
+	* configure: autoconf 2-59
+	
 	* generic/mysqlStubInit.c:
 			Made changes to attempt to open the
 			MySQL client library by SONAME as well as

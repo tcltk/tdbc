@@ -1,5 +1,7 @@
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
+	* tdbcodbc.test: Made tests more portable.
+
 	* generic/odbcStubDefs.txt:
 	* generic/tdbcodbc.c:
 	* library/tdbcodbc.tcl:

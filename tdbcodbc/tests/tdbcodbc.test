@@ -2787,7 +2787,9 @@ test tdbc::odbc-19.12 {$connection configure - -readonly} {*}{
     -result {expected boolean value but got "junk"}
 }
 
+# sqlite doesn't allow change to the readonly status
 test tdbc::odbc-19.13 {$connection configure - -readonly} {*}{
+    -constraints !sqlite
     -body {
 	list [::db configure -readonly 1] \
 	    [::db configure -readonly] \
@@ -3339,7 +3341,7 @@ catch {::db allrows {DROP TABLE a}}
         CONSTRAINT pk_c PRIMARY KEY(p1, p2),
         CONSTRAINT fk_c1 FOREIGN KEY (p1) REFERENCES a(k1),
         CONSTRAINT fk_c2 FOREIGN KEY (p2) REFERENCES a(k1),
-	CONSTRAINT fk_cpair FOREIGN KEY (p1,p2) REFERENCES b(k2,k1)
+	CONSTRAINT fk_cpair FOREIGN KEY (p2,p1) REFERENCES b(k1,k2)
     )
 }
 
@@ -3358,12 +3360,14 @@ test tdbc::odbc-28.1 {Primary keys - no arg} {*}{
     -result {wrong # args*}
 } 
 test tdbc::odbc-28.2 {Primary keys - no primary key} {*}{
+    -constraints !jet
     -body {
 	::db primarykeys d
     }
     -result {}
 }
 test tdbc::odbc-28.3 {Primary keys - simple primary key} {*}{
+    -constraints !jet
     -body {
 	set result {}
 	foreach row [::db primarykeys a] {
@@ -3373,7 +3377,10 @@ test tdbc::odbc-28.3 {Primary keys - simple primary key} {*}{
     }
     -result {k1 1}
 }
+# next test uses unimplemented functionality in Jet, tickles a bug in
+# the Win32 SQLite ODBC driver
 test tdbc::odbc-28.4 {Primary keys - compound primary key} {*}{
+    -constraints !jet&&!(windows&&sqlite)
     -body {
 	set result {}
 	foreach row [::db primarykeys b] {
@@ -3412,7 +3419,7 @@ test tdbc::odbc-29.3 {Foreign keys - redundant arg} {*}{
 }
 
 test tdbc::odbc-29.4 {Foreign keys - list all} \
-    -constraints !sqlite \
+    -constraints knownBug \
     -body {
 	set result {}
 	set wanted {a {} b {} c {} d {} people {}}
@@ -3438,6 +3445,7 @@ test tdbc::odbc-29.4 {Foreign keys - list all} \
 
 
 test tdbc::odbc-29.5 {Foreign keys - -foreign} \
+    -constraints !jet \
     -body {
 	set result {}
 	set wanted {a {} b {} c {} d {} people {}}
@@ -3455,11 +3463,12 @@ test tdbc::odbc-29.5 {Foreign keys - -foreign} \
     } \
     -result [list \
 		 {1 {c p1 a k1}} \
-		 {1 {c p1 b k2} 2 {c p2 b k1}} \
 		 {1 {c p2 a k1}} \
+		 {1 {c p2 b k1} 2 {c p1 b k2}} \
 		]
 
 test tdbc::odbc-29.6 {Foreign keys - -primary} \
+    -constraints !jet \
     -body {
 	set result {}
 	set wanted {a {} b {} c {} d {} people {}}
@@ -3482,6 +3491,7 @@ test tdbc::odbc-29.6 {Foreign keys - -primary} \
 		 {1 {c p2 a k1}}]
 
 test tdbc::odbc-29.7 {Foreign keys - -foreign and -primary} \
+    -constraints !jet \
     -body {
 	set result {}
 	set wanted {a {} b {} c {} d {} people {}}
@@ -3497,7 +3507,7 @@ test tdbc::odbc-29.7 {Foreign keys - -foreign and -primary} \
 	}
 	lsort [dict values $result]
     } \
-    -result [list {1 {c p1 b k2} 2 {c p2 b k1}}]
+    -result [list {1 {c p2 b k1} 2 {c p1 b k2}}]
 
 #-------------------------------------------------------------------------------
 
@@ -3512,7 +3522,7 @@ catch {::db allrows {DROP TABLE people}}
 
 catch {rename ::db {}}
 if {[info exists testFileName]} {
-    removeFile $testFileName $testdir
+    catch {removeFile $testFileName $testdir}
 }
 catch {removeDirectory tdbctest}
 

@@ -1,5 +1,9 @@
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
+	* Makefile.in:	Added a semicolon to the end of the -load option
+			on 'make test'. Without it, msys make changes all
+			the forward slashes in the -load option to backslashes.
+	
 	* library/tdbcsqlite3.tcl:
 	* tests/tdbcsqlite3.test:
 			Changed 'keySequence' in 'foreignkeys' to

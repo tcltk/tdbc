@@ -57,6 +57,7 @@ if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
       AC_MSG_ERROR([${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.6 or newer.
 Found configuration for Tcl ${TCL_VERSION}.])
    fi
+   TCLOO_CFLAGS='-DUSE_TCLOO_STUBS'
 fi
 TCL_VERSION_REQ=8.6; AC_SUBST(TCL_VERSION_REQ)
 

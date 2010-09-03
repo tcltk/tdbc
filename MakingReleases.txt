@@ -34,8 +34,20 @@ To advance the version number:
     lib directory, and install the sqlite3 package. Run tests against
     the installed version.
 
-    (mysql TDBCMYSQL_DB=test)
-    (postgres TDBCPOSTGRES_USER=tdbc_test TDBCPOSTGRES_PASSWD=tdbc_test TDBCPOSTGRES_DB=tdbc_test)
+    NSK1200002852A:
+    PATH=/d/APPS/xampp/mysql/bin:/c/Program\ Files/PostgreSQL/8.4/bin/:$PATH
+    TDBCMYSQL_DB=test
+    TDBCPOSTGRES_USER=tdbc_test
+    TDBCPOSTGRES_PASSWD=tdbc_test
+    TDBCPOSTGRES_DB=tdbc_test
+
+    Kaboodle:
+    TDBCMYSQL_DB=test
+    TDBCPOSTGRES_DB=tdbc_test
+    TDBCPOSTGRES_HOST=127.0.0,1
+    TDBCPOSTGRES_PORT=5433
+    TDBCPOSTGRES_USER=tdbc_test
+    TDBCPOSTGRES_PASSWD=tdbc_test
 
 (3) make dist
 
