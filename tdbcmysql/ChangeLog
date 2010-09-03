@@ -1,3 +1,28 @@
+2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/mysqlStubInit.c:
+			Made changes to attempt to open the
+			MySQL client library by SONAME as well as
+			pathname, in an effort to fit in better
+			with systems where libmysqlclient-devel
+			is not installed.
+
+	* library/tdbcmysql.tcl:
+	* tests/tdbcmysql.test:
+			Changed 'keySequence' to 'ordinalPosition' in
+			'foreignkeys' for consistency with 'primarykeys'.
+
+	* configure.in:
+	* Makefile.in:
+	* pkgIndex.tcl.in (new file):
+	* README:
+	* tclconfig/:	Upgraded the build to use TEA 3.9. Changed the
+			approach to pkgIndex.tcl generation. (It's now built
+			at configure time, rather than from the Makefile.)
+			Advanced version number to 1.0b16.
+
+	* configure: 	autoconf 2.59
+
 2010-06-19  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in:			Revised the code at the suggestion
@@ -12,7 +37,7 @@
 					for providing ideas for simplifying
 					and repairing 'make test' under the
 					new regime.
-	
+
 2010-05-23  Kevin B. Kenny  <kennykb@acm.org>
 
 	* library/tdbcmysql.tcl: Added a 'BuildForeignKeysStatement' method
@@ -22,7 +47,7 @@
 				 MySQL.
 	* tests/tdbcmysql.test: Added test cases for '$db primarykeys'
 	                        and '$db foreignkeys'
-	
+
 2010-05-12  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/fakesql.h:
@@ -32,9 +57,9 @@
 			Added code to link to mysqlclient_r and mysqlclient
 			as well as mysql so that client libs can be found
 			on Unix. Added query of the client lib version.
-	* generic/mysqlStubInit.c: 
+	* generic/mysqlStubInit.c:
 			Regenerate
-	* generic/mysqlStubs.h:	
+	* generic/mysqlStubs.h:
 			Regenerate
 	* generic/tdbcmysql.c:
 			Modified to make MYSQL_BIND and MYSQL_FIELD accesses

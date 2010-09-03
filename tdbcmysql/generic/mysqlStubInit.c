@@ -35,9 +35,13 @@ static const char* mysqlStubLibNames[] = {
     /* @END@ */
 };
 
-/*
- * Names of the functions that we need from MySQL
- */
+/* ABI Version numbers of the MySQL API that we can cope with */
+
+static const char* mysqlSuffixes[] = {
+    "", ".16", ".15", NULL
+};
+
+/* Names of the functions that we need from MySQL */
 
 static const char* mysqlSymbolNames[] = {
     /* @SYMNAMES@: DO NOT EDIT THESE NAMES */
@@ -109,38 +113,38 @@ mysqlStubDefs* mysqlStubs = &mysqlStubsTable;
 MODULE_SCOPE Tcl_LoadHandle
 MysqlInitStubs(Tcl_Interp* interp)
 {
-    int i;
     int status;			/* Status of Tcl library calls */
     Tcl_Obj* path;		/* Path name of a module to be loaded */
     Tcl_Obj* shlibext;		/* Extension to use for load modules */
     Tcl_LoadHandle handle = NULL;
 				/* Handle to a load module */
+    int i, j;
 
-    /*
-     * Determine the shared library extension
-     */
+    /* Determine the shared library extension */
+
     status = Tcl_EvalEx(interp, "::info sharedlibextension", -1,
 			TCL_EVAL_GLOBAL);
     if (status != TCL_OK) return NULL;
     shlibext = Tcl_GetObjResult(interp);
     Tcl_IncrRefCount(shlibext);
 
-    /*
-     * Walk the list of possible library names to find an MySQL client
-     */
+    /* Walk the list of possible library names to find an MySQL client */
+
     status = TCL_ERROR;
     for (i = 0; status == TCL_ERROR && mysqlStubLibNames[i] != NULL; ++i) {
-	path = Tcl_NewStringObj(mysqlStubLibNames[i], -1);
-	Tcl_AppendObjToObj(path, shlibext);
-	Tcl_IncrRefCount(path);
-	Tcl_ResetResult(interp);
+	for (j = 0; status == TCL_ERROR && mysqlSuffixes[j] != NULL; ++j) {
+	    path = Tcl_NewStringObj(mysqlStubLibNames[i], -1);
+	    Tcl_AppendObjToObj(path, shlibext);
+	    Tcl_AppendToObj(path, mysqlSuffixes[j], -1);
+	    Tcl_IncrRefCount(path);
+	
+	    /* Try to load a client library and resolve symbols within it. */
 
-	/*
-	 * Try to load a client library and resolve the MySQL API within it.
-	 */
-	status = Tcl_LoadFile(interp, path, mysqlSymbolNames, 0,
-			      (void*)mysqlStubs, &handle);
-	Tcl_DecrRefCount(path);
+	    Tcl_ResetResult(interp);
+	    status = Tcl_LoadFile(interp, path, mysqlSymbolNames, 0,
+				  (void*)mysqlStubs, &handle);
+	    Tcl_DecrRefCount(path);
+	}
     }
 
     /* 

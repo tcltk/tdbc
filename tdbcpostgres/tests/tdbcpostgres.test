@@ -3034,7 +3034,7 @@ test tdbc::postgres-24.4 {Foreign keys - list all} \
 	foreach row [::db foreignkeys] {
 	    if {[dict exists $wanted [dict get $row foreignConstraintName]]} {
 		dict set result [dict get $row foreignConstraintName] \
-		    [dict get $row keySequence] \
+		    [dict get $row ordinalPosition] \
 		    [list [dict get $row foreignTable] \
 			 [dict get $row foreignColumn] \
 			 [dict get $row primaryTable] \
@@ -3057,7 +3057,7 @@ test tdbc::postgres-24.5 {Foreign keys - -foreign} \
 	foreach row [::db foreignkeys -foreign c] {
 	    if {[dict exists $wanted [dict get $row foreignConstraintName]]} {
 		dict set result [dict get $row foreignConstraintName] \
-		    [dict get $row keySequence] \
+		    [dict get $row ordinalPosition] \
 		    [list [dict get $row foreignTable] \
 			 [dict get $row foreignColumn] \
 			 [dict get $row primaryTable] \
@@ -3078,7 +3078,7 @@ test tdbc::postgres-24.6 {Foreign keys - -primary} \
 	foreach row [::db foreignkeys -primary a] {
 	    if {[dict exists $wanted [dict get $row foreignConstraintName]]} {
 		dict set result [dict get $row foreignConstraintName] \
-		    [dict get $row keySequence] \
+		    [dict get $row ordinalPosition] \
 		    [list [dict get $row foreignTable] \
 			 [dict get $row foreignColumn] \
 			 [dict get $row primaryTable] \
@@ -3100,7 +3100,7 @@ test tdbc::postgres-24.7 {Foreign keys - -foreign and -primary} \
 	foreach row [::db foreignkeys -foreign c -primary b] {
 	    if {[dict exists $wanted [dict get $row foreignConstraintName]]} {
 		dict set result [dict get $row foreignConstraintName] \
-		    [dict get $row keySequence] \
+		    [dict get $row ordinalPosition] \
 		    [list [dict get $row foreignTable] \
 			 [dict get $row foreignColumn] \
 			 [dict get $row primaryTable] \

@@ -1,9 +1,22 @@
+2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
+
+	* library/tdbcsqlite3.tcl:
+	* tests/tdbcsqlite3.test:
+			Changed 'keySequence' in 'foreignkeys' to
+			'ordinalPosition' for consistency with 'primarykeys'.
+
+	* configure.in:
+	* README:
+	* library/tdbcsqlite3.tcl:
+	* tclconfig/:	Upgraded the build to use TEA 3.9.
+			Advanced version number to 1.0b16.
+
 2010-06-19  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tdbcsqlite3.tcl:	Added 'primarykeys' and 'foreignkeys'
 	* tdbcsqlite3.test:	methods to the 'connection' object.  Added
 				test cases for these methods.
-	
+
 2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* aclocal.m4:	Synchronized with 'tdbc'.
@@ -13,7 +26,7 @@
 	* README:	Advanced version to 1.0b15.
 	* tclconfig/:	Advanced TEA to 3.7.
 	* configure:	autoconf-2.59
-	
+
 2009-10-26  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:			Advanced version number to 1.0b14.
@@ -26,7 +39,7 @@
 	* doc/tdbcsqlite3.n:		Added a BUGS section documenting the
 					known problem with duplicate column
 					names.
-	
+
 2009-09-29  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:			Advanced version number to 1.0b13
@@ -34,30 +47,30 @@
 	* library/tdbcsqlite3.tcl:
 	* configure:			autoconf-2.59
 
-	
+
 2009-07-03  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tempTest.tcl (removed):	Deleted obsolete test harness;
 					this package has used proper tcltest
 					testing for months.
-	
+
 	* README:			Advanced version number to 1.0b12
 	* configure.in:
 	* library/tdbcsqlite3.tcl:
 	* configure:			autoconf-2.59
-	
+
 2009-05-29  Kevin B. Kenny  <kennykb@acm.org>
 
 	* README:			Advanced version number to 1.0b11
 	* configure.in:
 	* library/tdbcsqlite3.tcl:
 	* configure:			autoconf-2.59
-	
+
 2009-04-19  Kevin B. Kenny  <kennykb@acm.org>
 
-	* doc/tdbc_sqlite3.n: Added missing documentation for 'new' 
+	* doc/tdbc_sqlite3.n: Added missing documentation for 'new'
 	                      constructors.
-	
+
 2009-04-18  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tests/tdbcsqlite3.test: Changed the 'invalid path name' to a

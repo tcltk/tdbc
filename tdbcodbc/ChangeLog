@@ -1,5 +1,18 @@
+2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in:
+	* Makefile.in:
+	* pkgIndex.tcl.in (new file):
+	* README:
+	* tclconfig/:	Upgraded the build to use TEA 3.9. Changed the
+			approach to pkgIndex.tcl generation. (It's now built
+			at configure time, rather than from the Makefile.)
+			Advanced version number to 1.0b16.
+
+	* configure: 	autoconf 2.59
+
 2010-06-19  Kevin B. Kenny  <kennykb@acm.org>
-	
+
 	* Makefile.in:			Revised the code at the suggestion
 	* generic/tdbcodbc.c:		of Andreas Kupries to avoid using
 	* tests/all.tcl:		'tcl_findLibrary' and instead execute
@@ -12,16 +25,16 @@
 					for providing ideas for simplifying
 					and repairing 'make test' under the
 					new regime.
-	
+
 2010-05-12  Kevin B. Kenny  <kennykb@acm.org>
 
-	* generic/fakesql.h: 
-			Eliminated uses of INT64 and UINT64 in 
+	* generic/fakesql.h:
+			Eliminated uses of INT64 and UINT64 in
 			favour of Tcl_WideInt and Tcl_WideUInt
 			respectively.  (Avoids a conflict with
 			INT64 and UINT64 definitions in basetsd.h
 			on Win64.)
-	
+
 2010-05-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* aclocal.m4:	Synchronized with the 'tdbc' package.
@@ -31,7 +44,7 @@
 	* generic/fakesql.h:
 			Corrected syntax of INSTAPI specifiers.
 	* generic/odbcStubDefs.txt:
-			Added a CONVENTION: SQL_API line so that 
+			Added a CONVENTION: SQL_API line so that
 			genExtStubs.tcl can get the syntax right on the
 			pointer-to-function declarations.
 	* generic/odbcStubInit.txt:
@@ -43,7 +56,7 @@
 	* README:	Advanced release to 1.0b15.
 	* tclconfig/:	Advanced to TEA 3.7
 	* configure:	autoconf-2.59
-	
+
 2010-05-10  Andreas Kupries  <andreask@activestate.com>
 
 	* Makefile.in: Removed attempt to generate a stub library. Drivers
@@ -58,7 +71,7 @@
 	* generic/odbcStubDefs.txt:
 	* generic/odbcStubInit.c:
 		Fixed DOS line endings.
-	
+
 2010-04-25  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in:

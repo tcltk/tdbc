@@ -13,7 +13,7 @@
 package require tdbc
 package require sqlite3
 
-package provide tdbc::sqlite3 1.0b15
+package provide tdbc::sqlite3 1.0b16
 
 namespace eval tdbc::sqlite3 {
     namespace export connection
@@ -339,7 +339,7 @@ namespace eval tdbc::sqlite3 {
     # 	Returns the list of foreign keys that meed the specified
     # 	conditions, as a list of dictionaries, each containing the
     # 	keys, foreignConstraintName, foreignTable, foreignColumn,
-    # 	primaryTable, primaryColumn, and keySequence.  Note that the
+    # 	primaryTable, primaryColumn, and ordinalPosition.  Note that the
     #   foreign constraint name is constructed arbitrarily, since SQLite3
     #   does not report this information.
 
@@ -364,7 +364,8 @@ namespace eval tdbc::sqlite3 {
 			      foreignConstraintName \
 			      ?$foreignTable?[dict get $row id]]
 		if {[dict exists $row seq]} {
-		    dict set rrow keySequence [expr {1 + [dict get $row seq]}]
+		    dict set rrow ordinalPosition \
+			[expr {1 + [dict get $row seq]}]
 		}
 		foreach {to from} {
 		    foreignColumn from

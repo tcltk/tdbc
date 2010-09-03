@@ -18,7 +18,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([tdbcmysql], [1.0b15.1])
+AC_INIT([tdbcmysql], [1.0b16])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -27,7 +27,7 @@ AC_INIT([tdbcmysql], [1.0b15.1])
 #--------------------------------------------------------------------
 
 AC_CONFIG_AUX_DIR(tclconfig)
-TEA_INIT([3.7])
+TEA_INIT([3.9])
 
 #--------------------------------------------------------------------
 # Load the tclConfig.sh file
@@ -49,24 +49,27 @@ TEA_LOAD_TCLCONFIG
 #--------------------------------------------------------------------
 
 if test "${TCL_MAJOR_VERSION}" -lt 8 ; then
-    AC_MSG_ERROR([${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.5 or newer.
+    AC_MSG_ERROR([${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.6 or newer.
 Found configuration for Tcl ${TCL_VERSION}.])
 fi
 if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
-  if test "${TCL_MINOR_VERSION}" -lt 5 ; then
-    AC_MSG_ERROR([${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.5 or newer.
+   if test "${TCL_MINOR_VERSION}" -lt 6 ; then
+      AC_MSG_ERROR([${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.6 or newer.
 Found configuration for Tcl ${TCL_VERSION}.])
-  fi
-  if test "${TCL_MINOR_VERSION}" -eq 5 ; then
-    TEA_PATH_CONFIG(tcloo)
-    TEA_LOAD_CONFIG(tcloo)
-  else
-    TCLOO_CFLAGS='-DUSE_TCLOO_STUBS'
-  fi
+   fi
 fi
+TCL_VERSION_REQ=8.6; AC_SUBST(TCL_VERSION_REQ)
 
 TEA_PATH_CONFIG(tdbc)
 TEA_LOAD_CONFIG(tdbc)
+# The next bit probably ought to be in TEA_LOAD_CONFIG
+AC_MSG_WARN([Looking for "${tdbc_BIN_DIR}/Makefile"])
+if test -f "${tdbc_BIN_DIR}/Makefile" ; then
+    AC_MSG_WARN([Found Makefile - using build include spec and lib specs for tdbc])
+    tdbc_INCLUDE_SPEC=${tdbc_BUILD_INCLUDE_SPEC}
+    tdbc_LIBRARY_PATH=${tdbc_BUILD_LIBRARY_PATH}
+fi
+AC_SUBST(tdbc_LIBRARY_PATH)
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.
@@ -134,15 +137,6 @@ TEA_ADD_TCL_SOURCES([library/tdbcmysql.tcl])
 
 # Add pkgIndex.tcl if it is generated in the Makefile instead of ./configure
 # and change Makefile.in to move it from CONFIG_CLEAN_FILES to BINARIES var.
-#CLEANFILES="pkgIndex.tcl"
-if test "${TEA_PLATFORM}" = "windows" ; then
-    CLEANFILES="$CLEANFILES *.lib *.dll *.exp *.ilk *.pdb vc*.pch"
-else
-    # Ensure no empty else clauses
-    :
-fi
-CLEANFILES="$CLEANFILES pkgIndex.tcl"
-AC_SUBST(CLEANFILES)
 
 if test "${TEA_PLATFORM}" = "windows" ; then
     AC_DEFINE(_WIN32)
@@ -193,7 +187,6 @@ TEA_ENABLE_SYMBOLS
 # link against the non-stubbed Tcl library.  Add Tk too if necessary.
 #--------------------------------------------------------------------
 
-AC_DEFINE(BUILD_tdbcmysql,[1],[Set to 1 when building the tdbcmysql package])
 AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
 AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
 
@@ -222,8 +215,8 @@ TEA_PROG_TCLSH
 # which require substituting th AC variables in.  Include these here.
 #--------------------------------------------------------------------
 
-CONFIGURE_OUTPUTS="Makefile tdbcConfig.sh config.cache config.log config.status"
+CONFIGURE_OUTPUTS="Makefile pkgIndex.tcl config.cache config.log config.status"
 AC_SUBST(CONFIGURE_OUTPUTS)
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile pkgIndex.tcl])
 AC_OUTPUT

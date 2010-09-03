@@ -181,7 +181,9 @@ install-doc: doc
 	done
 
 test: libraries
-	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
+		-load "package ifneeded tdbc::sqlite3 $(PACKAGE_VERSION) \
+			[list source `@CYGPATH@ $(srcdir)/library/tdbcsqlite3.tcl`]"
 
 shell: libraries
 	@$(TCLSH) $(SCRIPT)

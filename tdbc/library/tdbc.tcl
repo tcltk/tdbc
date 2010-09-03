@@ -408,7 +408,7 @@ oo::class create ::tdbc::connection {
                     fkc.TABLE_SCHEMA AS \"foreignSchema\",
                     fkc.TABLE_NAME AS \"foreignTable\",
                     fkc.COLUMN_NAME AS \"foreignColumn\",
-                    pkc.ORDINAL_POSITION AS \"keySequence\"
+                    pkc.ORDINAL_POSITION AS \"ordinalPosition\"
              FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
              INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE fkc
                      ON fkc.CONSTRAINT_NAME = rc.CONSTRAINT_NAME

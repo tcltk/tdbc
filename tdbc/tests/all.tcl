@@ -9,7 +9,6 @@
 # 
 # RCS: @(#) $Id$
 
-puts $::argv
 package require Tcl 8.6
 package require tcltest 2.2
 ::tcltest::configure \

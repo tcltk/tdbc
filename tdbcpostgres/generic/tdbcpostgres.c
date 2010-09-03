@@ -665,7 +665,7 @@ const static Tcl_MethodType* StatementMethods[] = {
     &StatementParamtypeMethodType,
     NULL
 };
-
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1088,7 +1088,7 @@ ConfigureConnection(
 		return TCL_ERROR;
 	    }
 	    sprintf(portval, "%d", optionValue);
-	    optStringNames[INDX_PORT] = portval;
+	    cdata->savedOpts[INDX_PORT] = portval;
 	    break;
 	case TYPE_READONLY:
 	    if (Tcl_GetBooleanFromObj(interp, objv[i+1], &readOnly)
@@ -3130,7 +3130,7 @@ Tdbcpostgres_Init(
 	return TCL_ERROR;
     }
 
-    /* 
+    /*
      * Create per-interpreter data for the package
      */
 

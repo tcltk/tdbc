@@ -52,7 +52,7 @@ PKG_HEADERS	= @PKG_HEADERS@
 PKG_LIB_FILE	= @PKG_LIB_FILE@
 
 lib_BINARIES	= $(PKG_LIB_FILE)
-BINARIES	= $(lib_BINARIES)  pkgIndex.tcl
+BINARIES	= $(lib_BINARIES)
 
 SHELL		= @SHELL@
 
@@ -288,14 +288,6 @@ VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win
 
 .c.@OBJEXT@:
 	$(COMPILE) -c `@CYGPATH@ $<` -o $@
-
-pkgIndex.tcl: Makefile
-	-@echo Creating pkgIndex.tcl
-	@( \
-	echo 'package ifneeded tdbc::odbc $(PACKAGE_VERSION) \
-            "[list source [file join $$dir tdbcodbc.tcl]]; \
-	    [list load [file join $$dir $(PKG_LIB_FILE)] $(PACKAGE_NAME)]"' \
-	) > pkgIndex.tcl
 
 #========================================================================
 # Distribution creation

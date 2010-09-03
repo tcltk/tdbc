@@ -1,5 +1,27 @@
+2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcpostgres.c:
+			Made the '-port' option work. (Discovered bug when
+			testing on a machine where Postgres was listening
+			on 5433 but the client lib wanted 5432.)
+
+	* tests/tdbcpostgres.test:
+			Changed 'keySequence' in 'foreignkeys' to be
+			'ordinalPosition' for consistency with 'primaryKeys'.
+
+	* configure.in:
+	* Makefile.in:
+	* pkgIndex.tcl.in (new file):
+	* README:
+	* tclconfig/:	Upgraded the build to use TEA 3.9. Changed the
+			approach to pkgIndex.tcl generation. (It's now built
+			at configure time, rather than from the Makefile.)
+			Advanced version number to 1.0b16.
+
+	* configure: 	autoconf 2.59
+
 2010-06-19  Kevin B. Kenny  <kennykb@acm.org>
-	
+
 	* Makefile.in:			Revised the code at the suggestion
 	* generic/tdbcpostgres.c:	of Andreas Kupries to avoid using
 	* tests/all.tcl:		'tcl_findLibrary' and instead execute
@@ -12,12 +34,12 @@
 					for providing ideas for simplifying
 					and repairing 'make test' under the
 					new regime.
-	
+
 2010-05-24  Kevin B. Kenny  <kennybk@acm.org>
 
 	* tests/tdbcpostgres.test: Added test cases for '$db primarykeys'
 				   and '$db foreignkeys'
-	
+
 2010-05-12  Andreas Kupries  <andreask@activestate.com>
 
 	* generic/tdbcpostgres.c: Moved the int32_t/int16_t types into the
@@ -30,13 +52,13 @@
 	* configure.in:	Advanced version number to 1.0b15. Advanced TEA
 			version to 3.7. Corrected the way that stub libraries
 			are located on VC++.
-	* generic/tdbcpostgres.c: 
+	* generic/tdbcpostgres.c:
 			Corrected a number of errors and warnings in the
 			VC++ build.
 	* README:	Advanced to 1.0b15
 	* tclconfig/:	Advanced to TEA 3.7
 	* configure:	autoconf-2.59
-	
+
 2010-05-10  Andreas Kupries  <andreask@activestate.com>
 
 	* generic/tdbcpostgres.c: Fixed violations of strict C89.
@@ -55,7 +77,7 @@
 	* generic/pqStubDefs.txt (new file):
 	* generic/pqStubInit.c (new file):
 	* generic/pqStubs.h (new file):
-	* generic/tdbcpostgres.c: 
+	* generic/tdbcpostgres.c:
 		Modified to load libpq using Tcl_LoadFile and not
 		link to its client library, nor include the standard
 		pq-fe headers. This change allows tdbc::postgres to
