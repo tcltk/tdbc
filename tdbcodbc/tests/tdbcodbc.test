@@ -3304,12 +3304,211 @@ test tdbc::odbc-27.4 {blobs} {*}{
     -result {}
 }
 
-catch {::db allrows {DROP TABLE people}}
+# Information schema tests require additional tables in the database.
+# Create them now.
 
+catch {::db allrows {DROP TABLE d}}
+catch {::db allrows {DROP TABLE c}}
+catch {::db allrows {DROP TABLE b}}
+catch {::db allrows {DROP TABLE a}}
+
+# Create some tables with foreign key relationships to test querying
+# foreign keys
+
+::db allrows {
+    CREATE TABLE a (
+        k1 INTEGER,
+        CONSTRAINT pk_a PRIMARY KEY(k1)
+    )
+}
+
+::db allrows {
+    CREATE TABLE b (
+        k1 INTEGER,
+        k2 INTEGER,
+        CONSTRAINT pk_b PRIMARY KEY(k1, k2),
+        CONSTRAINT fk_b1 FOREIGN KEY (k1) REFERENCES a(k1),
+        CONSTRAINT fk_b2 FOREIGN KEY (k2) REFERENCES a(k1)
+    )
+}
+
+::db allrows {
+    CREATE TABLE c (
+        p1 INTEGER,
+        p2 INTEGER,
+        CONSTRAINT pk_c PRIMARY KEY(p1, p2),
+        CONSTRAINT fk_c1 FOREIGN KEY (p1) REFERENCES a(k1),
+        CONSTRAINT fk_c2 FOREIGN KEY (p2) REFERENCES a(k1),
+	CONSTRAINT fk_cpair FOREIGN KEY (p1,p2) REFERENCES b(k2,k1)
+    )
+}
+
+::db allrows {
+    CREATE TABLE d (
+	dtext VARCHAR(40)
+    )
+}
+
+test tdbc::odbc-28.1 {Primary keys - no arg} {*}{
+    -body {
+	::db primarykeys
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+} 
+test tdbc::odbc-28.2 {Primary keys - no primary key} {*}{
+    -body {
+	::db primarykeys d
+    }
+    -result {}
+}
+test tdbc::odbc-28.3 {Primary keys - simple primary key} {*}{
+    -body {
+	set result {}
+	foreach row [::db primarykeys a] {
+	    lappend result [dict get $row columnName] [dict get $row ordinalPosition]
+	}
+	set result
+    }
+    -result {k1 1}
+}
+test tdbc::odbc-28.4 {Primary keys - compound primary key} {*}{
+    -body {
+	set result {}
+	foreach row [::db primarykeys b] {
+	    lappend result [dict get $row columnName] [dict get $row ordinalPosition]
+	}
+	set result
+    }
+    -result {k1 1 k2 2}
+}
+
+test tdbc::odbc-29.1 {Foreign keys - wrong # args} {*}{
+    -body {
+	::db foreignkeys -wrong
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+}
+
+test tdbc::odbc-29.2 {Foreign keys - bad arg} {*}{
+    -body {
+	::db foreignkeys -primary a -rubbish b
+    }
+    -returnCodes error
+    -match glob
+    -result {bad option "-rubbish"*}
+}
+
+test tdbc::odbc-29.3 {Foreign keys - redundant arg} {*}{
+    -body {
+	::db foreignkeys -primary a -primary b
+    }
+    -returnCodes error
+    -match glob
+    -result {duplicate option "-primary"*}
+}
+
+test tdbc::odbc-29.4 {Foreign keys - list all} \
+    -constraints !sqlite \
+    -body {
+	set result {}
+	set wanted {a {} b {} c {} d {} people {}}
+	foreach row [::db foreignkeys] {
+	    if {[dict exists $wanted [dict get $row foreignTable]]} {
+		dict set result [dict get $row foreignConstraintName] \
+		    [dict get $row ordinalPosition] \
+		    [list [dict get $row foreignTable] \
+			 [dict get $row foreignColumn] \
+			 [dict get $row primaryTable] \
+			 [dict get $row primaryColumn]]
+	    }
+	}
+	lsort [dict values $result]
+    } \
+    -result [list \
+		 {1 {b k1 a k1}} \
+		 {1 {b k2 a k1}} \
+		 {1 {c p1 a k1}} \
+		 {1 {c p1 b k2} 2 {c p2 b k1}} \
+		 {1 {c p2 a k1}} \
+		 ]
+
+
+test tdbc::odbc-29.5 {Foreign keys - -foreign} \
+    -body {
+	set result {}
+	set wanted {a {} b {} c {} d {} people {}}
+	foreach row [::db foreignkeys -foreign c] {
+	    if {[dict exists $wanted [dict get $row foreignTable]]} {
+		dict set result [dict get $row foreignConstraintName] \
+		    [dict get $row ordinalPosition] \
+		    [list [dict get $row foreignTable] \
+			 [dict get $row foreignColumn] \
+			 [dict get $row primaryTable] \
+			 [dict get $row primaryColumn]]
+	    }
+	}
+	lsort [dict values $result]
+    } \
+    -result [list \
+		 {1 {c p1 a k1}} \
+		 {1 {c p1 b k2} 2 {c p2 b k1}} \
+		 {1 {c p2 a k1}} \
+		]
+
+test tdbc::odbc-29.6 {Foreign keys - -primary} \
+    -body {
+	set result {}
+	set wanted {a {} b {} c {} d {} people {}}
+	foreach row [::db foreignkeys -primary a] {
+	    if {[dict exists $wanted [dict get $row foreignTable]]} {
+		dict set result [dict get $row foreignConstraintName] \
+		    [dict get $row ordinalPosition] \
+		    [list [dict get $row foreignTable] \
+			 [dict get $row foreignColumn] \
+			 [dict get $row primaryTable] \
+			 [dict get $row primaryColumn]]
+	    }
+	}
+	lsort [dict values $result]
+    } \
+    -result [list \
+		 {1 {b k1 a k1}} \
+		 {1 {b k2 a k1}} \
+		 {1 {c p1 a k1}} \
+		 {1 {c p2 a k1}}]
+
+test tdbc::odbc-29.7 {Foreign keys - -foreign and -primary} \
+    -body {
+	set result {}
+	set wanted {a {} b {} c {} d {} people {}}
+	foreach row [::db foreignkeys -foreign c -primary b] {
+	    if {[dict exists $wanted [dict get $row foreignTable]]} {
+		dict set result [dict get $row foreignConstraintName] \
+		    [dict get $row ordinalPosition] \
+		    [list [dict get $row foreignTable] \
+			 [dict get $row foreignColumn] \
+			 [dict get $row primaryTable] \
+			 [dict get $row primaryColumn]]
+	    }
+	}
+	lsort [dict values $result]
+    } \
+    -result [list {1 {c p1 b k2} 2 {c p2 b k1}}]
 
 #-------------------------------------------------------------------------------
 
-# Test cleanup. Get rid of the test database
+# Test cleanup. Drop tables and get rid of the test database.
+
+
+catch {::db allrows {DROP TABLE d}}
+catch {::db allrows {DROP TABLE c}}
+catch {::db allrows {DROP TABLE b}}
+catch {::db allrows {DROP TABLE a}}
+catch {::db allrows {DROP TABLE people}}
 
 catch {rename ::db {}}
 if {[info exists testFileName]} {

@@ -144,6 +144,83 @@ package require tdbc
 	return -level 0 -options $options $result
     }
 
+    # The 'primarykeys' method returns a dictionary describing the primary
+    # keys of a table
+
+    method primarykeys {tableName} {
+	set stmt [::tdbc::odbc::primarykeysStatement create \
+		      Stmt::[incr statementSeq] [self] $tableName]
+       	set status [catch {
+	    set retval {}
+	    $stmt foreach -as dicts row {
+		foreach {odbcKey tdbcKey} {
+		    TABLE_CAT		tableCatalog
+		    TABLE_SCHEM		tableSchema
+		    TABLE_NAME		tableName
+		    COLUMN_NAME		columnName
+		    KEY_SEQ		ordinalPosition
+		    PK_NAME		constraintName
+		} {
+		    if {[dict exists $row $odbcKey]} {
+			dict set row $tdbcKey [dict get $row $odbcKey]
+			dict unset row $odbcKey
+		    }
+		}
+		lappend retval $row
+	    }
+	    set retval
+	} result options]
+	catch {rename stmt {}}
+	return -level 0 -options $options $result
+    }
+
+    # The 'foreignkeys' method returns a dictionary describing the foreign
+    # keys of a table
+
+    method foreignkeys {args} {
+	set stmt [::tdbc::odbc::foreignkeysStatement create \
+		      Stmt::[incr statementSeq] [self] {*}$args]
+       	set status [catch {
+	    set fkseq 0
+	    set retval {}
+	    $stmt foreach -as dicts row {
+		foreach {odbcKey tdbcKey} {
+		    PKTABLE_CAT		primaryCatalog
+		    PKTABLE_SCHEM	primarySchema
+		    PKTABLE_NAME	primaryTable
+		    PKCOLUMN_NAME	primaryColumn
+		    FKTABLE_CAT		foreignCatalog
+		    FKTABLE_SCHEM	foreignSchema
+		    FKTABLE_NAME	foreignTable
+		    FKCOLUMN_NAME	foreignColumn
+		    UPDATE_RULE		updateRule
+		    DELETE_RULE		deleteRule
+		    DEFERRABILITY	deferrable
+		    KEY_SEQ		ordinalPosition
+		    FK_NAME		foreignConstraintName
+		} {
+		    if {[dict exists $row $odbcKey]} {
+			dict set row $tdbcKey [dict get $row $odbcKey]
+			dict unset row $odbcKey
+		    }
+		}
+		# Horrible kludge: If the driver doesn't report FK_NAME,
+		# make one up.
+		if {![dict exists $row foreignConstraintName]} {
+		    if {![dict exists $row ordinalPosition]
+			|| [dict get $row ordinalPosition] == 1} {
+			set fkname ?[dict get $row foreignTable]?[incr fkseq]
+		    }
+		    dict set row foreignConstraintName $fkname
+		}
+		lappend retval $row
+	    }
+	    set retval
+	} result options]
+	catch {rename stmt {}}
+	return -level 0 -options $options $result
+    }
+
     # The 'prepareCall' method gives a portable interface to prepare
     # calls to stored procedures.  It delegates to 'prepare' to do the
     # actual work.
@@ -286,6 +363,58 @@ oo::class create ::tdbc::odbc::columnsStatement {
 
     # The 'resultSetCreate' class forwards to the constructor of the
     # result set
+
+    forward resultSetCreate ::tdbc::odbc::resultset create
+
+}
+
+#------------------------------------------------------------------------------
+#
+# tdbc::odbc::primarykeysStatement --
+#
+#	The class 'tdbc::odbc::primarykeysStatement' represents the special
+#	statement that queries the primary keys on a table through an ODBC
+#	connection.
+#
+#------------------------------------------------------------------------------
+
+oo::class create ::tdbc::odbc::primarykeysStatement {
+
+    superclass ::tdbc::statement
+
+    # The constructor is written in C. It accepts the handle to the
+    # connection and a table name.  It works in all
+    # ways like the constructor of the 'statement' class except that
+    # its 'init' method sets up to enumerate primary keys and not run a SQL
+    # query.
+
+    # The 'resultSetCreate' method forwards to the result set constructor
+
+    forward resultSetCreate ::tdbc::odbc::resultset create
+
+}
+
+#------------------------------------------------------------------------------
+#
+# tdbc::odbc::foreignkeysStatement --
+#
+#	The class 'tdbc::odbc::foreignkeysStatement' represents the special
+#	statement that queries the foreign keys on a table through an ODBC
+#	connection.
+#
+#------------------------------------------------------------------------------
+
+oo::class create ::tdbc::odbc::foreignkeysStatement {
+
+    superclass ::tdbc::statement
+
+    # The constructor is written in C. It accepts the handle to the
+    # connection and the -primary and -foreign options.  It works in all
+    # ways like the constructor of the 'statement' class except that
+    # its 'init' method sets up to enumerate foreign keys and not run a SQL
+    # query.
+
+    # The 'resultSetCreate' method forwards to the result set constructor
 
     forward resultSetCreate ::tdbc::odbc::resultset create
 

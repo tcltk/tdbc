@@ -1,5 +1,15 @@
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
+	* generic/odbcStubDefs.txt:
+	* generic/tdbcodbc.c:
+	* library/tdbcodbc.tcl:
+	* tests/tdbcodbc.test:
+			Added the 'primarykeys' and 'foreignkeys' methods,
+			and the corresponding tests.
+	* generic/odbcStubInit.c:
+	* generic/odbcStubs.h:
+			make genstubs
+
 	* configure.in:
 	* Makefile.in:
 	* pkgIndex.tcl.in (new file):

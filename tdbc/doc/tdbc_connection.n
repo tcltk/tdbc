@@ -171,7 +171,7 @@ The \fBprimarykeys\fR object command allows the program to query the
 connection for the primary keys belonging to a given table. The
 \fItableName\fR parameter identifies the table being interrogated. The result
 is a list of dictionaries enumerating the keys (in a similar format to the
-list returned by \fI$connection\fR \fBallrows -as lists\fR). The keys of the
+list returned by \fI$connection\fR \fBallrows -as dicts\fR). The keys of the
 dictionary may include at least the following. Values that are NULL or
 meaningless in a given database are omitted.
 .IP \fBtableCatalog\fR
@@ -206,7 +206,7 @@ although some drivers will enumerate all foreign keys in the current
 catalog if both options are omitted. The result of the \fBforeignkeys\fR 
 object command is a list of dictionaries, with one list element per key
 (in a similar format to the
-list returned by \fI$connection\fR \fBallrows -as lists\fR). The keys of the
+list returned by \fI$connection\fR \fBallrows -as dicts\fR). The keys of the
 dictionary may include at least the following. Values that are NULL or
 meaningless in a given database are omitted.
 .IP \fBforeignConstraintCatalog\fR

@@ -215,6 +215,12 @@ typedef struct StatementData {
 #define STATEMENT_FLAG_TYPES 0x10
 				/* This flag is set if the statement is
 				 * asking for data type metadata */
+#define STATEMENT_FLAG_PRIMARYKEYS 0x20
+				/* This flag is set if the statement is
+				 * asking for primary key metadata */
+#define STATEMENT_FLAG_FOREIGNKEYS 0x40
+				/* This flag is set if the statement is
+				 * asking for primary key metadata */
 
 /*
  * Structure describing the data types of substituted parameters in
@@ -420,6 +426,14 @@ static int ColumnsStatementConstructor(ClientData clientData,
 				       Tcl_Interp* interp,
 				       Tcl_ObjectContext context,
 				       int objc, Tcl_Obj *const objv[]);
+static int PrimarykeysStatementConstructor(ClientData clientData,
+					   Tcl_Interp* interp,
+					   Tcl_ObjectContext context,
+					   int objc, Tcl_Obj *const objv[]);
+static int ForeignkeysStatementConstructor(ClientData clientData,
+					   Tcl_Interp* interp,
+					   Tcl_ObjectContext context,
+					   int objc, Tcl_Obj *const objv[]);
 static int TypesStatementConstructor(ClientData clientData, Tcl_Interp* interp,
 				     Tcl_ObjectContext context,
 				     int objc, Tcl_Obj *const objv[]);
@@ -612,6 +626,36 @@ const static Tcl_MethodType ColumnsStatementConstructorType = {
 				/* version */
     "CONSTRUCTOR",		/* name */
     ColumnsStatementConstructor,
+				/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+
+/*
+ * Method types for the class that implements the fake 'statement'
+ * used to query the names and attributes of primary keys.
+ */
+
+const static Tcl_MethodType PrimarykeysStatementConstructorType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "CONSTRUCTOR",		/* name */
+    PrimarykeysStatementConstructor,
+				/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
+
+/*
+ * Method types for the class that implements the fake 'statement'
+ * used to query the names and attributes of foreign keys.
+ */
+
+const static Tcl_MethodType ForeignkeysStatementConstructorType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "CONSTRUCTOR",		/* name */
+    ForeignkeysStatementConstructor,
 				/* callProc */
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
@@ -1081,6 +1125,8 @@ AllocAndPrepareStatement(
     ConnectionData* cdata = sdata->cdata;
     if (sdata->flags & (STATEMENT_FLAG_TABLES 
 			| STATEMENT_FLAG_COLUMNS
+			| STATEMENT_FLAG_PRIMARYKEYS
+			| STATEMENT_FLAG_FOREIGNKEYS
 			| STATEMENT_FLAG_TYPES)) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("cannot have multiple result "
 						  "sets in this context", -1));
@@ -2855,6 +2901,250 @@ ColumnsStatementConstructor(
 /*
  *-----------------------------------------------------------------------------
  *
+ * PrimarykeysStatementConstructor --
+ *
+ *	C-level initialization for the object representing an ODBC query
+ *	for primary key metadata
+ *
+ * Parameters:
+ *	Accepts a 4-element 'objv': 
+ *		columnsStatement new $connection $table,
+ *	where $connection is the ODBC connection object and $table is the
+ *	name of the table being queried.
+ *
+ * Results:
+ *	Returns a standard Tcl result
+ *
+ * Side effects:
+ *	Prepares the statement, and stores it (plus a reference to the
+ *	connection) in instance metadata.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+PrimarykeysStatementConstructor(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* The number of parameters to skip */
+    Tcl_Object connectionObject;
+				/* The database connection as a Tcl_Object */
+    ConnectionData* cdata;	/* The connection object's data */
+    StatementData* sdata;	/* The statement's object data */
+    RETCODE rc;			/* Return code from ODBC */
+
+
+    /* Check param count */
+
+    if (objc != skip+2) {
+	Tcl_WrongNumArgs(interp, skip, objv, "connection tableName");
+	return TCL_ERROR;
+    }
+
+    /* Find the connection object, and get its data. */
+
+    connectionObject = Tcl_GetObjectFromObj(interp, objv[skip]);
+    if (connectionObject == NULL) {
+	return TCL_ERROR;
+    }
+    cdata = (ConnectionData*) Tcl_ObjectGetMetadata(connectionObject,
+						    &connectionDataType);
+    if (cdata == NULL) {
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
+			 " does not refer to an ODBC connection", NULL);
+	return TCL_ERROR;
+    }
+
+    /*
+     * Allocate an object to hold data about this statement
+     */
+
+    sdata = NewStatement(cdata, connectionObject);
+
+    /* Allocate an ODBC statement handle */
+
+    rc = SQLAllocHandle(SQL_HANDLE_STMT, cdata->hDBC, &(sdata->hStmt));
+    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	TransferSQLError(interp, SQL_HANDLE_DBC, cdata->hDBC, 
+			 "(allocating statement handle)");
+	goto freeSData;
+    }
+
+    /* 
+     * Stash the table name in the statement data,
+     * and set a flag that that's what we have there.
+     */
+
+    sdata->nativeSqlW = GetWCharStringFromObj(objv[skip+1],
+					      &(sdata->nativeSqlLen));
+    sdata->flags = STATEMENT_FLAG_PRIMARYKEYS;
+
+    /* Attach the current statement data as metadata to the current object */
+
+    Tcl_ObjectSetMetadata(thisObject, &statementDataType, (ClientData) sdata);
+    return TCL_OK;
+
+    /* On error, unwind all the resource allocations */
+
+ freeSData:
+    DecrStatementRefCount(sdata);
+    return TCL_ERROR;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ForeignkeysStatementConstructor --
+ *
+ *	C-level initialization for the object representing an ODBC query
+ *	for foreign key metadata
+ *
+ * Parameters:
+ *	Accepts a variadic 'objv': 
+ *		columnsStatement new $connection ?-keyword value?...
+ *	where $connection is the ODBC connection object. The keyword options
+ *	include '-primary', which gives the name of a primary table, and
+ *	'-foreign', which gives the name of a foreign table.
+ *
+ * Results:
+ *	Returns a standard Tcl result
+ *
+ * Side effects:
+ *	Prepares the statement, and stores it (plus a reference to the
+ *	connection) in instance metadata.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ForeignkeysStatementConstructor(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current statement object */
+    int skip = Tcl_ObjectContextSkippedArgs(context);
+				/* The number of parameters to skip */
+    Tcl_Object connectionObject;
+				/* The database connection as a Tcl_Object */
+    ConnectionData* cdata;	/* The connection object's data */
+    StatementData* sdata;	/* The statement's object data */
+    RETCODE rc;			/* Return code from ODBC */
+
+    const char* options[] = {	/* Option table */
+	"-foreign",
+	"-primary",
+	NULL
+    };
+    enum {
+	OPT_FOREIGN=0,
+	OPT_PRIMARY,
+	OPT__END
+    };
+
+    int i;
+    int paramIdx;		/* Index of the current option in the option 
+				 * table */
+    unsigned char have[OPT__END];
+				/* Flags for whether given -keywords have been
+				 * seen. */
+    Tcl_Obj* resultObj;		/* Interpreter result */
+
+    /* Check param count */
+
+    if (objc < skip+1 || (objc-skip) % 2 != 1) {
+	Tcl_WrongNumArgs(interp, skip, objv, "connection ?-option value?...");
+	return TCL_ERROR;
+    }
+
+    /* Find the connection object, and get its data. */
+
+    connectionObject = Tcl_GetObjectFromObj(interp, objv[skip]);
+    if (connectionObject == NULL) {
+	return TCL_ERROR;
+    }
+    cdata = (ConnectionData*) Tcl_ObjectGetMetadata(connectionObject,
+						    &connectionDataType);
+    if (cdata == NULL) {
+	Tcl_AppendResult(interp, Tcl_GetString(objv[skip]),
+			 " does not refer to an ODBC connection", NULL);
+	return TCL_ERROR;
+    }
+
+    /*
+     * Allocate an object to hold data about this statement
+     */
+
+    sdata = NewStatement(cdata, connectionObject);
+
+    /* Absorb parameters */
+
+    have[OPT_FOREIGN] = have[OPT_PRIMARY] = 0;
+    for (i = skip+1; i+1 < objc; i+=2) {
+	if (Tcl_GetIndexFromObj(interp, objv[i], options, "option", 0,
+				&paramIdx) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	if (have[paramIdx]) {
+	    resultObj = Tcl_NewStringObj("duplicate option \"", -1);
+	    Tcl_AppendObjToObj(resultObj, objv[i]);
+	    Tcl_AppendToObj(resultObj, "\"", -1);
+	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY001",
+			     "ODBC", "-1", NULL);
+	    Tcl_SetObjResult(interp, resultObj);
+	    goto freeSData;
+	}
+	switch(paramIdx) {
+	case OPT_FOREIGN:
+	    sdata->nativeMatchPatternW =
+		GetWCharStringFromObj(objv[i+1], &(sdata->nativeMatchPatLen));
+	    break;
+	case OPT_PRIMARY:
+	    sdata->nativeSqlW = 
+		GetWCharStringFromObj(objv[i+1], &(sdata->nativeSqlLen));
+	    break;
+	}
+	have[paramIdx] = 1;
+    }
+
+    /* Allocate an ODBC statement handle */
+
+    rc = SQLAllocHandle(SQL_HANDLE_STMT, cdata->hDBC, &(sdata->hStmt));
+    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	TransferSQLError(interp, SQL_HANDLE_DBC, cdata->hDBC, 
+			 "(allocating statement handle)");
+	goto freeSData;
+    }
+
+    sdata->flags = STATEMENT_FLAG_FOREIGNKEYS;
+
+    /* Attach the current statement data as metadata to the current object */
+
+    Tcl_ObjectSetMetadata(thisObject, &statementDataType, (ClientData) sdata);
+    return TCL_OK;
+
+    /* On error, unwind all the resource allocations */
+
+ freeSData:
+    DecrStatementRefCount(sdata);
+    return TCL_ERROR;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * TypesStatementConstructor --
  *
  *	C-level initialization for the object representing an ODBC query
@@ -3386,6 +3676,15 @@ ResultSetConstructor(
 			 sdata->nativeMatchPatternW, sdata->nativeMatchPatLen);
     } else if (sdata->flags & STATEMENT_FLAG_TYPES) {
 	rc = SQLGetTypeInfo(rdata->hStmt, sdata->typeNum);
+    } else if (sdata->flags & STATEMENT_FLAG_PRIMARYKEYS) {
+	rc = SQLPrimaryKeysW(rdata->hStmt, NULL, 0, NULL, 0, 
+			    sdata->nativeSqlW, sdata->nativeSqlLen);
+    } else if (sdata->flags & STATEMENT_FLAG_FOREIGNKEYS) {
+	rc = SQLForeignKeysW(rdata->hStmt, NULL, 0, NULL, 0, 
+			     sdata->nativeSqlW, sdata->nativeSqlLen,
+			     NULL, 0, NULL, 0,
+			     sdata->nativeMatchPatternW, 
+			     sdata->nativeMatchPatLen);
     } else {
 	rc = SQLExecute(rdata->hStmt);
     }
@@ -4840,6 +5139,53 @@ Tdbcodbc_Init(
     Tcl_ClassSetConstructor(interp, curClass,
 			    Tcl_NewMethod(interp, curClass, NULL, 1,
 					  &ColumnsStatementConstructorType,
+					  (ClientData) NULL));
+
+    /* Look up the 'primarykeysStatement' class */
+
+    nameObj = Tcl_NewStringObj("::tdbc::odbc::primarykeysStatement", -1);
+    Tcl_IncrRefCount(nameObj);
+    if ((curClassObject = Tcl_GetObjectFromObj(interp, nameObj)) == NULL) {
+	Tcl_DecrRefCount(nameObj);
+	return TCL_ERROR;
+    }
+    Tcl_DecrRefCount(nameObj);
+    curClass = Tcl_GetObjectAsClass(curClassObject);
+
+    /* Attach the constructor to the 'primarykeysStatement' class */
+
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &PrimarykeysStatementConstructorType,
+					  (ClientData) NULL));
+
+    /* Look up the 'typesStatement' class */
+
+    nameObj = Tcl_NewStringObj("::tdbc::odbc::typesStatement", -1);
+    Tcl_IncrRefCount(nameObj);
+    if ((curClassObject = Tcl_GetObjectFromObj(interp, nameObj)) == NULL) {
+	Tcl_DecrRefCount(nameObj);
+	return TCL_ERROR;
+    }
+    Tcl_DecrRefCount(nameObj);
+    curClass = Tcl_GetObjectAsClass(curClassObject);
+
+    /* Look up the 'foreignkeysStatement' class */
+
+    nameObj = Tcl_NewStringObj("::tdbc::odbc::foreignkeysStatement", -1);
+    Tcl_IncrRefCount(nameObj);
+    if ((curClassObject = Tcl_GetObjectFromObj(interp, nameObj)) == NULL) {
+	Tcl_DecrRefCount(nameObj);
+	return TCL_ERROR;
+    }
+    Tcl_DecrRefCount(nameObj);
+    curClass = Tcl_GetObjectAsClass(curClassObject);
+
+    /* Attach the constructor to the 'foreignkeysStatement' class */
+
+    Tcl_ClassSetConstructor(interp, curClass,
+			    Tcl_NewMethod(interp, curClass, NULL, 1,
+					  &ForeignkeysStatementConstructorType,
 					  (ClientData) NULL));
 
     /* Look up the 'typesStatement' class */
