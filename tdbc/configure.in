@@ -234,3 +234,5 @@ TEA_EXPORT_CONFIG([tdbc])
 AC_CONFIG_FILES([Makefile pkgIndex.tcl tdbcConfig.sh])
 AC_OUTPUT
 
+# This is a comment added to force the 'execute' permission to update 
+# in the Fossil repository.

@@ -212,3 +212,6 @@ AC_SUBST(CONFIGURE_OUTPUTS)
 
 AC_CONFIG_FILES([Makefile pkgIndex.tcl])
 AC_OUTPUT
+
+# This is a comment added to force the 'execute' permission to update 
+# in the Fossil repository.

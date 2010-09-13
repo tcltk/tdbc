@@ -53,6 +53,7 @@ To advance the version number:
 
 (4) cd /tmp/dist/tdbc1.0b2
     dos2unix win/*
+    (or fromdos)
 
 (5) Import the distribution into Tcl's repository on the vendor branch:
 

@@ -95,3 +95,6 @@ AC_PROG_INSTALL
 #--------------------------------------------------------------------
 
 AC_OUTPUT([Makefile pkgIndex.tcl])
+
+# This is a comment added to force the 'execute' permission to update 
+# in the Fossil repository.
