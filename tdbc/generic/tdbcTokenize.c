@@ -58,7 +58,7 @@
  *
  * Resulting in:
  *
- *      {SELECT * FROM table1 WHERxE } {:name} {='bob'} {;}
+ *      {SELECT * FROM table1 WHERE } {:name} {=} {'bob'} {;}
  *
  * The tokenizer knows about SQL comments and strings and will
  * not mistake a host parameter or semicolon embedded in a string
