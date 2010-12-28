@@ -424,6 +424,9 @@ static int ConnectionCommitMethod(ClientData clientData, Tcl_Interp* interp,
 static int ConnectionConfigureMethod(ClientData clientData, Tcl_Interp* interp,
 				     Tcl_ObjectContext context,
 				     int objc, Tcl_Obj *const objv[]);
+static int ConnectionEvaldirectMethod(ClientData clientData, Tcl_Interp* interp,
+				      Tcl_ObjectContext context,
+				      int objc, Tcl_Obj *const objv[]);
 static int ConnectionNeedCollationInfoMethod(ClientData clientData,
 					     Tcl_Interp* interp,
 					     Tcl_ObjectContext context,
@@ -565,6 +568,14 @@ const static Tcl_MethodType ConnectionConfigureMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+const static Tcl_MethodType ConnectionEvaldirectMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "evaldirect",		/* name */
+    ConnectionEvaldirectMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
 const static Tcl_MethodType ConnectionNeedCollationInfoMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -603,6 +614,7 @@ const static Tcl_MethodType* ConnectionMethods[] = {
     &ConnectionColumnsMethodType,
     &ConnectionCommitMethodType,
     &ConnectionConfigureMethodType,
+    &ConnectionEvaldirectMethodType,
     &ConnectionNeedCollationInfoMethodType,
     &ConnectionRollbackMethodType,
     &ConnectionSetCollationInfoMethodType,
@@ -1682,6 +1694,117 @@ static int ConnectionConfigureMethod(
 				/* Instance data */
     return ConfigureConnection(cdata, interp, objc, objv, skip);
 }
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ConnectionEvaldirectMethod --
+ *
+ *	Evaluates a MySQL statement that is not supported by the prepared
+ *	statement API.
+ *
+ * Usage:
+ *	$connection evaldirect sql-statement
+ *
+ * Parameters:
+ *	sql-statement -
+ *		SQL statement to evaluate. The statement may not contain
+ *		substitutions.
+ *
+ * Results:
+ *	Returns a standard Tcl result. If the operation is successful,
+ *	the result consists of a list of rows (in the same form as
+ *	[$connection allrows -as dicts]). If the operation fails, the
+ *	result is an error message.
+ *
+ * Side effects:
+ *	Whatever the SQL statement does.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionEvaldirectMethod(
+    ClientData clientData,	     /* Unused */
+    Tcl_Interp* interp,		     /* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			     /* Parameter count */
+    Tcl_Obj *const objv[])           /* Parameter vector */
+{
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* Current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    int nColumns;		/* Number of columns in the result set */
+    MYSQL_RES* resultPtr;	/* MySQL result set */
+    MYSQL_ROW rowPtr;		/* One row of the result set */
+    unsigned long* lengths;	/* Lengths of the fields in a row */
+    Tcl_Obj* retObj;		/* Result set as a Tcl list */
+    Tcl_Obj* rowObj;		/* One row of the result set as a Tcl list */
+    Tcl_Obj* fieldObj;		/* One field of the row */
+    int i;
+
+    /* Check parameters */
+
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+
+    /* Execute the given statement */
+
+    if (mysql_query(cdata->mysqlPtr, Tcl_GetString(objv[2]))) {
+	TransferMysqlError(interp, cdata->mysqlPtr);
+	return TCL_ERROR;
+    }
+    
+    /* Retrieve the result set */
+
+    resultPtr = mysql_store_result(cdata->mysqlPtr);
+    nColumns = mysql_field_count(cdata->mysqlPtr);
+    if (resultPtr == NULL) {
+	/* 
+	 * Can't retrieve result set. Distinguish result-less statements
+	 * from MySQL errors.
+	 */
+	if (nColumns == 0) {
+	    Tcl_SetObjResult
+		(interp,
+		 Tcl_NewWideIntObj(mysql_affected_rows(cdata->mysqlPtr)));
+	    return TCL_OK;
+	} else {
+	    TransferMysqlError(interp, cdata->mysqlPtr);
+	    return TCL_ERROR;
+	}
+    }
+
+    /* Make a list-of-lists of the result */
+
+    retObj = Tcl_NewObj();
+    while ((rowPtr = mysql_fetch_row(resultPtr)) != NULL) {
+	rowObj = Tcl_NewObj();
+	lengths = mysql_fetch_lengths(resultPtr);
+	for (i = 0; i < nColumns; ++i) {
+	    if (rowPtr[i] != NULL) {
+		fieldObj = Tcl_NewStringObj(rowPtr[i], lengths[i]);
+	    } else {
+		fieldObj = cdata->pidata->literals[LIT_EMPTY];
+	    }
+	    Tcl_ListObjAppendElement(NULL, rowObj, fieldObj);
+	}
+	Tcl_ListObjAppendElement(NULL, retObj, rowObj);
+    }
+    Tcl_SetObjResult(interp, retObj);
+
+    /*
+     * Free the result set.
+     */
+    mysql_free_result(resultPtr);
+
+    return TCL_OK;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -3247,7 +3370,7 @@ ResultSetNextrowMethod(
 
 	if (lists) {
 	    if (colObj == NULL) {
-		colObj = Tcl_NewObj();
+		colObj = literals[LIT_EMPTY];
 	    }
 	    Tcl_ListObjAppendElement(NULL, resultRow, colObj);
 	} else {

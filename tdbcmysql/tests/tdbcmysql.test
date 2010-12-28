@@ -3194,6 +3194,49 @@ test tdbc::mysql-24.7 {Foreign keys - -foreign and -primary} \
     } \
     -result [list fk_cpair {1 {c p1 b k2} 2 {c p2 b k1}}]
 
+test tdbc::mysql-25.1 {Create a stored procedure} {*}{
+    -body {
+	::db evaldirect {
+	    CREATE PROCEDURE clean_people ()
+	        BEGIN
+		    DELETE FROM people;
+	        END
+	}
+    }
+    -cleanup {
+	::db evaldirect {
+	    DROP PROCEDURE clean_people;
+	}
+    }
+    -result 0
+}
+
+test tdbc::mysql-25.2 {Create and execute a stored procedure} {*}{
+    -setup {
+	::db evaldirect {
+	    CREATE PROCEDURE clean_people ()
+	        BEGIN
+		    DELETE FROM people;
+	        END
+	}
+    }
+    -body {
+	set stmt [::db preparecall clean_people]
+	set res [$stmt allrows]
+	$stmt close
+	set res
+    }
+    -cleanup {
+	::db evaldirect {
+	    DROP PROCEDURE clean_people;
+	}
+    }
+    -result {}
+}
+
+
+    
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Drop tables and get rid of the test database.

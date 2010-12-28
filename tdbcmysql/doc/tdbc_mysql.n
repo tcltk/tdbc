@@ -146,6 +146,22 @@ tdbc::mysql::connection -user joe -passwd sesame -db joes_database
 Connects to the MySQL server on the local host using the default
 connection method, presenting user ID 'joe' and password 'sesame'.
 Uses 'joes_database' as the default database name.
+.SH "ADDITIONAL CONNECTION METHODS"
+In addition to the usual methods on the tdbc::connection(n) object,
+connections to a MySQL database support one additional method:
+.IP \fI$connection\fR \fBevaldirect\fR \fIsqlStatement\fR
+This method takes the given \fIsqlStatement\fR and interprets as
+MySQL native SQL code and evaluates it without preparing it. The
+statement may not contain variable substitutions. The result set
+is returned as a list of lists, with each sublist being the list
+of columns of a result row formatted as character strings. Note that
+the string formatting is done by MySQL and not by Tcl, so details
+like the appearance of floating point numbers may differ.
+\fIThis command is not recommended\fR for anything where the usual
+\fIprepare\fR or \fIpreparecall\fR methods work correctly. It is
+provided so that data management language statements that are
+not implemented in MySQL's prepared statement API, such as
+\fBCREATE DATABASE\fR or \fBCREATE PROCEDURE\fR, can be executed.
 .SH "SEE ALSO"
 tdbc(n), tdbc::connection(n), tdbc::resultset(n), tdbc::statement(n)
 .SH "KEYWORDS"

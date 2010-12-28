@@ -4,7 +4,7 @@
  *	Stubs tables for the foreign MySQL libraries so that
  *	Tcl extensions can use them without the linker's knowing about them.
  *
- * @CREATED@ 2010-05-12 03:17:14Z by genExtStubs.tcl from ../generic/mysqlStubDefs.txt
+ * @CREATED@ 2010-12-27 19:26:47Z by genExtStubs.tcl from ../generic/mysqlStubDefs.txt
  *
  * Copyright (c) 2010 by Kevin B. Kenny.
  *
@@ -47,6 +47,7 @@ static const char* mysqlSymbolNames[] = {
     /* @SYMNAMES@: DO NOT EDIT THESE NAMES */
     "mysql_server_init",
     "mysql_server_end",
+    "mysql_affected_rows",
     "mysql_autocommit",
     "mysql_change_user",
     "mysql_close",
@@ -56,6 +57,7 @@ static const char* mysqlSymbolNames[] = {
     "mysql_fetch_fields",
     "mysql_fetch_lengths",
     "mysql_fetch_row",
+    "mysql_field_count",
     "mysql_free_result",
     "mysql_get_client_version",
     "mysql_init",

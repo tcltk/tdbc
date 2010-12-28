@@ -1,9 +1,24 @@
+2010-12-28  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/fakemysql.h: Added the MYSQL data structure and the
+			       nest of other definitions that it depends on.
+	* generic/mysqlStubDefs.txt: Added mysql_affected_rows and
+				     mysql_field_count.
+	* generic/mysqlStubInit.c, generic/mysqlStubs.h: Regenerated.
+	* generic/tdbcmysql.c: Added 'evaldirect' method that allows
+			       executing statements that are unimplemented
+			       in the MySQL prepared statement API.
+	* generic/tdbcmysql.tcl: Did a rough (not really functional) hack
+	                         at formatting prepared statements.
+	* tests/tdbcmysql.test (tdbc::mysql-25.*): Added two tests for
+	creating a (parameterless) stored procedure and executing it.
+
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Added missing TCLOO_CFLAGS because Windows build
 			failed to link without it.
 	* configure: autoconf 2-59
-	
+
 	* generic/mysqlStubInit.c:
 			Made changes to attempt to open the
 			MySQL client library by SONAME as well as

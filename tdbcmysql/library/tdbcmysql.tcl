@@ -64,7 +64,7 @@ package require tdbc
 	return [my Columns $table $pattern]
     }
 
-    # The 'prepareCall' method gives a portable interface to prepare
+    # The 'preparecall' method gives a portable interface to prepare
     # calls to stored procedures.  It delegates to 'prepare' to do the
     # actual work.
 
@@ -72,7 +72,7 @@ package require tdbc
 	regexp {^[[:space:]]*(?:([A-Za-z_][A-Za-z_0-9]*)[[:space:]]*=)?(.*)} \
 	    $call -> varName rest
 	if {$varName eq {}} {
-	    my prepare \\{$rest\\}
+	    my prepare "CALL $rest"
 	} else {
 	    my prepare \\{:$varName=$rest\\}
 	}

@@ -64,23 +64,181 @@ enum mysql_option {
     MYSQL_SET_CHARSET_NAME=7,
 };
 
-#define CLIENT_COMPRESS		32
-#define CLIENT_INTERACTIVE	1024	/* This is an interactive client */
+enum mysql_status {
+    MYSQL_STATUS_READY=0,
+};
 
-#define MYSQL_NO_DATA 100
+#define CLIENT_COMPRESS 	32
+#define CLIENT_INTERACTIVE 1024
 #define MYSQL_DATA_TRUNCATED 101
+#define MYSQL_ERRMSG_SIZE 512
+#define MYSQL_NO_DATA 100
+#define SCRAMBLE_LENGTH 20
+#define SQLSTATE_LENGTH 5
 
+typedef struct st_list LIST;
+typedef struct st_mem_root MEM_ROOT;
 typedef struct st_mysql MYSQL;
 typedef struct st_mysql_bind MYSQL_BIND;
 typedef struct st_mysql_field MYSQL_FIELD;
 typedef struct st_mysql_res MYSQL_RES;
 typedef char** MYSQL_ROW;
 typedef struct st_mysql_stmt MYSQL_STMT;
-
 typedef char my_bool;
+#ifndef Socket_defined
+typedef int	my_socket;
+#define INVALID_SOCKET -1
+#endif
 typedef Tcl_WideUInt my_ulonglong;
-
 typedef struct st_net NET;
+typedef struct st_used_mem USED_MEM;
+typedef struct st_vio Vio;
+
+struct st_mem_root {
+  USED_MEM *free;
+  USED_MEM *used;
+  USED_MEM *pre_alloc;
+  size_t min_malloc;
+  size_t block_size;
+  unsigned int block_num;
+  unsigned int first_block_usage;
+  void (*error_handler)(void);
+};
+
+struct st_mysql_options {
+    unsigned int connect_timeout;
+    unsigned int read_timeout;
+    unsigned int write_timeout;
+    unsigned int port;
+    unsigned int protocol;
+    unsigned long client_flag;
+    char *host;
+    char *user;
+    char *password;
+    char *unix_socket;
+    char *db;
+    struct st_dynamic_array *init_commands;
+    char *my_cnf_file;
+    char *my_cnf_group;
+    char *charset_dir;
+    char *charset_name;
+    char *ssl_key;
+    char *ssl_cert;
+    char *ssl_ca;
+    char *ssl_capath;
+    char *ssl_cipher;
+    char *shared_memory_base_name;
+    unsigned long max_allowed_packet;
+    my_bool use_ssl;
+    my_bool compress,named_pipe;
+    my_bool rpl_probe;
+    my_bool rpl_parse;
+    my_bool no_master_reads;
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || defined(EMBEDDED_LIBRARY)
+    my_bool separate_thread;
+#endif
+    enum mysql_option methods_to_use;
+    char *client_ip;
+    my_bool secure_auth;
+    my_bool report_data_truncation;
+    int (*local_infile_init)(void **, const char *, void *);
+    int (*local_infile_read)(void *, char *, unsigned int);
+    void (*local_infile_end)(void *);
+    int (*local_infile_error)(void *, char *, unsigned int);
+    void *local_infile_userdata;
+    void *extension;
+};
+
+struct st_net {
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
+    Vio *vio;
+    unsigned char *buff;
+    unsigned char *buff_end;
+    unsigned char *write_pos;
+    unsigned char *read_pos;
+    my_socket fd;
+    unsigned long remain_in_buf;
+    unsigned long length;
+    unsigned long buf_length;
+    unsigned long where_b;
+    unsigned long max_packet;
+    unsigned long max_packet_size;
+    unsigned int pkt_nr;
+    unsigned int compress_pkt_nr;
+    unsigned int write_timeout;
+    unsigned int read_timeout;
+    unsigned int retry_count;
+    int fcntl;
+    unsigned int *return_status;
+    unsigned char reading_or_writing;
+    char save_char;
+    my_bool unused0;
+    my_bool unused;
+    my_bool compress;
+    my_bool unused1;
+#endif
+    unsigned char *query_cache_query;
+    unsigned int last_errno;
+    unsigned char error; 
+    my_bool unused2;
+    my_bool return_errno;
+    char last_error[MYSQL_ERRMSG_SIZE];
+    char sqlstate[SQLSTATE_LENGTH+1];
+    void *extension;
+#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+    my_bool skip_big_packet;
+#endif
+};
+
+/*
+ * st_mysql differs between 5.0 and 5.1, but the 5.0 version is a
+ * strict subset, we don't use any of the 5.1 fields, and we don't
+ * ever allocate the structure ourselves. 
+ */
+
+struct st_mysql {
+    NET net;
+    unsigned char *connector_fd;
+    char *host;
+    char *user;
+    char *passwd;
+    char *unix_socket;
+    char *server_version;
+    char *host_info;
+    char *info; 
+    char *db;
+    struct charset_info_st *charset;
+    MYSQL_FIELD *fields;
+    MEM_ROOT field_alloc;
+    my_ulonglong affected_rows;
+    my_ulonglong insert_id;
+    my_ulonglong extra_info;
+    unsigned long thread_id;
+    unsigned long packet_length;
+    unsigned int port;
+    unsigned long client_flag;
+    unsigned long server_capabilities;
+    unsigned int protocol_version;
+    unsigned int field_count;
+    unsigned int server_status;
+    unsigned int server_language;
+    unsigned int warning_count;
+    struct st_mysql_options options;
+    enum mysql_status status;
+    my_bool free_me;
+    my_bool reconnect;
+    char scramble[SCRAMBLE_LENGTH+1];
+    my_bool rpl_pivot;
+    struct st_mysql *master;
+    struct st_mysql *next_slave;
+    struct st_mysql* last_used_slave;
+    struct st_mysql* last_used_con;
+    LIST  *stmts;
+    const struct st_mysql_methods *methods;
+    void *thd;
+    my_bool *unbuffered_fetch_owner;
+    char *info_buffer;
+};
 
 /* 
  * There are different version of the MYSQL_BIND structure before and after
