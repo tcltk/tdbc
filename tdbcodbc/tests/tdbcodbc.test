@@ -3521,7 +3521,8 @@ catch {::db allrows {DROP TABLE b}}
 catch {::db allrows {DROP TABLE a}}
 catch {::db allrows {DROP TABLE people}}
 
-catch {rename ::db {}}
+rename ::db {}
+
 if {[info exists testFileName]} {
     catch {removeFile $testFileName $testdir}
 }
