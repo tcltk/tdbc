@@ -513,7 +513,7 @@ namespace eval tdbc::sqlite3 {
     # in the SQL query. We start the variable names with hyphens because
     # they can't be bind variables.
 
-    variable -columns -db -resultArray -results -sql -Cursor -RowCount
+    variable -columns -db -needcolumns -resultArray -results -sql -Cursor -RowCount -END
 
     constructor {statement args} {
 	next
@@ -521,6 +521,7 @@ namespace eval tdbc::sqlite3 {
 	set -sql [$statement getSql]
 	set -columns {}
 	set -results {}
+	${-db} trace [namespace code {my RecordStatement}]
 	if {[llength $args] == 0} {
 
 	    # Variable substitutions are evaluated in caller's context
@@ -551,6 +552,8 @@ namespace eval tdbc::sqlite3 {
 
 	} else {
 
+	    ${-db} trace {}
+
 	    # Too many args
 
 	    return -code error \
@@ -560,8 +563,26 @@ namespace eval tdbc::sqlite3 {
                  [lrange [info level 0] 0 1] statement ?dictionary?"
 
 	}
+	${-db} trace {}
+	set -Cursor 0
+	if {${-Cursor} < [llength ${-results}]
+	    && [lindex ${-results} ${-Cursor}] eq {statement}} {
+	    incr -Cursor 2
+	}
+	if {${-Cursor} < [llength ${-results}]
+	    && [lindex ${-results} ${-Cursor}] eq {columns}} {
+	    incr -Cursor
+	    set -columns [lindex ${-results} ${-Cursor}]
+	    incr -Cursor
+	}
 	set -RowCount [${-db} changes]
-	set -Cursor -1
+    }
+
+    # Record the start of a SQL statement
+
+    method RecordStatement {stmt} {
+	set -needcolumns 1
+	lappend -results statement {}
     }
 
     # Record one row of results from a query by appending it as a dictionary
@@ -569,14 +590,42 @@ namespace eval tdbc::sqlite3 {
     # comprising the names of the columns of the result.
 
     method RecordResult {} {
-	set -columns ${-resultArray(*)}
+	set columns ${-resultArray(*)}
+	if {[info exists -needcolumns]} {
+	    lappend -results columns $columns
+	    unset -needcolumns
+	}
 	set dict {}
-	foreach key ${-columns} {
+	foreach key $columns {
 	    if {[set -resultArray($key)] ne "\ufffd"} {
 		dict set dict $key [set -resultArray($key)]
 	    }
 	}
-	lappend -results $dict
+	lappend -results row $dict
+    }
+
+    # Advance to the next result set
+
+    method nextresults {} {
+	set have 0
+	while {${-Cursor} < [llength ${-results}]} {
+	    if {[lindex ${-results} ${-Cursor}] eq {statement}} {
+		set have 1
+		incr -Cursor 2
+		break
+	    }
+	    incr -Cursor 2
+	}
+	if {${-Cursor} < [llength ${-results}]
+	    && [lindex ${-results} ${-Cursor}] eq {columns}} {
+	    incr -Cursor
+	    set -columns [lindex ${-results} ${-Cursor}]
+	    incr -Cursor
+	} else {
+	    set -columns {}
+	    set -END {}
+	}
+	return $have
     }
 
     method getDBhandle {} {
@@ -586,6 +635,11 @@ namespace eval tdbc::sqlite3 {
     # Return a list of the columns
 
     method columns {} {
+	if {[info exists -END]} {
+	    return -code error \
+		-errorcode {TDBC GENERAL_ERROR HY010 SQLITE3 FUNCTIONSEQ} \
+		"Function sequence error: result set is exhausted."
+	}
 	return ${-columns}
     }
 
@@ -595,11 +649,19 @@ namespace eval tdbc::sqlite3 {
 
 	upvar 1 $var row
 
-	if {[incr -Cursor] >= [llength ${-results}]} {
+	if {[info exists -END]} {
+	    return -code error \
+		-errorcode {TDBC GENERAL_ERROR HY010 SQLITE3 FUNCTIONSEQ} \
+		"Function sequence error: result set is exhausted."
+	}
+	if {${-Cursor} >= [llength ${-results}]
+	    || [lindex ${-results} ${-Cursor}] ne {row}} {
 	    return 0
 	} else {
 	    set row {}
+	    incr -Cursor
 	    set d [lindex ${-results} ${-Cursor}]
+	    incr -Cursor
 	    foreach key ${-columns} {
 		if {[dict exists $d $key]} {
 		    lappend row [dict get $d $key]
@@ -617,10 +679,18 @@ namespace eval tdbc::sqlite3 {
 
 	upvar 1 $var row
 
-	if {[incr -Cursor] >= [llength ${-results}]} {
+	if {[info exists -END]} {
+	    return -code error \
+		-errorcode {TDBC GENERAL_ERROR HY010 SQLITE3 FUNCTIONSEQ} \
+		"Function sequence error: result set is exhausted."
+	}
+	if {${-Cursor} >= [llength ${-results}]
+	    || [lindex ${-results} ${-Cursor}] ne {row}} {
 	    return 0
 	} else {
+	    incr -Cursor
 	    set row [lindex ${-results} ${-Cursor}]
+	    incr -Cursor
 	}
 	return 1
     }
@@ -628,6 +698,12 @@ namespace eval tdbc::sqlite3 {
     # Return the number of rows affected by a statement
 
     method rowcount {} {
+	if {[info exists -END]} {
+	    return -code error \
+		-errorcode {TDBC GENERAL_ERROR HY010 SQLITE3 FUNCTIONSEQ} \
+		"Function sequence error: result set is exhausted."
+	}
 	return ${-RowCount}
     }
+
 }

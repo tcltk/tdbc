@@ -28,7 +28,7 @@ catch {file delete -force $testDBName}
 
 #-------------------------------------------------------------------------------
 
-test tdbcsqlite3-1.1 {create a connection, wrong # args} {*}{
+test tdbc::sqlite3-1.1 {create a connection, wrong # args} {*}{
     -body {
 	tdbc::sqlite3::connection create
     }
@@ -37,7 +37,7 @@ test tdbcsqlite3-1.1 {create a connection, wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-1.2 {create a connection, connection string missing} {*}{
+test tdbc::sqlite3-1.2 {create a connection, connection string missing} {*}{
     -body {
 	tdbc::sqlite3::connection create db
     }
@@ -46,7 +46,7 @@ test tdbcsqlite3-1.2 {create a connection, connection string missing} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-1.3 {create a connection, failure} {*}{
+test tdbc::sqlite3-1.3 {create a connection, failure} {*}{
     -body {
 	set status [catch {
 	    tdbc::sqlite3::connection create db /dev/null/wtf
@@ -58,7 +58,7 @@ test tdbcsqlite3-1.3 {create a connection, failure} {*}{
     -result {1 {unable to open database file}}
 }
 
-test tdbcsqlite3-1.4 {create a connection, successful} {*}{
+test tdbc::sqlite3-1.4 {create a connection, successful} {*}{
     -body {
 	tdbc::sqlite3::connection create ::db $::testDBName
     }
@@ -76,7 +76,7 @@ tdbc::sqlite3::connection create ::db $::testDBName
 
 #-------------------------------------------------------------------------------
 
-test tdbcsqlite3-2.1 {prepare statement, wrong # args} {*}{
+test tdbc::sqlite3-2.1 {prepare statement, wrong # args} {*}{
     -body {
 	::db prepare
     }
@@ -85,7 +85,7 @@ test tdbcsqlite3-2.1 {prepare statement, wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-2.2 {don't make a statement without a connection} {*}{
+test tdbc::sqlite3-2.2 {don't make a statement without a connection} {*}{
     -body {
 	tdbc::sqlite3::statement create stmt rubbish moreRubbish 
     }
@@ -94,7 +94,7 @@ test tdbcsqlite3-2.2 {don't make a statement without a connection} {*}{
     -result {invalid command name*}
 }
 
-test tdbcsqlite3-2.3 {don't make a statement without a connection} {*}{
+test tdbc::sqlite3-2.3 {don't make a statement without a connection} {*}{
     -body {
 	tdbc::sqlite3::statement create stmt oo::class moreRubbish 
     }
@@ -103,7 +103,7 @@ test tdbcsqlite3-2.3 {don't make a statement without a connection} {*}{
     -result {unknown method*}
 }
 
-test tdbcsqlite3-3.0 {prepare a valid statement} {*}{
+test tdbc::sqlite3-3.0 {prepare a valid statement} {*}{
     -body {
 	set stmt [::db prepare {
 	    CREATE TABLE people(
@@ -119,7 +119,7 @@ test tdbcsqlite3-3.0 {prepare a valid statement} {*}{
     }
 }
 
-test tdbcsqlite3-3.1 {execute a valid statement with no results} {*}{
+test tdbc::sqlite3-3.1 {execute a valid statement with no results} {*}{
     -body {
 	set stmt [::db prepare {
 	    CREATE TABLE people(
@@ -145,7 +145,7 @@ test tdbcsqlite3-3.1 {execute a valid statement with no results} {*}{
     }
 }
 
-test tdbcsqlite3-3.2 {result set: wrong # args} {*}{
+test tdbc::sqlite3-3.2 {result set: wrong # args} {*}{
     -body {
 	set stmt [::db prepare {
 	    CREATE TABLE people(
@@ -163,7 +163,7 @@ test tdbcsqlite3-3.2 {result set: wrong # args} {*}{
     }
 }
 
-test tdbcsqlite3-3.3 {result set: trying to create against a non-object} {*}{
+test tdbc::sqlite3-3.3 {result set: trying to create against a non-object} {*}{
     -body {
 	tdbc::sqlite3::resultset create rs nothing
     }
@@ -172,7 +172,7 @@ test tdbcsqlite3-3.3 {result set: trying to create against a non-object} {*}{
     -result {invalid command name*}
 }
 
-test tdbcsqlite3-3.4 {result set: trying to create against a non-statement} {*}{
+test tdbc::sqlite3-3.4 {result set: trying to create against a non-statement} {*}{
     -body {
 	tdbc::sqlite3::resultset create rs db
     }
@@ -196,7 +196,7 @@ set rs [$stmt execute]
 rename $rs {}
 rename $stmt {}
 
-test tdbcsqlite3-4.1 {execute an insert with no params} {*}{
+test tdbc::sqlite3-4.1 {execute an insert with no params} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(1, 'fred', 0)
@@ -219,7 +219,7 @@ test tdbcsqlite3-4.1 {execute an insert with no params} {*}{
     }
 }
 
-test tdbcsqlite3-4.2 {execute an insert with variable parameters} {*}{
+test tdbc::sqlite3-4.2 {execute an insert with variable parameters} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -246,7 +246,7 @@ test tdbcsqlite3-4.2 {execute an insert with variable parameters} {*}{
     }
 }
 
-test tdbcsqlite3-4.3 {execute an insert with dictionary parameters} {*}{
+test tdbc::sqlite3-4.3 {execute an insert with dictionary parameters} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -271,7 +271,7 @@ test tdbcsqlite3-4.3 {execute an insert with dictionary parameters} {*}{
     }
 }
 
-test tdbcsqlite3-4.4 {bad dictionary} {*}{
+test tdbc::sqlite3-4.4 {bad dictionary} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name)
@@ -295,7 +295,7 @@ test tdbcsqlite3-4.4 {bad dictionary} {*}{
     }
 }
 
-test tdbcsqlite3-4.7 {missing parameter - nullable} {*}{
+test tdbc::sqlite3-4.7 {missing parameter - nullable} {*}{
     -setup {
 	catch {unset info}
 	set stmt [::db prepare {
@@ -334,7 +334,7 @@ test tdbcsqlite3-4.7 {missing parameter - nullable} {*}{
     }
 }
 
-test tdbcsqlite3-4.8 {missing parameter in dictionary - nullable} {*}{
+test tdbc::sqlite3-4.8 {missing parameter in dictionary - nullable} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, :info)
@@ -370,7 +370,7 @@ test tdbcsqlite3-4.8 {missing parameter in dictionary - nullable} {*}{
     }
 }
 
-test tdbcsqlite3-4.9 {two result sets open against the same statement} {*}{
+test tdbc::sqlite3-4.9 {two result sets open against the same statement} {*}{
     -body {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -398,7 +398,7 @@ test tdbcsqlite3-4.9 {two result sets open against the same statement} {*}{
     }
 }
 
-test tdbcsqlite3-4.10 {failed execution} {*}{
+test tdbc::sqlite3-4.10 {failed execution} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -429,7 +429,7 @@ if 0 {
 # following tests check error syntax for 'paramtype' - and tdbcsqlite3
 # ignores paramtype, so they're kind of meaningless
 
-test tdbcsqlite3-5.1 {paramtype - too few args} {*}{
+test tdbc::sqlite3-5.1 {paramtype - too few args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -446,7 +446,7 @@ test tdbcsqlite3-5.1 {paramtype - too few args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-5.2 {paramtype - just a direction} {*}{
+test tdbc::sqlite3-5.2 {paramtype - just a direction} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -463,7 +463,7 @@ test tdbcsqlite3-5.2 {paramtype - just a direction} {*}{
     -result {wrong # args*}
 }
     
-test tdbcsqlite3-5.3 {paramtype - bad type} {*}{
+test tdbc::sqlite3-5.3 {paramtype - bad type} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -480,7 +480,7 @@ test tdbcsqlite3-5.3 {paramtype - bad type} {*}{
     -result {bad SQL data type "rubbish":*}
 }
 
-test tdbcsqlite3-5.4 {paramtype - bad scale} {*}{
+test tdbc::sqlite3-5.4 {paramtype - bad scale} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -497,7 +497,7 @@ test tdbcsqlite3-5.4 {paramtype - bad scale} {*}{
     -result {expected integer but got "rubbish"}
 }
 
-test tdbcsqlite3-5.5 {paramtype - bad precision} {*}{
+test tdbc::sqlite3-5.5 {paramtype - bad precision} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -514,7 +514,7 @@ test tdbcsqlite3-5.5 {paramtype - bad precision} {*}{
     -result {expected integer but got "rubbish"}
 }
 
-test tdbcsqlite3-5.6 {paramtype - unknown parameter} {*}{
+test tdbc::sqlite3-5.6 {paramtype - unknown parameter} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -531,7 +531,7 @@ test tdbcsqlite3-5.6 {paramtype - unknown parameter} {*}{
     -result {unknown parameter "rubbish":*}
 }
 }
-test tdbcsqlite3-6.1 {rowcount - wrong args} {*}{
+test tdbc::sqlite3-6.1 {rowcount - wrong args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    INSERT INTO people(idnum, name, info) values(:idnum, :name, 0)
@@ -579,7 +579,7 @@ catch {
 
 #-------------------------------------------------------------------------------
 
-test tdbcsqlite3-7.1 {columns - bad args} {*}{
+test tdbc::sqlite3-7.1 {columns - bad args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT * FROM people
@@ -598,7 +598,7 @@ test tdbcsqlite3-7.1 {columns - bad args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-7.2 {columns - get column names} {*}{
+test tdbc::sqlite3-7.2 {columns - get column names} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT * FROM people
@@ -615,7 +615,7 @@ test tdbcsqlite3-7.2 {columns - get column names} {*}{
     -result {idnum name info}
 }
 
-test tdbcsqlite3-8.1 {nextrow - as dicts} {*}{
+test tdbc::sqlite3-8.1 {nextrow - as dicts} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people ORDER BY idnum
@@ -641,7 +641,7 @@ test tdbcsqlite3-8.1 {nextrow - as dicts} {*}{
     -result {fred wilma pebbles barney betty bam-bam}
 }
     
-test tdbcsqlite3-8.2 {nextrow - as lists} {*}{
+test tdbc::sqlite3-8.2 {nextrow - as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people ORDER BY idnum
@@ -667,7 +667,7 @@ test tdbcsqlite3-8.2 {nextrow - as lists} {*}{
     -result {fred wilma pebbles barney betty bam-bam}
 }
 
-test tdbcsqlite3-8.3 {nextrow - bad cursor state} {*}{
+test tdbc::sqlite3-8.3 {nextrow - bad cursor state} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people ORDER BY idnum
@@ -686,7 +686,7 @@ test tdbcsqlite3-8.3 {nextrow - bad cursor state} {*}{
     -result 0
 }
 
-test tdbcsqlite3-8.4 {anonymous columns - dicts} {*}{
+test tdbc::sqlite3-8.4 {anonymous columns - dicts} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT COUNT(*), MAX(idnum) FROM people
@@ -706,7 +706,7 @@ test tdbcsqlite3-8.4 {anonymous columns - dicts} {*}{
     -result {1 {* 6 * 6} 0}
 };
 
-test tdbcsqlite3-8.5 {anonymous columns - lists} {*}{
+test tdbc::sqlite3-8.5 {anonymous columns - lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT COUNT(*), MAX(idnum) FROM people
@@ -724,7 +724,7 @@ test tdbcsqlite3-8.5 {anonymous columns - lists} {*}{
     -result {1 {6 6} 0}
 };
 
-test tdbcsqlite3-8.6 {null results - dicts} {*}{
+test tdbc::sqlite3-8.6 {null results - dicts} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name = 'fred'
@@ -740,7 +740,7 @@ test tdbcsqlite3-8.6 {null results - dicts} {*}{
     -result {1 {idnum 1 name fred} 0}
 }
 
-test tdbcsqlite3-8.7 {null results - lists} {*}{
+test tdbc::sqlite3-8.7 {null results - lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name = 'fred'
@@ -756,7 +756,7 @@ test tdbcsqlite3-8.7 {null results - lists} {*}{
     -result {1 {1 fred {}} 0}
 }
 	
-test tdbcsqlite3-9.1 {rs foreach var script} {*}{
+test tdbc::sqlite3-9.1 {rs foreach var script} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -777,7 +777,7 @@ test tdbcsqlite3-9.1 {rs foreach var script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.2 {stmt foreach var script} {*}{
+test tdbc::sqlite3-9.2 {stmt foreach var script} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -797,7 +797,7 @@ test tdbcsqlite3-9.2 {stmt foreach var script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.3 {db foreach var sqlcode script} {*}{
+test tdbc::sqlite3-9.3 {db foreach var sqlcode script} {*}{
     -body {
 	set result {}
 	db foreach row {
@@ -810,7 +810,7 @@ test tdbcsqlite3-9.3 {db foreach var sqlcode script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.4 {rs foreach -- var script} {*}{
+test tdbc::sqlite3-9.4 {rs foreach -- var script} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -831,7 +831,7 @@ test tdbcsqlite3-9.4 {rs foreach -- var script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.5 {stmt foreach -- var script} {*}{
+test tdbc::sqlite3-9.5 {stmt foreach -- var script} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -850,7 +850,7 @@ test tdbcsqlite3-9.5 {stmt foreach -- var script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.6 {db foreach -- var query script} {*}{
+test tdbc::sqlite3-9.6 {db foreach -- var query script} {*}{
     -body {
 	set result {}
 	db foreach -- row {
@@ -863,7 +863,7 @@ test tdbcsqlite3-9.6 {db foreach -- var query script} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.7 {rs foreach -- -as lists} {*}{
+test tdbc::sqlite3-9.7 {rs foreach -- -as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -884,7 +884,7 @@ test tdbcsqlite3-9.7 {rs foreach -- -as lists} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcsqlite3-9.8 {stmt foreach -as lists} {*}{
+test tdbc::sqlite3-9.8 {stmt foreach -as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -903,7 +903,7 @@ test tdbcsqlite3-9.8 {stmt foreach -as lists} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcsqlite3-9.9 {db foreach -as lists} {*}{
+test tdbc::sqlite3-9.9 {db foreach -as lists} {*}{
     -body {
 	set result {}
 	db foreach -as lists row {
@@ -916,7 +916,7 @@ test tdbcsqlite3-9.9 {db foreach -as lists} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcsqlite3-9.10 {rs foreach -as lists --} {*}{
+test tdbc::sqlite3-9.10 {rs foreach -as lists --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -937,7 +937,7 @@ test tdbcsqlite3-9.10 {rs foreach -as lists --} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcsqlite3-9.11 {stmt foreach -as lists --} {*}{
+test tdbc::sqlite3-9.11 {stmt foreach -as lists --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -956,7 +956,7 @@ test tdbcsqlite3-9.11 {stmt foreach -as lists --} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcsqlite3-9.12 {db foreach -as lists --} {*}{
+test tdbc::sqlite3-9.12 {db foreach -as lists --} {*}{
     -body {
 	set result {}
 	db foreach -as lists row {
@@ -969,7 +969,7 @@ test tdbcsqlite3-9.12 {db foreach -as lists --} {*}{
     -result {{4 barney {}} {5 betty {}} {6 bam-bam {}}}
 }
 
-test tdbcsqlite3-9.13 {rs foreach -as lists -columnsvar c --} {*}{
+test tdbc::sqlite3-9.13 {rs foreach -as lists -columnsvar c --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -992,7 +992,7 @@ test tdbcsqlite3-9.13 {rs foreach -as lists -columnsvar c --} {*}{
     -result {idnum 4 name barney idnum 5 name betty idnum 6 name bam-bam}
 }
 
-test tdbcsqlite3-9.14 {stmt foreach -as lists -columnsvar c --} {*}{
+test tdbc::sqlite3-9.14 {stmt foreach -as lists -columnsvar c --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1013,7 +1013,7 @@ test tdbcsqlite3-9.14 {stmt foreach -as lists -columnsvar c --} {*}{
     -result {idnum 4 name barney idnum 5 name betty idnum 6 name bam-bam}
 }
 
-test tdbcsqlite3-9.15 {db foreach -as lists -columnsvar c --} {*}{
+test tdbc::sqlite3-9.15 {db foreach -as lists -columnsvar c --} {*}{
     -body {
 	set result {}
 	db foreach -as lists -columnsvar c -- row {
@@ -1028,7 +1028,7 @@ test tdbcsqlite3-9.15 {db foreach -as lists -columnsvar c --} {*}{
     -result {idnum 4 name barney idnum 5 name betty idnum 6 name bam-bam}
 }
 
-test tdbcsqlite3-9.16 {rs foreach / break out of loop} {*}{
+test tdbc::sqlite3-9.16 {rs foreach / break out of loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1050,7 +1050,7 @@ test tdbcsqlite3-9.16 {rs foreach / break out of loop} {*}{
     -result {{4 barney {}}}
 }
 
-test tdbcsqlite3-9.17 {stmt foreach / break out of loop} {*}{
+test tdbc::sqlite3-9.17 {stmt foreach / break out of loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1070,7 +1070,7 @@ test tdbcsqlite3-9.17 {stmt foreach / break out of loop} {*}{
     -result {{4 barney {}}}
 }
 
-test tdbcsqlite3-9.18 {db foreach / break out of loop} {*}{
+test tdbc::sqlite3-9.18 {db foreach / break out of loop} {*}{
     -body {
 	set result {}
 	db foreach -as lists -- row {
@@ -1084,7 +1084,7 @@ test tdbcsqlite3-9.18 {db foreach / break out of loop} {*}{
     -result {{4 barney {}}}
 }
 
-test tdbcsqlite3-9.19 {rs foreach / continue in loop} {*}{
+test tdbc::sqlite3-9.19 {rs foreach / continue in loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1106,7 +1106,7 @@ test tdbcsqlite3-9.19 {rs foreach / continue in loop} {*}{
     -result {{4 barney {}} {6 bam-bam {}}}
 }
 
-test tdbcsqlite3-9.20 {stmt foreach / continue in loop} {*}{
+test tdbc::sqlite3-9.20 {stmt foreach / continue in loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name, info FROM people WHERE name LIKE 'b%'
@@ -1126,7 +1126,7 @@ test tdbcsqlite3-9.20 {stmt foreach / continue in loop} {*}{
     -result {{4 barney {}} {6 bam-bam {}}}
 }
 
-test tdbcsqlite3-9.21 {db foreach / continue in loop} {*}{
+test tdbc::sqlite3-9.21 {db foreach / continue in loop} {*}{
     -body {
 	set result {}
 	db foreach -as lists -- row {
@@ -1140,13 +1140,13 @@ test tdbcsqlite3-9.21 {db foreach / continue in loop} {*}{
     -result {{4 barney {}} {6 bam-bam {}}}
 }
 
-test tdbcsqlite3-9.22 {rs foreach / return out of the loop} {*}{
+test tdbc::sqlite3-9.22 {rs foreach / return out of the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
 	}]
 	set rs [$stmt execute]
-	proc tdbcsqlite3-9.22 {rs} {
+	proc tdbc::sqlite3-9.22 {rs} {
 	    $rs foreach -as lists -- row {
 		if {[lindex $row 1] eq {betty}} {
 		    return [lindex $row 0]
@@ -1156,22 +1156,22 @@ test tdbcsqlite3-9.22 {rs foreach / return out of the loop} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-9.22 $rs
+	tdbc::sqlite3-9.22 $rs
     }
     -cleanup {
-	rename tdbcsqlite3-9.22 {}
+	rename tdbc::sqlite3-9.22 {}
 	rename $rs {}
 	rename $stmt {}
     }
     -result 5
 }
 
-test tdbcsqlite3-9.23 {stmt foreach / return out of the loop} {*}{
+test tdbc::sqlite3-9.23 {stmt foreach / return out of the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
 	}]
-	proc tdbcsqlite3-9.23 {stmt} {
+	proc tdbc::sqlite3-9.23 {stmt} {
 	    $stmt foreach -as lists -- row {
 		if {[lindex $row 1] eq {betty}} {
 		    return [lindex $row 0]
@@ -1181,18 +1181,18 @@ test tdbcsqlite3-9.23 {stmt foreach / return out of the loop} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-9.23 $stmt
+	tdbc::sqlite3-9.23 $stmt
     }
     -cleanup {
-	rename tdbcsqlite3-9.23 {}
+	rename tdbc::sqlite3-9.23 {}
 	rename $stmt {}
     }
     -result 5
 }
 
-test tdbcsqlite3-9.24 {db foreach / return out of the loop} {*}{
+test tdbc::sqlite3-9.24 {db foreach / return out of the loop} {*}{
     -setup {
-	proc tdbcsqlite3-9.24 {stmt} {
+	proc tdbc::sqlite3-9.24 {stmt} {
 	    db foreach -as lists -- row {
 		SELECT idnum, name FROM people WHERE name LIKE 'b%'
 	    } {
@@ -1204,21 +1204,21 @@ test tdbcsqlite3-9.24 {db foreach / return out of the loop} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-9.24 $stmt
+	tdbc::sqlite3-9.24 $stmt
     }
     -cleanup {
-	rename tdbcsqlite3-9.24 {}
+	rename tdbc::sqlite3-9.24 {}
     }
     -result 5
 }
 
-test tdbcsqlite3-9.25 {rs foreach / error out of the loop} {*}{
+test tdbc::sqlite3-9.25 {rs foreach / error out of the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
 	}]
 	set rs [$stmt execute]
-	proc tdbcsqlite3-9.25 {rs} {
+	proc tdbc::sqlite3-9.25 {rs} {
 	    $rs foreach -as lists -- row {
 		if {[lindex $row 1] eq {betty}} {
 		    error [lindex $row 0]
@@ -1228,10 +1228,10 @@ test tdbcsqlite3-9.25 {rs foreach / error out of the loop} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-9.25 $rs
+	tdbc::sqlite3-9.25 $rs
     }
     -cleanup {
-	rename tdbcsqlite3-9.25 {}
+	rename tdbc::sqlite3-9.25 {}
 	rename $rs {}
 	rename $stmt {}
     }
@@ -1239,12 +1239,12 @@ test tdbcsqlite3-9.25 {rs foreach / error out of the loop} {*}{
     -result 5
 }
 
-test tdbcsqlite3-9.26 {stmt foreach - error out of the loop} {*}{
+test tdbc::sqlite3-9.26 {stmt foreach - error out of the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
 	}]
-	proc tdbcsqlite3-9.26 {stmt} {
+	proc tdbc::sqlite3-9.26 {stmt} {
 	    $stmt foreach -as lists -- row {
 		if {[lindex $row 1] eq {betty}} {
 		    error [lindex $row 0]
@@ -1254,19 +1254,19 @@ test tdbcsqlite3-9.26 {stmt foreach - error out of the loop} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-9.26 $stmt
+	tdbc::sqlite3-9.26 $stmt
     }
     -cleanup {
-	rename tdbcsqlite3-9.26 {}
+	rename tdbc::sqlite3-9.26 {}
 	rename $stmt {}
     }
     -returnCodes error
     -result 5
 }
 
-test tdbcsqlite3-9.27 {db foreach / error out of the loop} {*}{
+test tdbc::sqlite3-9.27 {db foreach / error out of the loop} {*}{
     -setup {
-	proc tdbcsqlite3-9.27 {} {
+	proc tdbc::sqlite3-9.27 {} {
 	    db foreach -as lists -- row {
 		SELECT idnum, name FROM people WHERE name LIKE 'b%'
 	    } {
@@ -1278,22 +1278,22 @@ test tdbcsqlite3-9.27 {db foreach / error out of the loop} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-9.27
+	tdbc::sqlite3-9.27
     }
     -cleanup {
-	rename tdbcsqlite3-9.27 {}
+	rename tdbc::sqlite3-9.27 {}
     }
     -returnCodes error
     -result 5
 }
 
-test tdbcsqlite3-9.28 {rs foreach / unknown status from the loop} {*}{
+test tdbc::sqlite3-9.28 {rs foreach / unknown status from the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
 	}]
 	set rs [$stmt execute]
-	proc tdbcsqlite3-9.28 {rs} {
+	proc tdbc::sqlite3-9.28 {rs} {
 	    $rs foreach -as lists -- row {
 		if {[lindex $row 1] eq {betty}} {
 		    return -code 666 -level 0 [lindex $row 0]
@@ -1303,10 +1303,10 @@ test tdbcsqlite3-9.28 {rs foreach / unknown status from the loop} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-9.28 $rs
+	tdbc::sqlite3-9.28 $rs
     }
     -cleanup {
-	rename tdbcsqlite3-9.28 {}
+	rename tdbc::sqlite3-9.28 {}
 	rename $rs {}
 	rename $stmt {}
     }
@@ -1314,12 +1314,12 @@ test tdbcsqlite3-9.28 {rs foreach / unknown status from the loop} {*}{
     -result 5
 }
 
-test tdbcsqlite3-9.29 {stmt foreach / unknown status from the loop} {*}{
+test tdbc::sqlite3-9.29 {stmt foreach / unknown status from the loop} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
 	}]
-	proc tdbcsqlite3-9.29 {stmt} {
+	proc tdbc::sqlite3-9.29 {stmt} {
 	    $stmt foreach -as lists -- row {
 		if {[lindex $row 1] eq {betty}} {
 		    return -code 666 -level 0 [lindex $row 0]
@@ -1329,19 +1329,19 @@ test tdbcsqlite3-9.29 {stmt foreach / unknown status from the loop} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-9.29 $stmt
+	tdbc::sqlite3-9.29 $stmt
     }
     -cleanup {
-	rename tdbcsqlite3-9.29 {}
+	rename tdbc::sqlite3-9.29 {}
 	rename $stmt {}
     }
     -returnCodes 666
     -result 5
 }
 
-test tdbcsqlite3-9.30 {db foreach / unknown status from the loop} {*}{
+test tdbc::sqlite3-9.30 {db foreach / unknown status from the loop} {*}{
     -setup {
-	proc tdbcsqlite3-9.30 {stmt} {
+	proc tdbc::sqlite3-9.30 {stmt} {
 	    db foreach -as lists -- row {
 		SELECT idnum, name FROM people WHERE name LIKE 'b%'
 	    } {
@@ -1353,16 +1353,16 @@ test tdbcsqlite3-9.30 {db foreach / unknown status from the loop} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-9.30 $stmt
+	tdbc::sqlite3-9.30 $stmt
     }
     -cleanup {
-	rename tdbcsqlite3-9.30 {}
+	rename tdbc::sqlite3-9.30 {}
     }
     -returnCodes 666
     -result 5
 }
 
-test tdbcsqlite3-9.31 {stmt foreach / params in variables} {*}{
+test tdbc::sqlite3-9.31 {stmt foreach / params in variables} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1383,7 +1383,7 @@ test tdbcsqlite3-9.31 {stmt foreach / params in variables} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.32 {db foreach / params in variables} {*}{
+test tdbc::sqlite3-9.32 {db foreach / params in variables} {*}{
     -body {
 	set result {}
 	set thePattern b%
@@ -1397,7 +1397,7 @@ test tdbcsqlite3-9.32 {db foreach / params in variables} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.33 {stmt foreach / parameters in a dictionary} {*}{
+test tdbc::sqlite3-9.33 {stmt foreach / parameters in a dictionary} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1417,7 +1417,7 @@ test tdbcsqlite3-9.33 {stmt foreach / parameters in a dictionary} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.34 {db foreach / parameters in a dictionary} {*}{
+test tdbc::sqlite3-9.34 {db foreach / parameters in a dictionary} {*}{
     -body {
 	set result {}
 	db foreach row {
@@ -1430,7 +1430,7 @@ test tdbcsqlite3-9.34 {db foreach / parameters in a dictionary} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-9.35 {stmt foreach - variable not found} {*}{
+test tdbc::sqlite3-9.35 {stmt foreach - variable not found} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1453,7 +1453,7 @@ test tdbcsqlite3-9.35 {stmt foreach - variable not found} {*}{
     -result {}
 }
 
-test tdbcsqlite3-9.36 {db foreach - variable not found} {*}{
+test tdbc::sqlite3-9.36 {db foreach - variable not found} {*}{
     -setup {
 	catch {unset thePattern}
     }
@@ -1473,7 +1473,7 @@ test tdbcsqlite3-9.36 {db foreach - variable not found} {*}{
     -result {}
 }
 
-test tdbcsqlite3-9.37 {rs foreach - too few args} {*}{
+test tdbc::sqlite3-9.37 {rs foreach - too few args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1492,7 +1492,7 @@ test tdbcsqlite3-9.37 {rs foreach - too few args} {*}{
     -match glob
 }
 
-test tdbcsqlite3-9.38 {stmt foreach - too few args} {*}{
+test tdbc::sqlite3-9.38 {stmt foreach - too few args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1509,7 +1509,7 @@ test tdbcsqlite3-9.38 {stmt foreach - too few args} {*}{
     -match glob
 }
 
-test tdbcsqlite3-9.39 {db foreach - too few args} {*}{
+test tdbc::sqlite3-9.39 {db foreach - too few args} {*}{
     -body {
 	db foreach row {
 	    SELECT idnum, name FROM people
@@ -1520,7 +1520,7 @@ test tdbcsqlite3-9.39 {db foreach - too few args} {*}{
     -match glob
 }
 
-test tdbcsqlite3-9.40 {rs foreach - too many args} {*}{
+test tdbc::sqlite3-9.40 {rs foreach - too many args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1539,7 +1539,7 @@ test tdbcsqlite3-9.40 {rs foreach - too many args} {*}{
     -match glob
 }
 
-test tdbcsqlite3-9.41 {stmt foreach - too many args} {*}{
+test tdbc::sqlite3-9.41 {stmt foreach - too many args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1556,7 +1556,7 @@ test tdbcsqlite3-9.41 {stmt foreach - too many args} {*}{
     -match glob
 }
 
-test tdbcsqlite3-9.42 {db foreach - too many args} {*}{
+test tdbc::sqlite3-9.42 {db foreach - too many args} {*}{
     -body {
 	db foreach row {
 	    SELECT idnum, name FROM people
@@ -1567,7 +1567,7 @@ test tdbcsqlite3-9.42 {db foreach - too many args} {*}{
     -match glob
 }
 
-test tdbcsqlite3-10.1 {allrows - no args} {*}{
+test tdbc::sqlite3-10.1 {allrows - no args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1584,7 +1584,7 @@ test tdbcsqlite3-10.1 {allrows - no args} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-10.2 {allrows - no args} {*}{
+test tdbc::sqlite3-10.2 {allrows - no args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1599,7 +1599,7 @@ test tdbcsqlite3-10.2 {allrows - no args} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-10.3 {allrows - no args} {*}{
+test tdbc::sqlite3-10.3 {allrows - no args} {*}{
     -body {
 	db allrows {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1608,7 +1608,7 @@ test tdbcsqlite3-10.3 {allrows - no args} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-10.4 {allrows --} {*}{
+test tdbc::sqlite3-10.4 {allrows --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1625,7 +1625,7 @@ test tdbcsqlite3-10.4 {allrows --} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-10.5 {allrows --} {*}{
+test tdbc::sqlite3-10.5 {allrows --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1640,7 +1640,7 @@ test tdbcsqlite3-10.5 {allrows --} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-10.6 {allrows --} {*}{
+test tdbc::sqlite3-10.6 {allrows --} {*}{
     -body {
 	db allrows -- {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1649,7 +1649,7 @@ test tdbcsqlite3-10.6 {allrows --} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }    
 
-test tdbcsqlite3-10.7 {allrows -as lists} {*}{
+test tdbc::sqlite3-10.7 {allrows -as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1666,7 +1666,7 @@ test tdbcsqlite3-10.7 {allrows -as lists} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcsqlite3-10.8 {allrows -as lists} {*}{
+test tdbc::sqlite3-10.8 {allrows -as lists} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1681,7 +1681,7 @@ test tdbcsqlite3-10.8 {allrows -as lists} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcsqlite3-10.9 {allrows -as lists} {*}{
+test tdbc::sqlite3-10.9 {allrows -as lists} {*}{
     -body {
 	db allrows -as lists {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1690,7 +1690,7 @@ test tdbcsqlite3-10.9 {allrows -as lists} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
     
-test tdbcsqlite3-10.10 {allrows -as lists --} {*}{
+test tdbc::sqlite3-10.10 {allrows -as lists --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1707,7 +1707,7 @@ test tdbcsqlite3-10.10 {allrows -as lists --} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcsqlite3-10.11 {allrows -as lists --} {*}{
+test tdbc::sqlite3-10.11 {allrows -as lists --} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1722,7 +1722,7 @@ test tdbcsqlite3-10.11 {allrows -as lists --} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcsqlite3-10.12 {allrows -as lists --} {*}{
+test tdbc::sqlite3-10.12 {allrows -as lists --} {*}{
     -body {
 	db allrows -as lists -- {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1731,7 +1731,7 @@ test tdbcsqlite3-10.12 {allrows -as lists --} {*}{
     -result {{4 barney} {5 betty} {6 bam-bam}}
 }
 
-test tdbcsqlite3-10.13 {allrows -as lists -columnsvar c} {*}{
+test tdbc::sqlite3-10.13 {allrows -as lists -columnsvar c} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1749,7 +1749,7 @@ test tdbcsqlite3-10.13 {allrows -as lists -columnsvar c} {*}{
     -result {{idnum name} {{4 barney} {5 betty} {6 bam-bam}}}
 }
 
-test tdbcsqlite3-10.14 {allrows -as lists -columnsvar c} {*}{
+test tdbc::sqlite3-10.14 {allrows -as lists -columnsvar c} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1765,7 +1765,7 @@ test tdbcsqlite3-10.14 {allrows -as lists -columnsvar c} {*}{
     -result {{idnum name} {{4 barney} {5 betty} {6 bam-bam}}}
 }
 
-test tdbcsqlite3-10.15 {allrows -as lists -columnsvar c} {*}{
+test tdbc::sqlite3-10.15 {allrows -as lists -columnsvar c} {*}{
     -body {
 	set result [db allrows -as lists -columnsvar c {
 	    SELECT idnum, name FROM people WHERE name LIKE 'b%'
@@ -1775,7 +1775,7 @@ test tdbcsqlite3-10.15 {allrows -as lists -columnsvar c} {*}{
     -result {{idnum name} {{4 barney} {5 betty} {6 bam-bam}}}
 }
 
-test tdbcsqlite3-10.16 {allrows - correct lexical scoping of variables} {*}{
+test tdbc::sqlite3-10.16 {allrows - correct lexical scoping of variables} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1792,7 +1792,7 @@ test tdbcsqlite3-10.16 {allrows - correct lexical scoping of variables} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-10.17 {allrows - parameters in a dictionary} {*}{
+test tdbc::sqlite3-10.17 {allrows - parameters in a dictionary} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1808,7 +1808,7 @@ test tdbcsqlite3-10.17 {allrows - parameters in a dictionary} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-10.18 {allrows - parameters in a dictionary} {*}{
+test tdbc::sqlite3-10.18 {allrows - parameters in a dictionary} {*}{
     -body {
 	db allrows {
 	    SELECT idnum, name FROM people WHERE name LIKE :thePattern
@@ -1817,7 +1817,7 @@ test tdbcsqlite3-10.18 {allrows - parameters in a dictionary} {*}{
     -result {{idnum 4 name barney} {idnum 5 name betty} {idnum 6 name bam-bam}}
 }
 
-test tdbcsqlite3-10.19 {allrows - variable not found} {*}{
+test tdbc::sqlite3-10.19 {allrows - variable not found} {*}{
     -setup {
 	catch {unset thePattern}
     }
@@ -1833,7 +1833,7 @@ test tdbcsqlite3-10.19 {allrows - variable not found} {*}{
     -result {}
 }
 
-test tdbcsqlite3-10.20 {allrows - too many args} {*}{
+test tdbc::sqlite3-10.20 {allrows - too many args} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT idnum, name FROM people
@@ -1850,7 +1850,7 @@ test tdbcsqlite3-10.20 {allrows - too many args} {*}{
     -match glob
 }
 
-test tdbcsqlite3-10.21 {bad -as} {*}{
+test tdbc::sqlite3-10.21 {bad -as} {*}{
     -body {
 	db allrows -as trash {
 	    SELECT idnum, name FROM people
@@ -1860,7 +1860,7 @@ test tdbcsqlite3-10.21 {bad -as} {*}{
     -result {bad variable type "trash": must be lists or dicts}
 }
 
-test tdbcsqlite3-11.1 {update - no rows} {*}{
+test tdbc::sqlite3-11.1 {update - no rows} {*}{
     -setup {
 	set stmt [::db prepare {
 	    UPDATE people SET info = 1 WHERE idnum > 6
@@ -1877,7 +1877,7 @@ test tdbcsqlite3-11.1 {update - no rows} {*}{
     -result 0
 }
 
-test tdbcsqlite3-11.2 {update - unique row} {*}{
+test tdbc::sqlite3-11.2 {update - unique row} {*}{
     -setup {
 	set stmt [::db prepare {
 	    UPDATE people SET info = 1 WHERE name = 'fred'
@@ -1894,7 +1894,7 @@ test tdbcsqlite3-11.2 {update - unique row} {*}{
     -result 1
 }
 
-test tdbcsqlite3-11.3 {update - multiple rows} {*}{
+test tdbc::sqlite3-11.3 {update - multiple rows} {*}{
     -setup {
 	set stmt [::db prepare {
 	    UPDATE people SET info = 1 WHERE name LIKE 'b%'
@@ -1911,7 +1911,7 @@ test tdbcsqlite3-11.3 {update - multiple rows} {*}{
     -result 3
 }
 
-test tdbcsqlite3-12.1 {delete - no rows} {*}{
+test tdbc::sqlite3-12.1 {delete - no rows} {*}{
     -setup {
 	set stmt [::db prepare {
 	    DELETE FROM people WHERE name = 'nobody'
@@ -1928,7 +1928,7 @@ test tdbcsqlite3-12.1 {delete - no rows} {*}{
     -result 0
 }
 
-test tdbcsqlite3-12.2 {delete - unique row} {*}{
+test tdbc::sqlite3-12.2 {delete - unique row} {*}{
     -setup {
 	set stmt [::db prepare {
 	    DELETE FROM people WHERE name = 'fred'
@@ -1945,7 +1945,7 @@ test tdbcsqlite3-12.2 {delete - unique row} {*}{
     -result 1
 }
 
-test tdbcsqlite3-12.3 {delete - multiple rows} {*}{
+test tdbc::sqlite3-12.3 {delete - multiple rows} {*}{
     -setup {
 	set stmt [::db prepare {
 	    DELETE FROM people WHERE name LIKE 'b%'
@@ -1962,7 +1962,7 @@ test tdbcsqlite3-12.3 {delete - multiple rows} {*}{
     -result 3
 }
 
-test tdbcsqlite3-13.1 {resultsets - no results} {*}{
+test tdbc::sqlite3-13.1 {resultsets - no results} {*}{
     -setup {
 	set stmt [::db prepare {
 	    SELECT name FROM people WHERE idnum = $idnum
@@ -1979,7 +1979,7 @@ test tdbcsqlite3-13.1 {resultsets - no results} {*}{
     -result {0 0}
 }
 
-test tdbcsqlite3-13.2 {resultsets - various statements and results} {*}{
+test tdbc::sqlite3-13.2 {resultsets - various statements and results} {*}{
     -setup {
 	for {set i 0} {$i < 6} {incr i} {
 	    set stmts($i) [::db prepare {
@@ -2028,7 +2028,7 @@ catch {
     rename $stmt {}
 }
 
-test tdbcsqlite3-13.3 {duplicate column names} {*}{
+test tdbc::sqlite3-13.3 {duplicate column names} {*}{
     -constraints knownBug
     -body {
 	::db allrows -as dicts -- {
@@ -2041,7 +2041,7 @@ test tdbcsqlite3-13.3 {duplicate column names} {*}{
     -result {{name fred name#2 wilma name#3 pebbles}}
 }
 
-test tdbcsqlite3-13.4 {duplicate column names} {*}{
+test tdbc::sqlite3-13.4 {duplicate column names} {*}{
     -constraints knownBug
     -body {
 	::db allrows -as dicts -- {
@@ -2055,7 +2055,7 @@ test tdbcsqlite3-13.4 {duplicate column names} {*}{
     -result {{name fred name#2 wilma name#2#1 pebbles}}
 }
 
-test tdbcsqlite3-13.5 {duplicate column names} {*}{
+test tdbc::sqlite3-13.5 {duplicate column names} {*}{
     -constraints knownBug
     -body {
 	::db allrows -as dicts -- {
@@ -2099,7 +2099,7 @@ catch {
     rename $stmt {}
 }
 
-test tdbcsqlite3-14.1 {begin transaction - wrong # args} {*}{
+test tdbc::sqlite3-14.1 {begin transaction - wrong # args} {*}{
     -body {
 	::db begintransaction junk
     }
@@ -2108,7 +2108,7 @@ test tdbcsqlite3-14.1 {begin transaction - wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-14.2 {commit - wrong # args} {*}{
+test tdbc::sqlite3-14.2 {commit - wrong # args} {*}{
     -body {
 	::db commit junk
     }
@@ -2117,7 +2117,7 @@ test tdbcsqlite3-14.2 {commit - wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-14.3 {rollback - wrong # args} {*}{
+test tdbc::sqlite3-14.3 {rollback - wrong # args} {*}{
     -body {
 	::db rollback junk
     }
@@ -2126,14 +2126,14 @@ test tdbcsqlite3-14.3 {rollback - wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-14.4 {commit - not in transaction} {*}{
+test tdbc::sqlite3-14.4 {commit - not in transaction} {*}{
     -body {
 	list [catch {::db commit} result] $result
     }
     -result {1 {cannot commit - no transaction is active}}
 }
 
-test tdbcsqlite3-14.5 {rollback - not in transaction} {*}{
+test tdbc::sqlite3-14.5 {rollback - not in transaction} {*}{
     -body {
 	list [catch {::db rollback} result] $result
     }
@@ -2141,7 +2141,7 @@ test tdbcsqlite3-14.5 {rollback - not in transaction} {*}{
     -result {1 {cannot rollback - no transaction is active}}
 }
 
-test tdbcsqlite3-14.6 {empty transaction} {*}{
+test tdbc::sqlite3-14.6 {empty transaction} {*}{
     -body {
 	::db begintransaction
 	::db commit
@@ -2149,7 +2149,7 @@ test tdbcsqlite3-14.6 {empty transaction} {*}{
     -result {}
 }
 
-test tdbcsqlite3-14.7 {empty rolled-back transaction} {*}{
+test tdbc::sqlite3-14.7 {empty rolled-back transaction} {*}{
     -body {
 	::db begintransaction
 	::db rollback
@@ -2157,7 +2157,7 @@ test tdbcsqlite3-14.7 {empty rolled-back transaction} {*}{
     -result {}
 }
 
-test tdbcobdc-14.8 {rollback does not change database} {*}{
+test tdbc::sqlite3-14.8 {rollback does not change database} {*}{
     -body {
 	::db begintransaction
 	set stmt [::db prepare {DELETE FROM people WHERE name = 'fred'}]
@@ -2179,7 +2179,7 @@ test tdbcobdc-14.8 {rollback does not change database} {*}{
     -result 1
 }
 
-test tdbcsqlite3-14.9 {commit does change database} {*}{
+test tdbc::sqlite3-14.9 {commit does change database} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2208,7 +2208,7 @@ test tdbcsqlite3-14.9 {commit does change database} {*}{
     -result 7
 }
 
-test tdbcsqlite3-14.10 {nested transactions} {*}{
+test tdbc::sqlite3-14.10 {nested transactions} {*}{
     -body {
 	::db begintransaction
 	list [catch {::db begintransaction} result] $result
@@ -2250,7 +2250,7 @@ catch {
     rename $stmt {}
 }
 
-test tdbcsqlite3-15.1 {successful (empty) transaction} {*}{
+test tdbc::sqlite3-15.1 {successful (empty) transaction} {*}{
     -body {
 	db transaction {
 	    concat ok
@@ -2259,7 +2259,7 @@ test tdbcsqlite3-15.1 {successful (empty) transaction} {*}{
     -result ok
 }
 
-test tdbcsqlite3-15.2 {failing transaction does not get committed} {*}{
+test tdbc::sqlite3-15.2 {failing transaction does not get committed} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    DELETE FROM people WHERE name = 'fred'
@@ -2291,7 +2291,7 @@ test tdbcsqlite3-15.2 {failing transaction does not get committed} {*}{
     -result {{abort the transaction} 1}
 }
 
-test tdbcsqlite3-15.3 {successful transaction gets committed} {*}{
+test tdbc::sqlite3-15.3 {successful transaction gets committed} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2320,7 +2320,7 @@ test tdbcsqlite3-15.3 {successful transaction gets committed} {*}{
     -result 7
 }
 
-test tdbcsqlite3-15.4 {break out of transaction commits it} {*}{
+test tdbc::sqlite3-15.4 {break out of transaction commits it} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2352,7 +2352,7 @@ test tdbcsqlite3-15.4 {break out of transaction commits it} {*}{
     -result 8
 }
 
-test tdbcsqlite3-15.5 {continue in transaction commits it} {*}{
+test tdbc::sqlite3-15.5 {continue in transaction commits it} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2384,7 +2384,7 @@ test tdbcsqlite3-15.5 {continue in transaction commits it} {*}{
     -result 9
 }
 
-test tdbcsqlite3-15.6 {return in transaction commits it} {*}{
+test tdbc::sqlite3-15.6 {return in transaction commits it} {*}{
     -setup {
 	set stmt1 [db prepare {
 	    INSERT INTO people(idnum, name, info)
@@ -2393,7 +2393,7 @@ test tdbcsqlite3-15.6 {return in transaction commits it} {*}{
 	set stmt2 [db prepare {
 	    SELECT idnum FROM people WHERE name = 'nelson stoneyfeller'
 	}]
-	proc tdbcsqlite3-15.6 {stmt1} {
+	proc tdbc::sqlite3-15.6 {stmt1} {
 	    ::db transaction {
 		set rs [$stmt1 execute]
 		rename $rs {}
@@ -2402,7 +2402,7 @@ test tdbcsqlite3-15.6 {return in transaction commits it} {*}{
 	}
     }
     -body {
-	tdbcsqlite3-15.6 $stmt1
+	tdbc::sqlite3-15.6 $stmt1
 	set rs [$stmt2 execute]
 	while {[$rs nextrow -as lists row]} {
 	    set id [lindex $row 0]
@@ -2413,12 +2413,12 @@ test tdbcsqlite3-15.6 {return in transaction commits it} {*}{
     -cleanup {
 	rename $stmt1 {}
 	rename $stmt2 {}
-	rename tdbcsqlite3-15.6 {}
+	rename tdbc::sqlite3-15.6 {}
     }
     -result 10
 }
 
-test tdbcsqlite3-16.1 {database tables, wrong # args} {
+test tdbc::sqlite3-16.1 {database tables, wrong # args} {
     -body {
 	set dict [::db tables % rubbish]
     }
@@ -2427,14 +2427,14 @@ test tdbcsqlite3-16.1 {database tables, wrong # args} {
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-16.2 {database tables - empty set} {
+test tdbc::sqlite3-16.2 {database tables - empty set} {
     -body {
 	::db tables q%
     }
     -result {}
 }
 
-test tdbcsqlite3-16.3 {enumerate database tables} {*}{
+test tdbc::sqlite3-16.3 {enumerate database tables} {*}{
     -body {
 	set dict [::db tables]
 	list [dict exists $dict people] [dict exists $dict property]
@@ -2442,7 +2442,7 @@ test tdbcsqlite3-16.3 {enumerate database tables} {*}{
     -result {1 0}
 }
 
-test tdbcsqlite3-16.4 {enumerate database tables} {*}{
+test tdbc::sqlite3-16.4 {enumerate database tables} {*}{
     -body {
 	set dict [::db tables p%]
 	list [dict exists $dict people] [dict exists $dict property]
@@ -2450,7 +2450,7 @@ test tdbcsqlite3-16.4 {enumerate database tables} {*}{
     -result {1 0}
 }
 
-test tdbcsqlite3-17.1 {database columns - wrong # args} {*}{
+test tdbc::sqlite3-17.1 {database columns - wrong # args} {*}{
     -body {
 	set dict [::db columns people % rubbish]
     }
@@ -2459,14 +2459,14 @@ test tdbcsqlite3-17.1 {database columns - wrong # args} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-17.2 {database columns - no such table} {*}{
+test tdbc::sqlite3-17.2 {database columns - no such table} {*}{
     -body {
 	::db columns rubbish
     }
     -result {}
 }
 
-test tdbcsqlite3-17.3 {database columns - no match pattern} {*}{
+test tdbc::sqlite3-17.3 {database columns - no match pattern} {*}{
     -body {
 	set result {}
 	dict for {colname attrs} [::db columns people] {
@@ -2485,7 +2485,7 @@ test tdbcsqlite3-17.3 {database columns - no match pattern} {*}{
 }
 
 # sqlite driver appears not to implement pattern matching for SQLGetColumns
-test tdbcsqlite3-17.4 {database columns - match pattern} {*}{
+test tdbc::sqlite3-17.4 {database columns - match pattern} {*}{
     -body {
 	set result {}
 	dict for {colname attrs} [::db columns people i%] {
@@ -2502,7 +2502,7 @@ test tdbcsqlite3-17.4 {database columns - match pattern} {*}{
     -result {idnum integer 0 0 1 info integer 0 0 1}
 }
 
-test tdbcsqlite3-18.1 {$statement params - excess arg} {*}{
+test tdbc::sqlite3-18.1 {$statement params - excess arg} {*}{
     -setup {
 	set s [::db prepare {
 	    SELECT name FROM people 
@@ -2523,7 +2523,7 @@ test tdbcsqlite3-18.1 {$statement params - excess arg} {*}{
     -result {wrong # args*}
 }
 
-test tdbcsqlite3-18.2 {$statement params - no params} {*}{
+test tdbc::sqlite3-18.2 {$statement params - no params} {*}{
     -setup {
 	set s [::db prepare {
 	    SELECT name FROM people 
@@ -2538,7 +2538,7 @@ test tdbcsqlite3-18.2 {$statement params - no params} {*}{
     -result {}
 }
 
-test tdbcsqlite3-18.3 {$statement params - excess arg} {*}{
+test tdbc::sqlite3-18.3 {$statement params - excess arg} {*}{
     -setup {
 	set s [::db prepare {
 	    SELECT name FROM people 
@@ -2853,6 +2853,165 @@ test tdbc::sqlite3-24.7 {Foreign keys - -foreign and -primary} \
 	lsort [dict values $result]
     } \
     -result [list {1 {c p1 b k2} 2 {c p2 b k1}}]
+
+test tdbc::sqlite3-30.0 {Multiple result sets} {*}{
+    -body {
+	set stmt [::db prepare { }]
+	catch {
+	    set resultset [$stmt execute {}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -result {{}}
+}
+
+test tdbc::sqlite3-30.1 {Multiple result sets - but in reality only one} {*}{
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	set stmt [::db prepare {
+	    select idnum, name from people where name = :a;
+	}]
+	catch {
+	    set resultset [$stmt execute {a wilma}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -result {{{idnum 2 name wilma}}}
+}
+
+test tdbc::sqlite3-30.2 {Multiple result sets - actually multiple} {*}{
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	set stmt [::db prepare {
+	    select idnum, name from people where name = :a;
+	    select idnum, name, 1 as something from people where name = :b;
+	}]
+	catch {
+	    set resultset [$stmt execute {a wilma b pebbles}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -result {{{idnum 2 name wilma}} {{idnum 3 name pebbles something 1}}}
+}
+
+test tdbc::sqlite3-30.3 {Multiple result sets - try to read past end} {*}{
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	set stmt [::db prepare {
+	    select idnum, name from people where name = :a;
+	}]
+	catch {
+	    set resultset [$stmt execute {a wilma}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+	        lappend rowsets [catch {$resultset nextresults} msg] $msg
+		lappend rowsets [catch {$resultset nextrow foo} msg] $::errorCode
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -match glob
+    -result {{{idnum 2 name wilma}} 0 0 1 {TDBC GENERAL_ERROR HY010 *}}
+}
 
 #-------------------------------------------------------------------------------
 
