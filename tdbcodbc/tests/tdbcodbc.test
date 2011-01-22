@@ -179,6 +179,7 @@ test tdbc::odbc-2.3 {don't make a statement without a connection} {*}{
 }
 
 test tdbc::odbc-2.4 {semicolons in statements} {*}{
+    -constraints !sqlite
     -body {
 	::db prepare {select foo from bar; select grill from quux}
     }

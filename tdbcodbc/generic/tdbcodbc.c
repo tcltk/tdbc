@@ -176,9 +176,6 @@ typedef struct StatementData {
 				 * structures that describe the data types 
 				 * of substituted parameters. */
     int typeNum;		/* Type number for a query of data types */
-    Tcl_Obj* resultColNames;	/* Names of the columns in the result set */
-    struct ParamData* results;	/* Pointer to the description of the
-				 * result set columns */
     int flags;			/* Flags tracking the state of the
 				 * StatementData */
 } StatementData;
@@ -200,12 +197,19 @@ typedef struct StatementData {
 				/* This flag is set if hStmt is in use, in
 				 * which case the progam must clone it if 
 				 * another result set is needed */
+/*
+ * Stored procedure calls and statements that return multiple
+ * results defeat the attempt to cache result set metadata, so
+ * the following flag is now obsolete.
+ */
+#if 0
 #define STATEMENT_FLAG_RESULTS_KNOWN 0x2
 				/* This flag is set if the result set
 				 * has already been described. The result
 				 * set metadata for a given statement is
 				 * queried only once, and retained for
 				 * use in future invocations. */
+#endif
 #define STATEMENT_FLAG_TABLES 0x4
 				/* This flag is set if the statement is
 				 * asking for table metadata */
@@ -256,7 +260,11 @@ typedef struct ResultSetData {
     SQLCHAR** bindStrings;	/* Buffers for binding string parameters */
     SQLLEN* bindStringLengths;	/* Lengths of the buffers */
     SQLLEN rowCount;		/* Number of rows affected by the statement */
+    Tcl_Obj* resultColNames;	/* Names of the columns in the result set */
+    struct ParamData* results;	/* Pointer to the description of the
+				 * result set columns */
 } ResultSetData;
+
 #define IncrResultSetRefCount(x)		\
     do {					\
 	++((x)->refCount);			\
@@ -369,8 +377,7 @@ static SQLHENV GetHEnv(Tcl_Interp* interp);
 static void DismissHEnv(void);
 static SQLHSTMT AllocAndPrepareStatement(Tcl_Interp* interp,
 					  StatementData* sdata);
-static int GetResultSetDescription(Tcl_Interp* interp, StatementData* sdata,
-				   SQLHSTMT hStmt);
+static int GetResultSetDescription(Tcl_Interp* interp, ResultSetData* rdata);
 static int ConfigureConnection(Tcl_Interp* interp, 
 			       SQLHDBC hDBC,
 			       PerInterpData* pidata,
@@ -450,6 +457,9 @@ static int ResultSetColumnsMethod(ClientData clientData, Tcl_Interp* interp,
 static int ResultSetNextrowMethod(ClientData clientData, Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
+static int ResultSetNextresultsMethod(ClientData clientData, Tcl_Interp* interp,
+				      Tcl_ObjectContext context,
+				      int objc, Tcl_Obj *const objv[]);
 static int GetCell(ResultSetData* rdata, Tcl_Interp* interp, 
 		   int columnIndex, Tcl_Obj** retval);
 static int ResultSetRowcountMethod(ClientData clientData, Tcl_Interp* interp,
@@ -457,6 +467,7 @@ static int ResultSetRowcountMethod(ClientData clientData, Tcl_Interp* interp,
 				   int objc, Tcl_Obj *const objv[]);
 static void DeleteResultSetMetadata(ClientData clientData);
 static void DeleteResultSet(ResultSetData* rdata);
+static void DeleteResultSetDescription(ResultSetData* rdata);
 static int CloneResultSet(Tcl_Interp* interp, ClientData oldClientData,
 			  ClientData* newClientData);
 static void FreeBoundParameters(ResultSetData* rdata);
@@ -692,6 +703,14 @@ const static Tcl_MethodType ResultSetColumnsMethodType = {
     NULL,			/* deleteProc */
     NULL			/* cloneProc */
 };
+const static Tcl_MethodType ResultSetNextresultsMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "nextresults",		/* name */
+    ResultSetNextresultsMethod,	/* callProc */
+    NULL,			/* deleteProc */
+    NULL			/* cloneProc */
+};
 const static Tcl_MethodType ResultSetNextrowMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -712,6 +731,7 @@ const static Tcl_MethodType ResultSetRowcountMethodType = {
 
 const static Tcl_MethodType* ResultSetMethods[] = {
     &ResultSetColumnsMethodType,
+    &ResultSetNextresultsMethodType,
     &ResultSetRowcountMethodType,
     NULL
 };
@@ -1169,9 +1189,10 @@ AllocAndPrepareStatement(
 static int
 GetResultSetDescription(
     Tcl_Interp* interp,		/* Tcl interpreter */
-    StatementData* sdata,	/* Statement data object */
-    SQLHSTMT hStmt		/* Handle to the ODBC statement */
+    ResultSetData* rdata	/* Result set data object */
 ) {
+    SQLHSTMT hStmt = rdata->hStmt;
+				/* Statement handle */
     SQLRETURN rc;		/* Return code from ODBC operations */
     Tcl_Obj* colNames;		/* List of the column names */
     SQLSMALLINT nColumns;	/* Number of result set columns */
@@ -1218,7 +1239,7 @@ GetResultSetDescription(
 	 * data types.
 	 */
 
-	sdata->results = (ParamData*) ckalloc(nColumns * sizeof(ParamData));
+	rdata->results = (ParamData*) ckalloc(nColumns * sizeof(ParamData));
 	for (i = 0; i < nColumns; ++i) {
 	    retry = 0;
 	    do {
@@ -1227,10 +1248,10 @@ GetResultSetDescription(
 
 		rc = SQLDescribeColW(hStmt, i + 1, colNameW, 
 				     colNameAllocLen, &colNameLen,
-				     &(sdata->results[i].dataType),
-				     &(sdata->results[i].precision),
-				     &(sdata->results[i].scale),
-				     &(sdata->results[i].nullable));
+				     &(rdata->results[i].dataType),
+				     &(rdata->results[i].precision),
+				     &(rdata->results[i].scale),
+				     &(rdata->results[i].nullable));
 
 		/* 
 		 * Reallocate the name buffer and retry if the buffer was
@@ -1257,7 +1278,7 @@ GetResultSetDescription(
 		sprintf(info, "(describing result column #%d)", i+1);
 		TransferSQLError(interp, SQL_HANDLE_STMT, hStmt, info);
 		Tcl_DecrRefCount(colNames);
-		ckfree((char*)sdata->results);
+		ckfree((char*)rdata->results);
 		goto cleanup;
 	    }
 	    
@@ -1300,8 +1321,7 @@ GetResultSetDescription(
 
     /* Success: store the list of column names */
 
-    sdata->resultColNames = colNames;
-    sdata->flags |= STATEMENT_FLAG_RESULTS_KNOWN;
+    rdata->resultColNames = colNames;
     status = TCL_OK;
 
     /* Clean up the column name buffer if we reallocated it. */
@@ -2248,8 +2268,6 @@ NewStatement(
     sdata->nativeMatchPatternW = NULL;
     sdata->nativeMatchPatLen = 0;
     sdata->params = NULL;
-    sdata->resultColNames = NULL;
-    sdata->results = NULL;
     sdata->flags = 0;
     sdata->typeNum = SQL_ALL_TYPES;
     return sdata;
@@ -2354,19 +2372,10 @@ StatementConstructor(
 	switch (tokenStr[0]) {
 	case '$':
 	case ':':
-	case '@':
 	    Tcl_AppendToObj(nativeSql, "?", 1);
 	    Tcl_ListObjAppendElement(NULL, sdata->subVars, 
 				     Tcl_NewStringObj(tokenStr+1, tokenLen-1));
 	    break;
-
-	case ';':
-	    Tcl_SetObjResult(interp,
-			     Tcl_NewStringObj("tdbc::odbc"
-					      " does not support semicolons "
-					      "in statements", -1));
-	    goto freeNativeSql;
-	    break; 
 
 	default:
 	    Tcl_AppendToObj(nativeSql, tokenStr, tokenLen);
@@ -3275,12 +3284,6 @@ DeleteStatement(
     if (sdata->hStmt != SQL_NULL_HANDLE) {
 	SQLFreeHandle(SQL_HANDLE_STMT, sdata->hStmt);
     }
-    if (sdata->results != NULL) {
-	ckfree((char*) sdata->results);
-    }
-    if (sdata->resultColNames != NULL) {
-	Tcl_DecrRefCount(sdata->resultColNames);
-    }
     if (sdata->params != NULL) {
 	ckfree((char*) sdata->params);
     }
@@ -3432,6 +3435,8 @@ ResultSetConstructor(
     rdata->refCount = 1;
     rdata->sdata = sdata;
     rdata->hStmt = NULL;
+    rdata->results = NULL;
+    rdata->resultColNames = NULL;
     IncrStatementRefCount(sdata);
     Tcl_ObjectSetMetadata(thisObject, &resultSetDataType, (ClientData) rdata);
 
@@ -3695,15 +3700,10 @@ ResultSetConstructor(
 	return TCL_ERROR;
     }
 
-    /* 
-     * Extract the column information for the result set, unless we
-     * already know it.
-     */
+    /* Extract the column information for the result set. */
 
-    if (!(sdata->flags & STATEMENT_FLAG_RESULTS_KNOWN)) {
-	if (GetResultSetDescription(interp, sdata, rdata->hStmt) != TCL_OK) {
-	    return TCL_ERROR;
-	}
+    if (GetResultSetDescription(interp, rdata) != TCL_OK) {
+	return TCL_ERROR;
     }
 
     /* Determine and store the row count */
@@ -3747,28 +3747,97 @@ ResultSetColumnsMethod(
 				/* The current result set object */
     ResultSetData* rdata = (ResultSetData*)
 	Tcl_ObjectGetMetadata(thisObject, &resultSetDataType);
-    StatementData* sdata = (StatementData*) rdata->sdata;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 2, objv, "");
 	return TCL_ERROR;
     }
 
-    /* 
-     * Extract the column information for the result set, unless we
-     * already know it.
-     */
+    /* Extract the column information for the result set. */
 
-    if (!(sdata->flags & STATEMENT_FLAG_RESULTS_KNOWN)) {
-	if (GetResultSetDescription(interp, sdata, rdata->hStmt) != TCL_OK) {
+    if (rdata->results == NULL) {
+	if (GetResultSetDescription(interp, rdata) != TCL_OK) {
 	    return TCL_ERROR;
 	}
     }
 
-    Tcl_SetObjResult(interp, sdata->resultColNames);
+    Tcl_SetObjResult(interp, rdata->resultColNames);
     return TCL_OK;
 
 }
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ResultSetNextresultsMethod --
+ *
+ *	Advances a result set to the next group of rows (next result set
+ *	from a query that returns multiple result sets)
+ *
+ * Usage:
+ *	$resultSet nextresults
+ *
+ * Parameters:
+ *	None.
+ *
+ * Results:
+ *	Returns a standard Tcl result. If successful, the result is '1' if
+ *	more results remain and '0' if no more results remain.  In the event
+ *	of failure, the result is a Tcl error message describing the problem.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ResultSetNextresultsMethod(
+    ClientData clientData,	/* Not used */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext context,	/* Object context  */
+    int objc, 			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(context);
+				/* The current result set object */
+    ResultSetData* rdata = (ResultSetData*)
+	Tcl_ObjectGetMetadata(thisObject, &resultSetDataType);
+				/* Data pertaining to the current result set */
+    StatementData* sdata = (StatementData*) rdata->sdata;
+				/* Statement that yielded the result set */
+    ConnectionData* cdata = (ConnectionData*) sdata->cdata;
+				/* Connection that opened the statement */
+    PerInterpData* pidata = (PerInterpData*) cdata->pidata;
+				/* Per interpreter data */
+    Tcl_Obj** literals = pidata->literals;
+				/* Literal pool */
+    SQLRETURN rc;		/* Return code from ODBC operations */
+
+    /* 
+     * Once we are advancing the results, any data that we think we know
+     * about the columns in the result set are incorrect. Discard them.
+     */
+
+    DeleteResultSetDescription(rdata);
+
+    /* Advance to the next results */
+
+    rc = SQLMoreResults(rdata->hStmt);
+    if (rc == SQL_NO_DATA) {
+	Tcl_SetObjResult(interp, literals[LIT_0]);
+	return TCL_OK;
+    } else if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO) {
+	if (GetResultSetDescription(interp, rdata) != TCL_OK) {
+	    return TCL_ERROR;
+	} else {
+	    Tcl_SetObjResult(interp, literals[LIT_1]);
+	    return TCL_OK;
+	}
+    } else {
+	TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt,
+			 "(advancing to next result set)");
+	return TCL_ERROR;
+    }
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -3799,7 +3868,8 @@ ResultSetColumnsMethod(
 
 static int
 ResultSetNextrowMethod(
-    ClientData clientData,	/* Not used */
+    ClientData clientData,	/* 1 if lists are to be returned, 0 if
+				 * dicts are to be returned */
     Tcl_Interp* interp,		/* Tcl interpreter */
     Tcl_ObjectContext context,	/* Object context  */
     int objc, 			/* Parameter count */
@@ -3839,17 +3909,14 @@ ResultSetNextrowMethod(
 	return TCL_ERROR;
     }
 
-    /* 
-     * Extract the column information for the result set, unless we
-     * already know it.
-     */
+    /* Extract the column information for the result set. */
 
-    if (!(sdata->flags & STATEMENT_FLAG_RESULTS_KNOWN)) {
-	if (GetResultSetDescription(interp, sdata, rdata->hStmt) != TCL_OK) {
+    if (rdata->results == NULL) {
+	if (GetResultSetDescription(interp, rdata) != TCL_OK) {
 	    return TCL_ERROR;
 	}
     }
-    Tcl_ListObjLength(NULL, sdata->resultColNames, &nColumns);
+    Tcl_ListObjLength(NULL, rdata->resultColNames, &nColumns);
     if (nColumns == 0) {
 	Tcl_SetObjResult(interp, literals[LIT_0]);
 	return TCL_OK;
@@ -3883,7 +3950,7 @@ ResultSetNextrowMethod(
 	    Tcl_ListObjAppendElement(NULL, resultRow, colObj);
 	} else {
 	    if (colObj != NULL) {
-		Tcl_ListObjIndex(NULL, sdata->resultColNames, i, &colName);
+		Tcl_ListObjIndex(NULL, rdata->resultColNames, i, &colName);
 		Tcl_DictObjPut(NULL, resultRow, colName, colObj);
 	    }
 	}
@@ -3959,7 +4026,7 @@ GetCell(
 
     colObj = NULL;
     *colObjPtr = NULL;
-    switch(sdata->results[i].dataType) {
+    switch(rdata->results[i].dataType) {
 	/* TODO: Need to return binary data as byte arrays. */
 	
     case SQL_NUMERIC:
@@ -3970,10 +4037,10 @@ GetCell(
 	 * or double, and gets converted specially if it does.
 	 */
 	
-	if (sdata->results[i].scale == 0) {
-	    if (sdata->results[i].precision < 10) {
+	if (rdata->results[i].scale == 0) {
+	    if (rdata->results[i].precision < 10) {
 		goto convertLong;
-	    } else if (sdata->results[i].precision < 19) {
+	    } else if (rdata->results[i].precision < 19) {
 		goto convertWide;
 	    } else {
 		/*
@@ -3983,7 +4050,7 @@ GetCell(
 		 */
 		goto convertUnknown;
 	    }
-	} else if (sdata->results[i].precision <= 15) {
+	} else if (rdata->results[i].precision <= 15) {
 	    goto convertDouble;
 	} else {
 	    goto convertUnknown;
@@ -4031,7 +4098,7 @@ GetCell(
 	 * A 'float' is converted to a 'double' if it fits;
 	 * to a string, otherwise.
 	 */
-	if (sdata->results[i].precision <= 53) {
+	if (rdata->results[i].precision <= 53) {
 	    goto convertDouble;
 	} else {
 	    goto convertUnknown;
@@ -4251,6 +4318,20 @@ DeleteResultSet(
     DecrStatementRefCount(rdata->sdata);
     ckfree((char*)rdata);
 }
+static void
+DeleteResultSetDescription(
+    ResultSetData* rdata	/* Metadata for the result set */
+) {
+    if (rdata->resultColNames != NULL) {
+	Tcl_DecrRefCount(rdata->resultColNames);
+	rdata->resultColNames = NULL;
+    }
+    if (rdata->results != NULL) {
+	ckfree((char*) (rdata->results));
+	rdata->results = NULL;
+    }
+}
+
 
 /*
  *-----------------------------------------------------------------------------
