@@ -1,3 +1,18 @@
+2011-01-22  Kevin B. Kenny  <kennykb@acm.org>
+
+	* odbcStubDefs.txt: Added SQLMoreResults, needed for multiple result
+	                    sets.
+	* odbcStubInit.c:
+	* odbcStubs.h:    make genstubs
+	* tdbcodbc.c: Added a 'moreresults' method to the result set object
+	              to allow for SQL statements that return multiple result
+	              sets.
+	              Fixed a resource leak in the case where bad parameters
+	              are supplied to the 'foreignkeys' method.
+	* tdbcodbc.test: Added tests that the 'moreresults' method works
+	                 correctly in the event of 0, 1, and more than one
+	                 result set.
+	
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tdbcodbc.test: Made tests more portable.

@@ -3574,6 +3574,7 @@ test tdbc::odbc-30.1 {Multiple result sets - but in reality only one} {*}{
     -result {{{idnum 2 name wilma}}}
 }
 
+# sqlite and jet drivers don't support multiple statements
 test tdbc::odbc-30.2 {Multiple result sets - actually multiple} {*}{
     -constraints !jet&&!sqlite
     -setup {
@@ -3630,7 +3631,7 @@ catch {::db allrows {DROP TABLE b}}
 catch {::db allrows {DROP TABLE a}}
 catch {::db allrows {DROP TABLE people}}
 
-rename ::db {}
+catch {rename ::db {}}
 
 puts [info class instances tdbc::connection]
 puts [info class instances tdbc::statement]
