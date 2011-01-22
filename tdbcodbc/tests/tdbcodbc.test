@@ -3620,6 +3620,52 @@ test tdbc::odbc-30.2 {Multiple result sets - actually multiple} {*}{
     -result {{{idnum 2 name wilma}} {{idnum 3 name pebbles something 1}}}
 }
 
+test tdbc::odbc-30.3 {Multiple result sets - try to read past end} {*}{
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	set stmt [::db prepare {
+	    select idnum, name from people where name = :a;
+	}]
+	catch {
+	    set resultset [$stmt execute {a wilma}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+	        lappend rowsets [catch {$resultset nextresults} msg] $msg
+		lappend rowsets [catch {$resultset nextrow foo} msg] $::errorCode
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -match glob
+    -result {{{idnum 2 name wilma}} 0 0 1 {TDBC GENERAL_ERROR HY010 *}}
+}
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Drop tables and get rid of the test database.
