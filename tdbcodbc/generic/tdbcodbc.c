@@ -1812,6 +1812,7 @@ ConnectionConstructor(
     ckfree((char*) connectionStringReq);
     if (rc == SQL_NO_DATA) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("operation cancelled", -1));
+	SQLFreeHandle(SQL_HANDLE_DBC, hDBC);
 	return TCL_ERROR;
     } else if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
 	TransferSQLError(interp, SQL_HANDLE_DBC, hDBC,
@@ -3104,7 +3105,7 @@ ForeignkeysStatementConstructor(
     for (i = skip+1; i+1 < objc; i+=2) {
 	if (Tcl_GetIndexFromObj(interp, objv[i], options, "option", 0,
 				&paramIdx) != TCL_OK) {
-	    return TCL_ERROR;
+	    goto freeSData;
 	}
 	if (have[paramIdx]) {
 	    resultObj = Tcl_NewStringObj("duplicate option \"", -1);

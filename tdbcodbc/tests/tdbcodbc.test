@@ -178,15 +178,6 @@ test tdbc::odbc-2.3 {don't make a statement without a connection} {*}{
     -result {oo::class does not refer to an ODBC connection}
 }
 
-test tdbc::odbc-2.4 {semicolons in statements} {*}{
-    -constraints !sqlite
-    -body {
-	::db prepare {select foo from bar; select grill from quux}
-    }
-    -returnCodes error
-    -result {tdbc::odbc does not support semicolons in statements}
-}
-
 test tdbc::odbc-3.0 {prepare a valid statement} {*}{
     -body {
 	set stmt [::db prepare {
@@ -761,8 +752,8 @@ test tdbc::odbc-8.1 {nextrow - as dicts} {*}{
 	set names {}
 	while {[$rs nextrow -- row]} {
 	    if {$idnum != [dict get $row idnum]} {
-		binary scan [dict get $row idnum] c* v; puts $v
-		binary scan [dict get $row name] c* v; puts $v
+		binary scan [dict get $row idnum] c* v
+		binary scan [dict get $row name] c* v
 		error [list bad idnum [dict get $row idnum] should be $idnum]
 	    }
 	    lappend names [dict get $row name]
@@ -3509,6 +3500,124 @@ test tdbc::odbc-29.7 {Foreign keys - -foreign and -primary} \
 	lsort [dict values $result]
     } \
     -result [list {1 {c p2 b k1} 2 {c p1 b k2}}]
+
+# In next test, JET throws an error because there is no statement.
+# SQLite and SQL Server both return a single empty result set
+
+test tdbc::odbc-30.0 {Multiple result sets} {*}{
+    -constraints !jet
+    -body {
+	set stmt [::db prepare { }]
+	catch {
+	    set resultset [$stmt execute {}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -result {{}}
+}
+
+test tdbc::odbc-30.1 {Multiple result sets - but in reality only one} {*}{
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	set stmt [::db prepare {
+	    select idnum, name from people where name = :a;
+	}]
+	catch {
+	    set resultset [$stmt execute {a wilma}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -result {{{idnum 2 name wilma}}}
+}
+
+test tdbc::odbc-30.2 {Multiple result sets - actually multiple} {*}{
+    -constraints !jet&&!sqlite
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	set stmt [::db prepare {
+	    select idnum, name from people where name = :a;
+	    select idnum, name, 1 as something from people where name = :b;
+	}]
+	catch {
+	    set resultset [$stmt execute {a wilma b pebbles}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -result {{{idnum 2 name wilma}} {{idnum 3 name pebbles something 1}}}
+}
 
 #-------------------------------------------------------------------------------
 
