@@ -810,13 +810,17 @@ static int TransferResultError(
 ) {
     ExecStatusType error = PQresultStatus(res);
     const char* sqlstate;
-
-    if (error == PGRES_EMPTY_QUERY || error == PGRES_BAD_RESPONSE ||
-	    error == PGRES_NONFATAL_ERROR || error == PGRES_FATAL_ERROR) {
+    if (error == PGRES_BAD_RESPONSE
+	|| error == PGRES_EMPTY_QUERY
+	|| error == PGRES_NONFATAL_ERROR
+	|| error == PGRES_FATAL_ERROR) {
 	Tcl_Obj* errorCode = Tcl_NewObj();
 	Tcl_ListObjAppendElement(NULL, errorCode, Tcl_NewStringObj("TDBC", -1));
 
 	sqlstate = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+	if (sqlstate == NULL) {
+	    sqlstate = "HY000";
+	}
 	Tcl_ListObjAppendElement(NULL, errorCode,
 		Tcl_NewStringObj(Tdbc_MapSqlState(sqlstate), -1));
 	Tcl_ListObjAppendElement(NULL, errorCode,
@@ -826,12 +830,16 @@ static int TransferResultError(
 	Tcl_ListObjAppendElement(NULL, errorCode,
 		Tcl_NewIntObj(error));
 	Tcl_SetObjErrorCode(interp, errorCode);
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		    PQresultErrorField(res, PG_DIAG_MESSAGE_PRIMARY),
-		    -1));
+	if (error == PGRES_EMPTY_QUERY) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj("empty query", -1));
+	} else {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+		PQresultErrorField(res, PG_DIAG_MESSAGE_PRIMARY), -1));
+	}
     }
-    if (error == PGRES_EMPTY_QUERY || error == PGRES_BAD_RESPONSE ||
-	error == PGRES_FATAL_ERROR) {
+    if (error == PGRES_BAD_RESPONSE 
+	|| error == PGRES_EMPTY_QUERY
+	|| error == PGRES_FATAL_ERROR) {
 	return TCL_ERROR;
     } else {
 	return TCL_OK; 
@@ -2118,7 +2126,6 @@ StatementConstructor(
 	switch (tokenStr[0]) {
 	case '$':
 	case ':':
-	case '@':
 	    j+=1;
 	    snprintf(tmpstr, 30, "$%d", j);
 	    Tcl_AppendToObj(nativeSql, tmpstr, -1);
@@ -2161,7 +2168,6 @@ StatementConstructor(
     if (res == NULL) {
 	goto freeSData;
     }
-    
     if (TransferResultError(interp, res) != TCL_OK) {
 	PQclear(res);
 	goto freeSData;

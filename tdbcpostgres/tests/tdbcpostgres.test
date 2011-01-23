@@ -3111,6 +3111,63 @@ test tdbc::postgres-24.7 {Foreign keys - -foreign and -primary} \
     } \
     -result [list fk_cpair {1 {c p2 b k1} 2 {c p1 b k2}}]
 
+test tdbc::postgres-30.0 {Multiple result sets} {*}{
+    -setup {
+	set stmt [::db prepare { }]
+    }
+    -body {
+	set resultset [$stmt execute {}]
+    }
+    -cleanup {
+	$stmt close
+    }
+    -returnCodes error
+    -result {empty query}
+}
+
+test tdbc::postgres-30.1 {Multiple result sets - but in reality only one} {*}{
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	set stmt [::db prepare {
+	    select idnum, name from people where name = :a
+	}]
+	catch {
+	    set resultset [$stmt execute {a wilma}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -result {{{idnum 2 name wilma}}}
+}
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Drop tables and get rid of the test database.

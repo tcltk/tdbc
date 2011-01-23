@@ -104,6 +104,14 @@ package require tdbc
 
     superclass ::tdbc::resultset
 
+    # The 'nextresults' method is stubbed out; tdbcpostgres does not
+    # allow a single call to return multiple results.
+
+    method nextresults {} {
+	while {[my nextdict rubbish]} {}
+	return 0
+    }
+
     # Methods implemented in C include:
 
     # constructor statement ?dictionary?

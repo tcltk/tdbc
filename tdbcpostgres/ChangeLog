@@ -1,3 +1,16 @@
+2011-01-23  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcpostgres.c: Modified to pass '@' through into the
+				  native SQL to allow session variables.
+				  Fixed a pointer smash if the argument
+				  to "$connection prepare" includes no
+				  SQL statement (e.g. contains only whitespace)
+	* library/tdbcpostgres.tcl: Added 'nextresults' method, which always
+				    returns 0 since PostgreSQL calls return
+				    single result sets.
+	* tests/tdbcpostgres.test: Added test cases (30.0 and 30.1) for the
+	                           above.
+
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcpostgres.c:
