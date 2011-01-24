@@ -10,6 +10,11 @@
 				    single result sets.
 	* tests/tdbcpostgres.test: Added test cases (30.0 and 30.1) for the
 	                           above.
+	* configure.in: Added a missing stanza of code for finding the tdbc
+	                library and include in the build dir when building
+	                against an uninstalled tdbc. Thanks to Konstantin
+	                Khomoutov for reporting this error.
+	* configure: autoconf2.59
 
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 

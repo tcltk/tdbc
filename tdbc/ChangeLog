@@ -1,3 +1,12 @@
+2011-01-23  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in: Changed to put the absolute path name of the
+	                source directory in tdbc_INCLUDE_PATH so that
+	                drivers will build correctly against an uninstalled
+	                tdbc. Thanks to Konstantin Khomoutov for reporting
+	                this error.
+	* configure:    autoconf2.59
+
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
 	* doc/tdbc_connection.n:

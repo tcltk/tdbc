@@ -199,7 +199,7 @@ AC_SUBST(tdbc_SRC_DIR)
 # Develop -I specifications for the build and installed directories where
 # tdbc.h may be found.
 TEAX_INCLUDE_LINE(tdbc_INCLUDE_SPEC, [${includedir}])
-TEAX_INCLUDE_LINE(tdbc_BUILD_INCLUDE_SPEC, [${srcdir}/generic])
+TEAX_INCLUDE_LINE(tdbc_BUILD_INCLUDE_SPEC, [${tdbc_SRC_DIR}/generic])
 
 # Develop a fully qualified path for where .tcl files for the tdbc package
 # appear at run time.

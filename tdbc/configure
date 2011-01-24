@@ -10401,7 +10401,7 @@ tdbc_SRC_DIR=`cd "${tdbc_SRC_DIR}"; pwd`
     eval "tdbc_INCLUDE_SPEC=\"-I`${CYGPATH} ${includedir}`\""
 
 
-    eval "tdbc_BUILD_INCLUDE_SPEC=\"-I`${CYGPATH} ${srcdir}/generic`\""
+    eval "tdbc_BUILD_INCLUDE_SPEC=\"-I`${CYGPATH} ${tdbc_SRC_DIR}/generic`\""
 
 
 # Develop a fully qualified path for where .tcl files for the tdbc package
