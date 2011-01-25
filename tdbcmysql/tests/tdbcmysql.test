@@ -90,7 +90,8 @@ test tdbc::mysql-1.6 {create a connection, bad port} {*}{
 	tdbc::mysql::connection create db -port 999999999999
     }
     -returnCodes error
-    -result {integer value too large to represent}
+    -match glob
+    -result {integer value too large to represent*}
 }
 
 test tdbc::mysql-1.7 {create a connection, bad port} {*}{
@@ -2312,6 +2313,19 @@ catch {
 }
 
 tdbc::mysql::connection create ::db {*}$::connFlags
+
+# Things should be sane enough that we can find out the database version.
+# REFERENTIAL_CONSTRAINTS,REFERENCED_TABLE_COLUMN doesn't exist until 5.1.16,
+# and [db foreignkeys] depends on it.
+
+set version unknown
+db foreach -as lists -- row {SELECT version()} {
+    set version [lindex $row 0]
+}
+tcltest::testConstraint mysqlAtLeast5116 \
+    [expr {[regexp {^\d+\.\d+(?:\.\d+)?} $version components] 
+	   && [package vcompare $components 5.1.16] >= 0}]
+
 catch {
     set stmt [db prepare {
 	INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
@@ -3111,6 +3125,7 @@ test tdbc::mysql-24.3 {Foreign keys - redundant arg} {*}{
 }
 
 test tdbc::mysql-24.4 {Foreign keys - list all} \
+    -constraints mysqlAtLeast5116 \
     -body {
 	set result {}
 	set wanted {fk_b1 {} fk_b2 {} fk_c1 {} fk_c2 {} fk_cpair {}}
@@ -3134,6 +3149,7 @@ test tdbc::mysql-24.4 {Foreign keys - list all} \
 		 fk_cpair {1 {c p1 b k2} 2 {c p2 b k1}}]
 
 test tdbc::mysql-24.5 {Foreign keys - -foreign} \
+    -constraints mysqlAtLeast5116 \
     -body {
 	set result {}
 	set wanted {fk_b1 {} fk_b2 {} fk_c1 {} fk_c2 {} fk_cpair {}}
@@ -3155,6 +3171,7 @@ test tdbc::mysql-24.5 {Foreign keys - -foreign} \
 		 fk_cpair {1 {c p1 b k2} 2 {c p2 b k1}}]
 
 test tdbc::mysql-24.6 {Foreign keys - -primary} \
+    -constraints mysqlAtLeast5116 \
     -body {
 	set result {}
 	set wanted {fk_b1 {} fk_b2 {} fk_c1 {} fk_c2 {} fk_cpair {}}
@@ -3177,6 +3194,7 @@ test tdbc::mysql-24.6 {Foreign keys - -primary} \
 		 fk_c2 {1 {c p2 a k1}}]
 
 test tdbc::mysql-24.7 {Foreign keys - -foreign and -primary} \
+    -constraints mysqlAtLeast5116 \
     -body {
 	set result {}
 	set wanted {fk_b1 {} fk_b2 {} fk_c1 {} fk_c2 {} fk_cpair {}}

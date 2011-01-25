@@ -4,6 +4,11 @@
 			       on 64-bit machines. Who would have imagined
 			       that MSYQL_TYPE_LONG doesn't mean 'long' but
 			       rather 'int'?
+	* tests/tdbcmysql.test (tdbc::mysql-1.6,24.[4567]):
+		Quieted test cases on 64-bit machines and on MySQL earlier
+		than 5.1.16, which is the first version on which
+		'foreignkeys' functions correctly.
+	Thanks to Damon Courtney for reporting these bugs.
 
 2010-12-28  Kevin B. Kenny  <kennykb@acm.org>
 
