@@ -1,3 +1,10 @@
+2011-01-29  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcmysql.c: Fixed a bug in data types of small integers
+			       on 64-bit machines. Who would have imagined
+			       that MSYQL_TYPE_LONG doesn't mean 'long' but
+			       rather 'int'?
+
 2010-12-28  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/fakemysql.h: Added the MYSQL data structure and the

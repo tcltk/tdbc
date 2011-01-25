@@ -2965,8 +2965,8 @@ ResultSetConstructor(
 	case MYSQL_TYPE_INT24:
 	case MYSQL_TYPE_LONG:
 	    MysqlBindSetBufferType(resultBindings, i,  MYSQL_TYPE_LONG);
-	    MysqlBindAllocBuffer(resultBindings, i, sizeof(long));
-	    resultLengths[i] = sizeof(long);
+	    MysqlBindAllocBuffer(resultBindings, i, sizeof(int));
+	    resultLengths[i] = sizeof(int);
 	    break;
 
 	default:
@@ -3097,12 +3097,12 @@ ResultSetConstructor(
 		MysqlBindSetBufferType(rdata->paramBindings, nBound,
 				       MYSQL_TYPE_LONG);
 		bufPtr = MysqlBindAllocBuffer(rdata->paramBindings, nBound,
-					      sizeof(long));
-		rdata->paramLengths[nBound] = sizeof(long);
+					      sizeof(int));
+		rdata->paramLengths[nBound] = sizeof(int);
 		MysqlBindSetLength(rdata->paramBindings, nBound,
 				   &(rdata->paramLengths[nBound]));
-		if (Tcl_GetLongFromObj(interp, paramValObj,
-				       (long*) bufPtr) != TCL_OK) {
+		if (Tcl_GetIntFromObj(interp, paramValObj,
+				      (int*) bufPtr) != TCL_OK) {
 		    return TCL_ERROR;
 		}
 		break;
@@ -3349,7 +3349,7 @@ ResultSetNextrowMethod(
 		break;
 
 	    case MYSQL_TYPE_LONG:
-		colObj = Tcl_NewLongObj(*(long*) bufPtr);
+		colObj = Tcl_NewIntObj(*(int*) bufPtr);
 		break;
 
 	    case MYSQL_TYPE_LONGLONG:
