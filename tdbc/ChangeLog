@@ -3,7 +3,8 @@
 	* doc/tdbc.n, doc/tdbc_connection.n, doc/tdbc_mapSqlState.n:
 	* doc/tdbc_resultset.n, doc/tdbc_statement.n, doc/tdbc_tokenize.n:
 	Added empty comment at the start of each manpage because 'man'
-	interprets comments there as directives.
+	interprets comments there as directives. Thanks to Konstantin
+	Kohmoutov for reporting and diagnosing this error.
 	
 2011-01-23  Kevin B. Kenny  <kennykb@acm.org>
 

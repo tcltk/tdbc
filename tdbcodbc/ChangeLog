@@ -2,7 +2,8 @@
 
 	* doc/tdbc_odbc.n:
 	Added empty comment at the start of each manpage because 'man'
-	interprets comments there as directives.
+	interprets comments there as directives. Thanks to Konstantin
+	Kohmoutov for reporting and diagnosing this error.
 	
 2011-01-22  Kevin B. Kenny  <kennykb@acm.org>
 
