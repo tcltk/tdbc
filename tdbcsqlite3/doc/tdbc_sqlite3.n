@@ -1,3 +1,4 @@
+'\"
 .\" tdbc_sqlite3.n --
 .\"
 .\" Copyright (c) 2008 by Kevin B. Kenny.

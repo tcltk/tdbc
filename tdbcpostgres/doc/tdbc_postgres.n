@@ -1,3 +1,4 @@
+'\"
 .\" tdbc_postgres.n --
 .\"
 .\" Copyright (c) 2009 by Slawomir Cygan

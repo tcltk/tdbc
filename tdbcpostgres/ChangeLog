@@ -1,3 +1,9 @@
+2011-01-26  Kevin B. Kenny  <kennykb@acm.org>
+
+	* doc/tdbc_postgres.n:
+	Added empty comment at the start of each manpage because 'man'
+	interprets comments there as directives.
+	
 2011-01-23  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcpostgres.c: Modified to pass '@' through into the

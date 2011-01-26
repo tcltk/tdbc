@@ -1,4 +1,10 @@
-2011-01-29  Kevin B. Kenny  <kennykb@acm.org>
+2011-01-26  Kevin B. Kenny  <kennykb@acm.org>
+
+	* doc/tdbc_mysql.n:
+	Added empty comment at the start of each manpage because 'man'
+	interprets comments there as directives.
+	
+2011-01-25  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcmysql.c: Fixed a bug in data types of small integers
 			       on 64-bit machines. Who would have imagined
