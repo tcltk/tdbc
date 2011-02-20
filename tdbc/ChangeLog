@@ -1,10 +1,23 @@
+2011-02-20  Kevin B. Kenny  <kennykb@acm.org>
+
+	* library/tdbc.tcl:
+			Changed 'foreach' method on the connection, statement
+			and result set objects so that 'foreach' and 'allrows'
+			will iterate over multiple result sets.  Added
+			default 'nextresults' method (does nothing, reports
+			that no further results are available) and
+			'outputparams' method (does nothing, reports no
+			output parameters) to the base 'resultset' class so
+			that drivers that lack multiple-results functionality
+			need not implement these.
+
 2011-01-26  Kevin B. Kenny  <kennykb@acm.org>
 
 	* doc/tdbc.n, doc/tdbc_connection.n, doc/tdbc_mapSqlState.n:
 	* doc/tdbc_resultset.n, doc/tdbc_statement.n, doc/tdbc_tokenize.n:
 	Added empty comment at the start of each manpage because 'man'
 	interprets comments there as directives.
-	
+
 2011-01-23  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Changed to put the absolute path name of the

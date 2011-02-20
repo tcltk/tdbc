@@ -721,7 +721,6 @@ oo::class create tdbc::resultset {
 
 	if {[dict exists $opts -columnsvariable]} {
 	    upvar 1 [dict get $opts -columnsvariable] columns
-	    set columns [my columns]
 	}
 
 	# Assemble the results
@@ -732,18 +731,18 @@ oo::class create tdbc::resultset {
 	    set delegate nextdict
 	}
 	set results [list]
-	while {[my $delegate row]} {
-	    lappend results $row
+	while {1} {
+	    set columns [my columns]
+	    while {[my $delegate row]} {
+		lappend results $row
+	    }
+	    if {![my nextresults]} break
 	}
 	return $results
 	    
     }
 
     # The 'foreach' method runs a script on each row from a result set.
-    # TODO - Implement in C for speed?
-    # Note that there are performance issues with anything involving an
-    # iterated 'uplevel'; Miguel Sofer has ideas regarding how to 
-    # make 'uplevel' as fast as evaluating a 'proc'.
 
     method foreach args {
 
@@ -764,40 +763,55 @@ oo::class create tdbc::resultset {
 	}
 
 	# Do -columnsvariable if requested
-
+	    
 	if {[dict exists $opts -columnsvariable]} {
 	    upvar 1 [dict get $opts -columnsvariable] columns
+	}
+
+	# Iterate over the groups of results 
+	while {1} {
+
+	    # Export column names to caller
+
 	    set columns [my columns]
-	}
 
-	# Run the loop over the rows of the query
+	    # Iterate over the rows of one group of results
 
-	upvar 1 [lindex $args 0] row
-	if {[dict get $opts -as] eq {lists}} {
-	    set delegate nextlist
-	} else {
-	    set delegate nextdict
-	}
-	while {[my $delegate row]} {
-	    set status [catch {
-		uplevel 1 [lindex $args 1]
-	    } result options]
-	    switch -exact -- $status {
-		0 - 4 {		# OK or CONTINUE
-		}
-		2 {		# RETURN
-		    set options [dict merge {-level 1} $options[set options {}]]
-		    dict incr options -level
-		    return -options $options $result
-		}
-		3 {		# BREAK
-		    break
-		}
-		default {	# ERROR or unknown status
-		    return -options $options $result
+	    upvar 1 [lindex $args 0] row
+	    if {[dict get $opts -as] eq {lists}} {
+		set delegate nextlist
+	    } else {
+		set delegate nextdict
+	    }
+	    while {[my $delegate row]} {
+		set status [catch {
+		    uplevel 1 [lindex $args 1]
+		} result options]
+		switch -exact -- $status {
+		    0 - 4 {	# OK or CONTINUE
+		    }
+		    2 {		# RETURN
+			set options \
+			    [dict merge {-level 1} $options[set options {}]]
+			dict incr options -level
+			return -options $options $result
+		    }
+		    3 {		# BREAK
+			set broken 1
+			break
+		    }
+		    default {	# ERROR or unknown status
+			return -options $options $result
+		    }
 		}
 	    }
-	}
+
+	    # Advance to the next group of results if there is one
+
+	    if {[info exists broken] || ![my nextresults]} {
+		break
+	    }
+	}	
 
 	return
     }
@@ -854,6 +868,20 @@ oo::class create tdbc::resultset {
 	    set delegate nextdict
 	}
 	return [my $delegate row]
+    }
+
+    # Derived classes must override 'nextresults' if a single
+    # statement execution can yield multiple sets of results
+
+    method nextresults {} {
+	return 0
+    }
+
+    # Derived classes must override 'outputparams' if statements can
+    # have output parameters.
+
+    method outputparams {} {
+	return {}
     }
 
     # The 'close' method is syntactic sugar for destroying the result set.
