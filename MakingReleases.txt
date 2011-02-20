@@ -37,6 +37,8 @@ To advance the version number:
     NSK1200002852A:
     PATH=/d/APPS/xampp/mysql/bin:/c/Program\ Files/PostgreSQL/8.4/bin/:$PATH
     TDBCMYSQL_DB=test
+    TDBCMYSQL_USER=test
+    TDBCMYSQL_PASSWD=test
     TDBCPOSTGRES_USER=tdbc_test
     TDBCPOSTGRES_PASSWD=tdbc_test
     TDBCPOSTGRES_DB=tdbc_test
