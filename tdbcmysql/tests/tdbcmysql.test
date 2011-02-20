@@ -3212,48 +3212,66 @@ test tdbc::mysql-24.7 {Foreign keys - -foreign and -primary} \
     } \
     -result [list fk_cpair {1 {c p1 b k2} 2 {c p2 b k1}}]
 
-test tdbc::mysql-25.1 {Create a stored procedure} {*}{
-    -body {
-	::db evaldirect {
-	    CREATE PROCEDURE clean_people ()
-	        BEGIN
-		    DELETE FROM people;
-	        END
-	}
-    }
-    -cleanup {
-	::db evaldirect {
-	    DROP PROCEDURE clean_people;
-	}
-    }
-    -result 0
-}
-
-test tdbc::mysql-25.2 {Create and execute a stored procedure} {*}{
+# MySQL doesn't "do nothing gracefully", so the empty statement yields an
+# error rather than an empty result set.
+test tdbc::mysql-30.0 {Multiple result sets} {*}{
+    -constraints knownBug
     -setup {
-	::db evaldirect {
-	    CREATE PROCEDURE clean_people ()
-	        BEGIN
-		    DELETE FROM people;
-	        END
-	}
+	set stmt [::db prepare { }]
     }
     -body {
-	set stmt [::db preparecall clean_people]
-	set res [$stmt allrows]
-	$stmt close
-	set res
+	set resultset [$stmt execute {}]
     }
     -cleanup {
-	::db evaldirect {
-	    DROP PROCEDURE clean_people;
-	}
+	$stmt close
     }
-    -result {}
+    -returnCodes error
+    -result {empty query}
 }
 
+test tdbc::mysql-30.1 {Multiple result sets - but in reality only one} {*}{
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	set stmt [::db prepare {
+	    select idnum, name from people where name = :a
+	}]
+	catch {
+	    set resultset [$stmt execute {a wilma}]
+	    catch {
+		set rowsets {}
+		while {1} {
+		    set rows {}
+		    while {[$resultset nextrow row]} {
+			lappend rows $row
+		    }
+		    lappend rowsets $rows
+		    if {[$resultset nextresults] == 0} break
+		}
+		set rowsets
+	    } results
+	    rename $resultset {}
+	    set results
+	} results
+	rename $stmt {}
+	set results
+    }
+    -result {{{idnum 2 name wilma}}}
+}
 
-    
 
 #-------------------------------------------------------------------------------
 
