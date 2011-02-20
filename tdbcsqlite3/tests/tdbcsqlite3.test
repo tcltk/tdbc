@@ -3013,6 +3013,60 @@ test tdbc::sqlite3-30.3 {Multiple result sets - try to read past end} {*}{
     -result {{{idnum 2 name wilma}} 0 0 1 {TDBC GENERAL_ERROR HY010 *}}
 }
 
+test tdbc::sqlite3-30.4 {Multiple result sets - foreach} {*}{
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	set rows {}
+	::db foreach -columnsvar c -- row {
+	    select idnum, name from people where name = :a;
+	    select idnum, name, 1 as something from people where name = :b;
+	} {a wilma b pebbles} {
+	    lappend rows $c $row
+	}
+	set rows
+    }
+    -result {{idnum name} {idnum 2 name wilma} {idnum name something} {idnum 3 name pebbles something 1}}
+}
+
+test tdbc::sqlite3-30.5 {Multiple result sets - allrows} {*}{
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+    }
+    -body {
+	::db allrows -as dicts {
+	    select idnum, name from people where name = :a;
+	    select idnum, name, 1 as something from people where name = :b;
+	} {a wilma b pebbles}
+    }
+    -result {{idnum 2 name wilma} {idnum 3 name pebbles something 1}}
+}
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Drop tables and get rid of the test database.
