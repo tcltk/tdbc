@@ -10,6 +10,9 @@
 			output parameters) to the base 'resultset' class so
 			that drivers that lack multiple-results functionality
 			need not implement these.
+	* doc/tdbc_resultset.n:
+			Added description of the 'nextresults' method,
+			and its effect on 'allrows' and 'foreach'
 
 2011-01-26  Kevin B. Kenny  <kennykb@acm.org>
 

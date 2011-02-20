@@ -74,6 +74,7 @@ package require \fBtdbc::\fR\fIdriver version\fR
 \fI$resultset\fR \fBnextrow\fR ?\fB-as\fR \fBlists\fR|\fBdicts\fR? ?\fB--\fR? \fIvarname\fR
 \fI$resultset\fR \fBnextlist\fR \fIvarname\fR
 \fI$resultset\fR \fBnextdict\fR \fIvarname\fR
+\fI$resultset\fR \fBnextresults\fR
 .fi
 .ad l
 .in 14
@@ -127,12 +128,28 @@ The \fBnextrow\fR object command is precisely equivalent to the
 \fBnextdict\fR or \fBnextlist\fR object command, depending on whether
 \fB-as dicts\fR (the default) or \fB-as lists\fR is specified. 
 .PP
+Some databases support the idea of a single statement that returns multiple
+sets of results. The \fBnextresults\fR object command is executed, typically
+after the \fBnextlist\fR of \fBnextdict\fR object command has returned
+\fB0\fR, to advance to the next result set. It returns \fB1\fR if there
+is another result set to process, and \fB0\fR if the result set just
+processed was the last. After calling \fBnextresults\fR and getting
+the return value of \fB1\fR, the caller may once again call \fBcolumns\fR
+to get the column descriptions of the next result set, and then return to
+calling \fBnextdict\fR or \fBnextlist\fR to process the rows of the
+next result set.  It is an error to call \fBcolumns\fR, \fBnextdict\fR,
+\fBnextlist\fR or \fBnextrow\fR after \fBnextresults\fR has returned \fB0\fR.
+.PP
 The \fBallrows\fR object command sets the variable designated by the
 \fB-columnsvariable\fR option (if present) to the result of the \fBcolumns\fR
 object command. It then executes the \fBnextrow\fR object command
-repeatedly until the end of the result set is reached. The resulting
-rows are assembled into a Tcl list and become the return value of the
-\fBallrows\fR command.
+repeatedly until the end of the result set is reached. If \fBnextresults\fR
+returns a nonzero value, it executes the above two steps (\fBcolumns\fR
+followed by iterated \fBnextrow\fR calls) as long as further results are
+available. The rows returned by \fBnextrow\fR
+are assembled into a Tcl list and become the return value of the
+\fBallrows\fR command; the last value returned from \fBcolumns\fR is what
+the application will see in \fB-columnsvariable\fR.
 .PP
 The \fBforeach\fR object command sets the variable designated by the
 \fB-columnsvariable\fR option (if present) to the result of the \fBcolumns\fR
@@ -148,6 +165,16 @@ If the script performs a \fBreturn\fR, results are the same as if a
 script outside the control of \fBforeach\fR had returned. Any other
 unusual return code terminates the iteration and is reported from the
 \fBforeach\fR. 
+.PP
+Once \fBnextrow\fR returns \fB0\fR, the \fBforeach\fR object command 
+tries to advance to the next result set using \fBnextresults\fR.  If
+\fBnextresults\fR returns \fB1\fR, the above steps (\fBcolumns\fR and
+\fBnextrow\fR, with script invocation) are repeated as long as more
+result sets remain. The \fIscript\fR will always see the correct description
+of the columns of the current result set in the variable designated
+byt \fB-columnsvariable\fR. At the end of the call, the variable
+designated by \fB-columnsvariable\fR will have the description of the
+columns of the last result set.
 .PP
 The \fBclose\fR object command deletes the result set and frees any
 associated system resources.
