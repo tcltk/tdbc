@@ -4,7 +4,7 @@
  *	Stubs tables for the foreign PostgreSQL libraries so that
  *	Tcl extensions can use them without the linker's knowing about them.
  *
- * @CREATED@ 2010-05-01 21:59:23Z by genExtStubs.tcl from ../generic/pqStubDefs.txt
+ * @CREATED@ 2011-02-20 21:37:07Z by genExtStubs.tcl from ../generic/pqStubDefs.txt
  *
  * Copyright (c) 2010 by Kevin B. Kenny.
  *
@@ -24,6 +24,14 @@
 /*
  * Static data used in this file
  */
+
+/*
+ * ABI version numbers of the PostgreSQL API that we can cope with.
+ */
+
+static const char* pqSuffixes[] = {
+    "", ".5", NULL
+};
 
 /*
  * Names of the libraries that might contain the PostgreSQL API
@@ -100,39 +108,38 @@ pqStubDefs* pqStubs = &pqStubsTable;
 MODULE_SCOPE Tcl_LoadHandle
 PostgresqlInitStubs(Tcl_Interp* interp)
 {
-    int i;
+    int i, j;
     int status;			/* Status of Tcl library calls */
     Tcl_Obj* path;		/* Path name of a module to be loaded */
     Tcl_Obj* shlibext;		/* Extension to use for load modules */
     Tcl_LoadHandle handle = NULL;
 				/* Handle to a load module */
 
-    /*
-     * Determine the shared library extension
-     */
+    /* Determine the shared library extension */
+
     status = Tcl_EvalEx(interp, "::info sharedlibextension", -1,
 			TCL_EVAL_GLOBAL);
     if (status != TCL_OK) return NULL;
     shlibext = Tcl_GetObjResult(interp);
     Tcl_IncrRefCount(shlibext);
 
-    /*
-     * Walk the list of possible library names to find an PostgreSQL client
-     */
+    /* Walk the list of possible library names to find an PostgreSQL client */
+
     status = TCL_ERROR;
     for (i = 0; status == TCL_ERROR && pqStubLibNames[i] != NULL; ++i) {
-	path = Tcl_NewStringObj(pqStubLibNames[i], -1);
-	Tcl_AppendObjToObj(path, shlibext);
-	Tcl_IncrRefCount(path);
-	Tcl_ResetResult(interp);
+	for (j = 0; status == TCL_ERROR && pqSuffixes[j] != NULL; ++j) {
+	    path = Tcl_NewStringObj(pqStubLibNames[i], -1);
+	    Tcl_AppendObjToObj(path, shlibext);
+	    Tcl_AppendToObj(path, pqSuffixes[j], -1);
+	    Tcl_IncrRefCount(path);
 
-	/*
-	 * Try to load a client library and resolve the PostgreSQL
-	 * API within it.
-	 */
-	status = Tcl_LoadFile(interp, path, pqSymbolNames, 0,
+	    /* Try to load a client library and resolve symbols within it. */
+
+	    Tcl_ResetResult(interp);
+	    status = Tcl_LoadFile(interp, path, pqSymbolNames, 0,
 			      (void*)pqStubs, &handle);
-	Tcl_DecrRefCount(path);
+	    Tcl_DecrRefCount(path);
+	}
     }
 
     /* 

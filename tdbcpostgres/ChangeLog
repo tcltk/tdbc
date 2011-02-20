@@ -1,9 +1,17 @@
+2011-02-20  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/pqStubInit.c:
+		Revised code to look for libpq.so by SONAME as well
+		as directly, so that ABI version number is taken into
+		account and so that libpq-dev is not required.
+	* generic/pqStubs.h: make genstubs
+
 2011-01-26  Kevin B. Kenny  <kennykb@acm.org>
 
 	* doc/tdbc_postgres.n:
 	Added empty comment at the start of each manpage because 'man'
 	interprets comments there as directives.
-	
+
 2011-01-23  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcpostgres.c: Modified to pass '@' through into the
