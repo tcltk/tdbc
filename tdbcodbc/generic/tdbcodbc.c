@@ -4077,7 +4077,6 @@ GetCell(
 	    char info[80];
 	    sprintf(info, "(retrieving result set column #%d)\n", i+1);
 	    TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt, info);
-	    ckfree(info);
 	    return TCL_ERROR;
 	}
 	if (colLen != SQL_NULL_DATA && colLen != SQL_NO_TOTAL) {

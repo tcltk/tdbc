@@ -3653,7 +3653,8 @@ test tdbc::odbc-30.3 {Multiple result sets - try to read past end} {*}{
 		    if {[$resultset nextresults] == 0} break
 		}
 	        lappend rowsets [catch {$resultset nextresults} msg] $msg
-		lappend rowsets [catch {$resultset nextrow foo} msg] $::errorCode
+		lappend rowsets [catch {$resultset nextrow foo} msg] \
+		    $::errorCode
 		set rowsets
 	    } results
 	    rename $resultset {}
@@ -3687,7 +3688,7 @@ test tdbc::odbc-30.4 {Multiple result sets - foreach} {*}{
 	set rows {}
 	::db foreach -columnsvar c -- row {
 	    select idnum, name from people where name = :a;
-	    select idnum, name, 1 as something from people where name = :b;
+	    select idnum, name, 1 as something from people where name = :b
 	} {a wilma b pebbles} {
 	    lappend rows $c $row
 	}
