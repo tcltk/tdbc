@@ -3722,6 +3722,147 @@ test tdbc::odbc-30.5 {Multiple result sets - allrows} {*}{
     -result {{idnum 2 name wilma} {idnum 3 name pebbles something 1}}
 }
 
+test tdbc::odbc-30.6 {rowcount in multiple result sets} {*}{
+    -constraints !jet&&!sqlite
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+	unset stmt
+    }
+    -body {
+	set stmt [db prepare {
+	    INSERT INTO PEOPLE(idnum, name, info)
+	    SELECT idnum+10, name+'2', info
+	    FROM PEOPLE
+	    WHERE name LIKE 'b%';
+	    INSERT INTO PEOPLE(idnum, name, info)
+	    SELECT idnum+20, name+'3', info
+	    FROM PEOPLE
+	    WHERE name LIKE 'f%'
+	}]
+	set rs [$stmt execute]
+	set result {}
+	while {1} {
+	    lappend result [$rs rowcount]
+	    if {![$rs nextresults]} break
+	}
+	set result
+    }		  
+    -cleanup {
+	catch {rename $rs {}}
+	catch {rename $stmt {}}
+	::db allrows {delete from people}
+    }
+    -result {3 1}
+}
+
+test tdbc::odbc-31.1 {stored procedure - invoke with default config} {*}{
+    -constraints sqlserver
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+	db allrows {
+            IF EXISTS(SELECT name FROM sysobjects
+                      WHERE name = 'find_person' AND type = 'P')
+                DROP PROCEDURE find_person
+	}
+	db allrows {
+	    CREATE PROCEDURE find_person
+	        @name VARCHAR(40),
+	        @idnum INTEGER OUTPUT
+            AS
+            SELECT @idnum = idnum FROM people WHERE name = @name
+	}
+	catch {unset stmt}
+    }
+    -body {
+ 	set stmt [::db prepare {
+ 	    DECLARE @x AS INTEGER;
+ 	    EXECUTE find_person :name, @x OUTPUT;
+	    SELECT @x AS result
+ 	}]
+	$stmt allrows {name barney}
+    }
+    -cleanup {
+	if {[info exists stmt]} {
+	    rename $stmt {}
+	}
+	db allrows {
+	    DROP PROCEDURE find_person
+	}
+    }
+    -result {{result 4}}
+}
+
+test tdbc::odbc-31.2 {stored procedure - invoke with escapes} {*}{
+    -constraints sqlserver&&knownBug
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {fred wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+	db allrows {
+            IF EXISTS(SELECT name FROM sysobjects
+                      WHERE name = 'find_person' AND type = 'P')
+                DROP PROCEDURE find_person
+	}
+	db allrows -outputparams x {
+	    CREATE PROCEDURE find_person
+	        @name VARCHAR(40),
+	        @idnum INTEGER OUTPUT
+            AS
+            SELECT @idnum = idnum FROM people WHERE name = @name
+	}
+	catch {unset stmt}
+    }
+    -body {
+ 	set stmt [::db prepare {{CALL find_person(:name, :x)}}]
+	$stmt paramtype x out integer 10
+	puts [$stmt params]
+	$stmt allrows {name barney}
+    }
+    -cleanup {
+	if {[info exists stmt]} {
+	    rename $stmt {}
+	}
+	db allrows {
+	    DROP PROCEDURE find_person
+	}
+    }
+    -result {x 4}
+}
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Drop tables and get rid of the test database.

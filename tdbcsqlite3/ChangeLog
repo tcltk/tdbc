@@ -8,14 +8,15 @@
 
 	* doc/tdbc_sqlite3.n:
 	Added empty comment at the start of each manpage because 'man'
-	interprets comments there as directives.
-
+	interprets comments there as directives. Thanks to Konstantin
+	Kohmoutov for reporting and diagnosing this error.
+	
 2010-09-03  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in:	Added a semicolon to the end of the -load option
 			on 'make test'. Without it, msys make changes all
 			the forward slashes in the -load option to backslashes.
-
+	
 	* library/tdbcsqlite3.tcl:
 	* tests/tdbcsqlite3.test:
 			Changed 'keySequence' in 'foreignkeys' to

@@ -2441,12 +2441,14 @@ StatementConstructor(
 				  &(sdata->params[i].nullable));
 	    if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO) {
 		/* 
-		 * TODO: The next statement doesn't work for stored
-		 * procedure calls, which are the only case where
-		 * output and inout parameters exist. They need to
-		 * go through a separate path if they're to be managed
-		 * properly. Right now, we presume that all params
-		 * are inputs.
+		 * FIXME: SQLDescribeParam doesn't actually describe
+		 *        the direction of parameter transmission for
+		 *	  stored procedure calls.  It appears simply
+		 *	  to be the caller's responsibility to know
+		 *	  these things.  If anyone has an idea how to
+		 *	  determine this, please send a patch! (Remember
+		 *	  that the patch has to work with DB2 and
+		 *	  unixodbc as well as Microsoft.)
 		 */
 		sdata->params[i].flags = PARAM_IN | PARAM_KNOWN;
 	    } else {
@@ -3825,17 +3827,26 @@ ResultSetNextresultsMethod(
     if (rc == SQL_NO_DATA) {
 	Tcl_SetObjResult(interp, literals[LIT_0]);
 	return TCL_OK;
-    } else if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO) {
-	if (GetResultSetDescription(interp, rdata) != TCL_OK) {
-	    return TCL_ERROR;
-	} else {
-	    Tcl_SetObjResult(interp, literals[LIT_1]);
-	    return TCL_OK;
-	}
-    } else {
+    }
+    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
 	TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt,
 			 "(advancing to next result set)");
 	return TCL_ERROR;
+    }
+    if (GetResultSetDescription(interp, rdata) != TCL_OK) {
+	return TCL_ERROR;
+    }
+
+    /* Determine and store the row count */
+    
+    rc = SQLRowCount(rdata->hStmt, &(rdata->rowCount));
+    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
+	TransferSQLError(interp, SQL_HANDLE_STMT, rdata->hStmt,
+			 "(counting rows in the result)");
+	return TCL_ERROR;
+    } else {
+	Tcl_SetObjResult(interp, literals[LIT_1]);
+	return TCL_OK;
     }
 }
 

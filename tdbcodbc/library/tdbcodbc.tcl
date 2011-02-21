@@ -226,13 +226,39 @@ package require tdbc
     # actual work.
 
     method preparecall {call} {
+	
 	regexp {^[[:space:]]*(?:([A-Za-z_][A-Za-z_0-9]*)[[:space:]]*=)?(.*)} \
 	    $call -> varName rest
 	if {$varName eq {}} {
-	    my prepare \\{$rest\\}
+	    my prepare \\{CALL $rest\\}
 	} else {
-	    my prepare \\{:$varName=$rest\\}
+	    my prepare \\{:$varName=CALL $rest\\}
 	}
+
+	if 0 {
+	# Kevin thinks this is going to be
+
+	if {![regexp -expanded {
+	    ^\s*				   # leading whitespace
+	    (?:([[:alpha:]_][[:alnum:]_]*)\s*=\s*) # possible variable name
+	    (?:(?:([[:alpha:]_][[:alnum:]_]*)\s*[.]\s*)?   # catalog
+	       ([[:alpha:]_][[:alnum:]_]*)\s*[.]\s*)?      # schema
+	    ([[:alpha:]_][[:alnum:]_]*)\s*		   # procedure
+	    (.*)$					   # argument list
+	} $call -> varName catalog schema procedure arglist]} {
+	    return -code error \
+		-errorCode [list TDBC \
+				SYNTAX_ERROR_OR_ACCESS_RULE_VIOLATION \
+				42000 ODBC -1] \
+		"Syntax error in stored procedure call"
+	} else {
+	    my PrepareCall $varName $catalog $schema $procedure $arglist
+	}
+
+	# at least if making all parameters 'inout' doesn't work.
+
+        }
+
     }
 
     # The 'typemap' method returns the type map
