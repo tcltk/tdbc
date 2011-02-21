@@ -1,3 +1,18 @@
+2011-02-20  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcodbc.c (ResultSetNextresultsMethod):
+	* tests/tdbcodbc.test (tdbc::odbc-{30.6,31.1}:
+		Made 'rowcount' work for multiple result sets. Added a
+		test for 'rowcount' in multiple result sets, and added
+		a rudimentary test that stored procedures can be called.
+	* library/tdbcodbc.tcl (tdbc::odbc::resultset preparecall)
+		Added a non-executed sketch of how a preparse of
+		a prepared statement call might go in order to allow
+		the use of SQLProcedureColumns to determine parameter
+		directions. (This code may or may not be used; a first
+		experiment would simply be to make all SP parameters
+		'inout' and see if that works.)
+	
 2011-01-26  Kevin B. Kenny  <kennykb@acm.org>
 
 	* doc/tdbc_odbc.n:
