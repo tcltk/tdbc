@@ -1,8 +1,14 @@
 2011-02-21  Kevin B. Kenny  <kennykb@acm.org>
 
-	* generic/tdbcodbc.c (GetCell):
-		(It is hoped) Fix a crash where an error is returned
-		from SQLGetData. (Bug [8766b8dc40], partial fix.)
+	* generic/tdbcodbc.c (GetCell, HasBigintMethod, ResultSetConstructor):
+		Fix a crash where an error is returned from SQLGetData.
+	        Add a check for whether a connection supports 64-bit integers
+		before trying to use them to replace NUMERIC or DECIMAL
+		values. Add a method to determine 64-bit integer support.
+		(Bug [8766b8dc40].)
+	* library/tdbcodbc.tcl (tdbc::odbc::connection typemap):
+		Add to initialization a check for 64-bit integer support
+		so that the above change works. (Bug [8766b8dc40].)
 	* tests/tdbcodbc.test:
 		Code formatting changes to avoid long lines and spurious
 		semicolons.
