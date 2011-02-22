@@ -3,7 +3,7 @@
  *
  *	Bridge between TDBC (Tcl DataBase Connectivity) and ODBC.
  *
- * Copyright (c) 2008 by Kevin B. Kenny.
+ * Copyright (c) 2008, 2009, 2011 by Kevin B. Kenny.
  *
  * Please refer to the file, 'license.terms' for the conditions on
  * redistribution of this file and for a DISCLAIMER OF ALL WARRANTIES.
@@ -134,6 +134,8 @@ typedef struct ConnectionData {
 				 * (Note that ODBC does not support nesting
 				 * of transactions.) */
 #define CONNECTION_FLAG_HAS_WVARCHAR	(1<<2)
+				/* Connection supports WVARCHAR */
+#define CONNECTION_FLAG_HAS_BIGINT	(1<<3)
 				/* Connection supports WVARCHAR */
 
 #define IncrConnectionRefCount(x) \
@@ -399,6 +401,10 @@ static int ConnectionEndXcnMethod(ClientData clientData,
 				  Tcl_Interp* interp,
 				  Tcl_ObjectContext context,
 				  int objc, Tcl_Obj *const objv[]);
+static int ConnectionHasBigintMethod(ClientData clientData,
+				     Tcl_Interp* interp,
+				     Tcl_ObjectContext context,
+				     int objc, Tcl_Obj *const objv[]);
 static int ConnectionHasWvarcharMethod(ClientData clientData,
 				       Tcl_Interp* interp,
 				       Tcl_ObjectContext context,
@@ -545,6 +551,15 @@ const static Tcl_MethodType ConnectionEndXcnMethodType = {
     DeleteCmd,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
+const static Tcl_MethodType ConnectionHasBigintMethodType = {
+    TCL_OO_METHOD_VERSION_CURRENT,
+				/* version */
+    "HasBigint",		/* name */
+    ConnectionHasBigintMethod,
+				/* callProc */
+    DeleteCmd,			/* deleteProc */
+    CloneCmd			/* cloneProc */
+};
 const static Tcl_MethodType ConnectionHasWvarcharMethodType = {
     TCL_OO_METHOD_VERSION_CURRENT,
 				/* version */
@@ -563,6 +578,7 @@ const static Tcl_MethodType ConnectionHasWvarcharMethodType = {
 const static Tcl_MethodType* ConnectionMethods[] = {
     &ConnectionBeginTransactionMethodType,
     &ConnectionConfigureMethodType,
+    &ConnectionHasBigintMethodType,
     &ConnectionHasWvarcharMethodType,
     NULL
 };
@@ -2024,6 +2040,58 @@ ConnectionEndXcnMethod(
 /*
  *-----------------------------------------------------------------------------
  *
+ * ConnectionHasBigintMethod --
+ *
+ *	Private method that informs the code whether the connection supports
+ *	64-bit ints.
+ *
+ * Usage:
+ *	$connection HasBigint boolean
+ *
+ * Parameters:
+ *	boolean - 1 if the connection supports BIGINT, 0 otherwise
+ *
+ * Results:
+ *	Returns an empty Tcl result.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ConnectionHasBigintMethod(
+    ClientData clientData,	/* Completion type */
+    Tcl_Interp* interp,		/* Tcl interpreter */
+    Tcl_ObjectContext objectContext, /* Object context */
+    int objc,			/* Parameter count */
+    Tcl_Obj *const objv[]	/* Parameter vector */
+) {
+    Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext);
+				/* The current connection object */
+    ConnectionData* cdata = (ConnectionData*)
+	Tcl_ObjectGetMetadata(thisObject, &connectionDataType);
+				/* Instance data */
+    int flag;
+
+    /* Check parameters */
+
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "flag");
+	return TCL_ERROR;
+    }
+    if (Tcl_GetBooleanFromObj(interp, objv[2], &flag) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (flag) {
+	cdata->flags |= CONNECTION_FLAG_HAS_BIGINT;
+    } else {
+	cdata->flags &= ~CONNECTION_FLAG_HAS_BIGINT;
+    }
+    return TCL_OK;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * ConnectionHasWvarcharMethod --
  *
  *	Private method that informs the code whether the connection supports
@@ -2072,7 +2140,6 @@ ConnectionHasWvarcharMethod(
     }
     return TCL_OK;
 }
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -3511,7 +3578,8 @@ ResultSetConstructor(
 		if (sdata->params[nBound].scale == 0) {
 		    if (sdata->params[nBound].precision < 10) {
 			goto is_integer;
-		    } else if (sdata->params[nBound].precision < 19) {
+		    } else if (sdata->params[nBound].precision < 19
+			       && (cdata->flags & CONNECTION_FLAG_HAS_BIGINT)) {
 			goto is_wide;
 		    } else {
 			/*
@@ -4052,7 +4120,8 @@ GetCell(
 	if (rdata->results[i].scale == 0) {
 	    if (rdata->results[i].precision < 10) {
 		goto convertLong;
-	    } else if (rdata->results[i].precision < 19) {
+	    } else if (rdata->results[i].precision < 19
+		       && (cdata->flags & CONNECTION_FLAG_HAS_BIGINT)) {
 		goto convertWide;
 	    } else {
 		/*

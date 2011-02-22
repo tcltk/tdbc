@@ -240,7 +240,7 @@ package require tdbc
 
 	if {![regexp -expanded {
 	    ^\s*				   # leading whitespace
-	    (?:([[:alpha:]_][[:alnum:]_]*)\s*=\s*) # possible variable name
+	    (?::([[:alpha:]_][[:alnum:]_]*)\s*=\s*) # possible variable name
 	    (?:(?:([[:alpha:]_][[:alnum:]_]*)\s*[.]\s*)?   # catalog
 	       ([[:alpha:]_][[:alnum:]_]*)\s*[.]\s*)?      # schema
 	    ([[:alpha:]_][[:alnum:]_]*)\s*		   # procedure
@@ -273,8 +273,13 @@ package require tdbc
 		    dict set typemap $typeNum [string tolower \
 						   [dict get $row TYPE_NAME]]
 		}
-		if {$typeNum == -9} {
-		    [self] HasWvarchar 1
+		switch -exact -- $typeNum {
+		    -9 {
+			[self] HasWvarchar 1
+		    }
+		    -5 {
+			[self] HasBigint 1
+		    }
 		}
 	    }
 	    rename $typesStmt {}
