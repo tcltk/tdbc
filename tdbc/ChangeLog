@@ -1,3 +1,13 @@
+2011-02-21  Kevin B. Kenny  <kennykb@acm.org>
+
+	* library/tdbc.tcl (tdbc::connection transaction):
+		Modified the 'transaction' method to attempt to rollback
+		if a commit fails, in order to clear out a failed
+		transaction.
+	* doc/tdbc_connection.n:
+		Modified the 'tdbc_connection' manual page to reflect the
+		above behaviour. (Bug [d7dd97c402])
+
 2011-02-20  Kevin B. Kenny  <kennykb@acm.org>
 
 	* library/tdbc.tcl:
@@ -21,7 +31,7 @@
 	Added empty comment at the start of each manpage because 'man'
 	interprets comments there as directives. Thanks to Konstantin
 	Kohmoutov for reporting and diagnosing this error.
-	
+
 2011-01-23  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in: Changed to put the absolute path name of the

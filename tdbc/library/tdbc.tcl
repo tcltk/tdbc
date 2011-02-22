@@ -176,14 +176,21 @@ oo::class create ::tdbc::connection {
     method transaction {script} {
 	my begintransaction
 	set status [catch {uplevel 1 $script} result options]
+	if {$status in {0 2 3 4}} {
+	    set status2 [catch {my commit} result2 options2]
+	    if {$status2 == 1} {
+		set status 1
+		set result $result2
+		set options $options2
+	    }
+	}
 	switch -exact -- $status {
 	    0 {
-		my commit
+		# do nothing
 	    }
 	    2 - 3 - 4 {
 		set options [dict merge {-level 1} $options[set options {}]]
 		dict incr options -level
-		my commit
 	    }
 	    default {
 		my rollback

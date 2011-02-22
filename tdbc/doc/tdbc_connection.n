@@ -280,10 +280,12 @@ transaction, and evaluates the supplied \fIscript\fR argument as a Tcl
 script in the caller's scope. If \fIscript\fR terminates normally, or
 by \fBbreak\fR, \fBcontinue\fR, or \fBreturn\fR, the transaction is
 committed (and any action requested by \fBbreak\fR, \fBcontinue\fR, or
-\fBreturn\fR takes place). If the evaluation of \fIscript\fR ends
-with an error, the transaction is rolled back and the error is
-rethrown. Any other return code is treated similarly to \fBbreak\fR,
-\fBcontinue\fR, or \fBreturn\fR.
+\fBreturn\fR takes place). If the commit fails for any reason,
+the error in the commit is treated as an error in the \fIscript\fR.
+In the case of an error in \fIscript\fR or in the commit, 
+the transaction is rolled back and the error is
+rethrown. Any nonstandard return code from the script
+causes the transaction to be rolled back and then is rethrown.
 .PP
 The \fBallrows\fR object command prepares a SQL statement (given by
 the \fIsql-code\fR parameter) to execute against the database.
