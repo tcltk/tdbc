@@ -2646,6 +2646,50 @@ test tdbc::postgres-18.3 {$statement params - try a few data types} {*}{
     -result {in decimal 10 0 in varchar 40}
 }
 
+test tdbc::postgres-18.4 {$statement params - default param types} {
+    -setup {
+	set s [::db prepare {
+	    SELECT name FROM people 
+	    WHERE name LIKE :pattern
+	    AND idnum >= :minid
+	}]
+    }
+    -body {
+	set d [$s params]
+	list \
+	    [dict get $d minid direction] \
+	    [dict get $d minid type] \
+	    [dict get $d minid precision] \
+	    [dict get $d minid scale] \
+	    [dict get $d pattern direction] \
+	    [dict get $d pattern type] \
+	    [dict get $d pattern precision] \
+	    [dict get $d pattern scale]
+    } 
+    -cleanup {
+	rename $s {}
+    }
+    -result {in integer 0 0 in text 0 0}
+}
+
+test tdbc::postgres-18.5 {statement with parameter of indeterminate type} {
+    -setup {
+	set s [::db prepare {SELECT :foo::VARCHAR}]
+    }
+    -body {
+	set d [$s params]
+	list \
+	    [dict get $d foo direction] \
+	    [dict get $d foo type] \
+	    [dict get $d foo precision] \
+	    [dict get $d foo scale]
+    }
+    -cleanup {
+	rename $s {}
+    }
+    -result {in varchar 0 0}
+}
+
 test tdbc::postgres-19.1 {$connection configure - no args} \
     -setup {
 	::db configure -encoding UTF8

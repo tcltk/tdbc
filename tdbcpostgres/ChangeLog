@@ -1,3 +1,24 @@
+2011-04-12  Kevin B. Kenny  <kennybk@acm.org>
+
+	* generic/pqStubDefs.txt:
+		Added stubs for PQdescribePrepared, PQnparams and PQparamtype,
+		needed for correct parameter specification of prepared
+		statements.
+	* generic/pqStubInit.c:
+	* generic/pgStubs.h:
+		make genstubs
+	* generic/tdbcpostgres.c (PrepareStatement, StatementConstructor):
+		Changed statement preparation to *not* specify unknown
+		data types but to let the PostgreSQL server try to deduce
+		them all. Added code to report the deduced parameter types
+		back to the script in the 'params' method. Added code to
+		the statement constructor to accept PostgreSQL type cast
+		syntax as a way to make prepared statements work when they
+		otherwise would give 'could not determine data type' errors.
+	* tests/tdbcpostgres.test (tdbc::postgres-18.[45]):
+		Added test cases for correct reporting of deduced parameter
+		types and for PostgreSQL 
+
 2011-02-20  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/pqStubInit.c:
@@ -12,7 +33,7 @@
 	Added empty comment at the start of each manpage because 'man'
 	interprets comments there as directives. Thanks to Konstantin
 	Kohmoutov for reporting and diagnosing this error.
-	
+
 2011-01-23  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcpostgres.c: Modified to pass '@' through into the

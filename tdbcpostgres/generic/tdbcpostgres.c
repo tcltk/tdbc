@@ -1921,11 +1921,11 @@ NewStatement(
  *
  * PrepareStatement --
  *
- *	Prepare the postgres stored statement. When stmtName equals to
- *	NULL, satement name is taken from sdata strucure.
+ *	Prepare a PostgreSQL statement. When stmtName equals to
+ *	NULL, statement name is taken from sdata strucure.
  *
  * Results:
- *	Returns the Posgre result object if successeful, and NULL on failure.
+ *	Returns the Posgres result object if successful, and NULL on failure.
  *
  * Side effects:
  *	Prepares the statement.
@@ -1944,21 +1944,43 @@ PrepareStatement(
 				/* Connection data */
     const char* nativeSqlStr;	/* Native SQL statement to prepare */
     int nativeSqlLen;		/* Length of the statement */
-    PGresult * res;		/* result of statement preparing*/
-
+    PGresult* res;		/* result of statement preparing*/
+    PGresult* res2;
+    int i;
 
     if (stmtName == NULL) {
 	stmtName = sdata->stmtName;
     }
 
-    /* Prepare the statement */
-	
+    /* 
+     * Prepare the statement. Rather than giving parameter types, try
+     * to let PostgreSQL infer all of them.
+     */
+
     nativeSqlStr = Tcl_GetStringFromObj(sdata->nativeSql, &nativeSqlLen);
-    res = PQprepare(cdata->pgPtr, stmtName, nativeSqlStr,
-		    sdata->nParams, sdata->paramDataTypes);
+    res = PQprepare(cdata->pgPtr, stmtName, nativeSqlStr, 0, NULL);
     if (res == NULL) {
         TransferPostgresError(interp, cdata->pgPtr);
+	return NULL;
     }
+
+    /*
+     * Report on what parameter types were inferred.
+     */
+
+    res2 = PQdescribePrepared(cdata->pgPtr, stmtName);
+    if (res2 == NULL) {
+	TransferPostgresError(interp, cdata->pgPtr);
+	PQclear(res);
+	return NULL;
+    }
+    for (i = 0; i < PQnparams(res2); ++i) {
+	sdata->paramDataTypes[i] = PQparamtype(res2, i);
+	sdata->params[i].precision = 0;
+	sdata->params[i].scale = 0;
+    }
+    PQclear(res2);
+
     return res;
 }
 
@@ -2126,6 +2148,14 @@ StatementConstructor(
 	switch (tokenStr[0]) {
 	case '$':
 	case ':':
+	    /*
+	     * A PostgreSQL cast is not a parameter!
+	     */
+	    if (tokenStr[0] == ':' && tokenStr[1] == tokenStr[0]) {
+		Tcl_AppendToObj(nativeSql, tokenStr, tokenLen);
+		break;
+	    }
+
 	    j+=1;
 	    snprintf(tmpstr, 30, "$%d", j);
 	    Tcl_AppendToObj(nativeSql, tmpstr, -1);
@@ -2748,14 +2778,7 @@ ResultSetConstructor(
 						   &paramLengths[i]);
 		break;
 		
-	    case TIMESTAMPOID:
-	    case DATEOID:
-	    case TIMEOID:
-	    case BITOID:
-	    case TEXTOID:
-	    case VARCHAROID:
-	    case BPCHAROID:
-	    case UNTYPEDOID:
+	    default:
 	    convertString:
 		paramFormats[i] = 0;
 		paramValues[i] = Tcl_GetStringFromObj(paramValObj,

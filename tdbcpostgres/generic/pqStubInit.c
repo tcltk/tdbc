@@ -4,7 +4,7 @@
  *	Stubs tables for the foreign PostgreSQL libraries so that
  *	Tcl extensions can use them without the linker's knowing about them.
  *
- * @CREATED@ 2011-02-20 21:37:07Z by genExtStubs.tcl from ../generic/pqStubDefs.txt
+ * @CREATED@ 2011-04-12 02:23:01Z by genExtStubs.tcl from ../generic/pqStubDefs.txt
  *
  * Copyright (c) 2010 by Kevin B. Kenny.
  *
@@ -55,20 +55,23 @@ static const char* pqSymbolNames[] = {
     "PQcmdTuples",
     "PQconnectdb",
     "PQerrorMessage",
+    "PQdescribePrepared",
     "PQexec",
     "PQexecPrepared",
     "PQdb",
     "PQfinish",
     "PQfname",
+    "PQfnumber",
+    "PQftype",
     "PQgetisnull",
     "PQgetlength",
     "PQgetvalue",
     "PQhost",
     "PQnfields",
+    "PQnparams",
     "PQntuples",
-    "PQfnumber",
-    "PQftype",
     "PQoptions",
+    "PQparamtype",
     "PQpass",
     "PQport",
     "PQprepare",
