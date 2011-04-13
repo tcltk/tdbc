@@ -3067,6 +3067,44 @@ test tdbc::sqlite3-30.5 {Multiple result sets - allrows} {*}{
     -result {{idnum 2 name wilma} {idnum 3 name pebbles something 1}}
 }
 
+test tdbc::sqlite3-30.6 {Empty result set among multiples} {
+    -setup {
+	::db allrows {delete from people}
+	set stmt [db prepare {
+	    INSERT INTO people(idnum, name, info) VALUES(:idnum, :name, NULL)
+	}]
+	$stmt paramtype idnum integer
+	$stmt paramtype name varchar 40
+	set idnum 1
+	foreach name {wilma pebbles barney betty bam-bam} {
+	    set rs [$stmt execute]
+	    rename $rs {}
+	    incr idnum
+	}
+	rename $stmt {}
+	set stmt [::db prepare {
+	    select idnum from people where name = 'fred';
+	    select idnum from people where name = 'barney';
+	}]
+	set rs [$stmt execute]
+    }
+    -body {
+	set result {}
+	while {1} {
+	    lappend result resultset
+	    while {[$rs nextdict row]} {
+		lappend result $row
+	    }
+	    if {[$rs nextresults] == 0} break
+	}
+	set result
+    }
+    -cleanup {
+	rename $rs {}
+    }
+    -result {resultset resultset {idnum 3}}
+}
+
 #-------------------------------------------------------------------------------
 
 # Test cleanup. Drop tables and get rid of the test database.
