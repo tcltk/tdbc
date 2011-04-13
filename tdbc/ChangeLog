@@ -1,3 +1,12 @@
+2011-04-12  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcTokenize.c (Tdbc_Tokenize):
+		Added a special case for PostgreSQL's typecast syntax
+		:var::type. (Allows us to do things like 'select :var::type'
+		without tripping over 'cannot determine data type' errors.
+	* tests/tokenize.test (tokenize-2.1):
+		Added a test case for the above.
+
 2011-02-21  Kevin B. Kenny  <kennykb@acm.org>
 
 	* library/tdbc.tcl (tdbc::connection transaction):

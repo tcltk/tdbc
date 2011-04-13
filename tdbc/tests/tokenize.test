@@ -25,6 +25,10 @@ test tokenize-2.0 {colon substitution, unquoted and quoted} {
     ::tdbc::tokenize {SELECT :a, ':b' FROM y}
 } [list {SELECT } {:a} {, ':b' FROM y}]
 
+test tokenize-2.1 {PostgreSQL cast syntax, not a colon substitution} {
+    ::tdbc::tokenize {SELECT :foo::VARCHAR}
+} [list {SELECT } :foo {::VARCHAR}]
+
 test tokenize-3.0 {complex set of statements} {
     ::tdbc::tokenize {-- begin with a comment :hi;
 	SELECT :a, ':b', ":c", [:d], /* :e, */ :f FROM y;

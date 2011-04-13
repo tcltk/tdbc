@@ -5,6 +5,7 @@
  *	from a SQL statement.
  *
  * Copyright (c) 2007 by D. Richard Hipp.
+ * Copyright (c) 2010, 2011 by Kevin B. Kenny.
  *
  * Please refer to the file, 'license.terms' for the conditions on
  * redistribution of this file and for a DISCLAIMER OF ALL WARRANTIES.
@@ -129,10 +130,15 @@ Tdbc_TokenizeSql(
             }
 
             /* Any of the characters ':', '$', or '@' which is followed
-            ** by an alphanumeric or '_' and is not preceeded by the same
-            ** is a host parameter.
+            ** by an alphanumeric or '_' and is not preceded by the same
+            ** is a host parameter. A name following a doubled colon '::'
+	    ** is also not a host parameter.
             */
-            case ':':
+	    case ':': {
+		if (i > 0 && zSql[i-1] == ':') break;
+	    }
+		/* fallthru */
+	    
             case '$':
             case '@': {
                 if (i>0 && (isalnum((unsigned char)(zSql[i-1]))
