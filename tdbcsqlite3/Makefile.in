@@ -79,10 +79,13 @@ pkgtmfile	= $(tmdir)/$(pkgslash)-$(PACKAGE_VERSION).tm
 
 top_builddir	= .
 
-INSTALL		= @INSTALL@
-INSTALL_PROGRAM	= @INSTALL_PROGRAM@
-INSTALL_DATA	= @INSTALL_DATA@
-INSTALL_SCRIPT	= @INSTALL_SCRIPT@
+INSTALL_OPTIONS =
+INSTALL         = $(SHELL) $(srcdir)/tclconfig/install-sh -c ${INSTALL_OPTIONS}
+INSTALL_DATA_DIR = ${INSTALL} -d -m 755
+INSTALL_PROGRAM = ${INSTALL} -m 555
+INSTALL_DATA    = ${INSTALL} -m 444
+INSTALL_SCRIPT  = ${INSTALL_PROGRAM}
+INSTALL_LIBRARY = ${INSTALL_DATA}
 
 TCL_VERSION	= @TCL_VERSION@
 TCL_MAJOR_VERSION = @TCL_MAJOR_VERSION@
@@ -172,7 +175,7 @@ install-libraries: libraries
 #========================================================================
 
 install-doc: doc
-	@mkdir -p $(DESTDIR)$(mandir)/mann
+	@$(INSTALL_DATA_DIR) $(DESTDIR)$(mandir)/mann
 	@echo "Installing documentation in $(DESTDIR)$(mandir)"
 	@list='$(srcdir)/doc/*.n'; for i in $$list; do \
 	    echo "Installing $$i"; \
@@ -273,7 +276,7 @@ distclean: clean
 #========================================================================
 
 install-lib-binaries: 
-	@mkdir -p $(DESTDIR)$(pkgtmdir)
+	@$(INSTALL_DATA_DIR) $(DESTDIR)$(pkgtmdir)
 	$(INSTALL_DATA) $(srcdir)/library/tdbcsqlite3.tcl \
 		$(DESTDIR)$(pkgtmfile)
 

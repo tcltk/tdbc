@@ -8,8 +8,6 @@
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-#
-# RCS: @(#) $Id: tcl.m4,v 1.148 2010/08/27 01:07:05 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -170,7 +168,7 @@ AC_DEFUN([TEA_PATH_TCLCONFIG], [
 
 	if test x"${ac_cv_c_tclconfig}" = x ; then
 	    TCL_BIN_DIR="# no Tcl configs found"
-	    AC_MSG_ERROR([Can't find Tcl configuration definitions])
+	    AC_MSG_ERROR([Can't find Tcl configuration definitions. Use --with-tcl to specify a directory containing tclConfig.sh])
 	else
 	    no_tcl=
 	    TCL_BIN_DIR="${ac_cv_c_tclconfig}"
@@ -437,12 +435,12 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 	    ;;
     esac
 
+    # The BUILD_$pkg is to define the correct extern storage class
+    # handling when making this package
+    AC_DEFINE_UNQUOTED(BUILD_${PACKAGE_NAME}, [],
+	    [Building extension source?])
     # Do this here as we have fully defined TEA_PLATFORM now
     if test "${TEA_PLATFORM}" = "windows" ; then
-	# The BUILD_$pkg is to define the correct extern storage class
-	# handling when making this package
-	AC_DEFINE_UNQUOTED(BUILD_${PACKAGE_NAME}, [],
-		[Building extension source?])
 	CLEANFILES="$CLEANFILES *.lib *.dll *.pdb *.exp"
     fi
 
@@ -1141,9 +1139,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	CFLAGS_OPTIMIZE=-O2
 	CFLAGS_WARNING="-Wall"
     ], [CFLAGS_WARNING=""])
-dnl FIXME: Replace AC_CHECK_PROG with AC_CHECK_TOOL once cross compiling is fixed.
-dnl AC_CHECK_TOOL(AR, ar)
-    AC_CHECK_PROG(AR, ar, ar)
+    AC_CHECK_TOOL(AR, ar)
     STLIB_LD='${AR} cr'
     LD_LIBRARY_PATH_VAR="LD_LIBRARY_PATH"
     AS_IF([test "x$SHLIB_VERSION" = x],[SHLIB_VERSION="1.0"])
@@ -1172,7 +1168,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 			PATH64="${MSSDK}/Bin/Win64"
 			;;
 		esac
-		if test ! -d "${PATH64}" ; then
+		if test "$GCC" != "yes" -a ! -d "${PATH64}" ; then
 		    AC_MSG_WARN([Could not find 64-bit $MACHINE SDK to enable 64bit mode])
 		    AC_MSG_WARN([Ensure latest Platform SDK is installed])
 		    do64bit="no"
@@ -1297,7 +1293,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 
 	    if test "$GCC" = "yes"; then
 		# mingw gcc mode
-		RC="windres"
+		AC_CHECK_TOOL(RC, windres)
 		CFLAGS_DEBUG="-g"
 		CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
 		SHLIB_LD="$CC -shared"
@@ -1439,7 +1435,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ])
 	    AC_CHECK_LIB(dld, shl_load, tcl_ok=yes, tcl_ok=no)
 	    AS_IF([test "$tcl_ok" = yes], [
-		LDFLAGS="$LDFLAGS -E"
+		LDFLAGS="$LDFLAGS -Wl,-E"
 		CC_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
 		LD_SEARCH_FLAGS='+s +b ${LIB_RUNTIME_DIR}:.'
 		LD_LIBRARY_PATH_VAR="SHLIB_PATH"
@@ -1577,13 +1573,30 @@ dnl AC_CHECK_TOOL(AR, ar)
 		LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
 	    ;;
 	OpenBSD-*)
-	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
-	    SHLIB_SUFFIX=".so"
-	    AS_IF([test $doRpath = yes], [
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
-	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
-	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.${SHLIB_VERSION}'
+	    arch=`arch -s`
+	    case "$arch" in
+	    m88k|vax)
+		SHLIB_SUFFIX=""
+		SHARED_LIB_SUFFIX=""
+		;;
+	    *)
+		SHLIB_CFLAGS="-fPIC"
+		SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
+		SHLIB_SUFFIX=".so"
+		AS_IF([test $doRpath = yes], [
+		    CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
+		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
+		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.${SHLIB_VERSION}'
+		;;
+	    esac
+	    case "$arch" in
+	    m88k|vax)
+		CFLAGS_OPTIMIZE="-O1"
+		;;
+	    *)
+		CFLAGS_OPTIMIZE="-O2"
+		;;
+	    esac
 	    AC_CACHE_CHECK([for ELF], tcl_cv_ld_elf, [
 		AC_EGREP_CPP(yes, [
 #ifdef __ELF__
@@ -1594,10 +1607,10 @@ dnl AC_CHECK_TOOL(AR, ar)
 		LDFLAGS=-Wl,-export-dynamic
 	    ], [LDFLAGS=""])
 	    AS_IF([test "${TCL_THREADS}" = "1"], [
-		# OpenBSD builds and links with -pthread, never -lpthread.
+		# On OpenBSD:	Compile with -pthread
+		#		Don't link with -lpthread
 		LIBS=`echo $LIBS | sed s/-lpthread//`
 		CFLAGS="$CFLAGS -pthread"
-		SHLIB_CFLAGS="$SHLIB_CFLAGS -pthread"
 	    ])
 	    # OpenBSD doesn't do version numbers with dots.
 	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
@@ -2753,8 +2766,17 @@ TEA version not specified.])
 	    ;;
 	*)
 	    CYGPATH=echo
-	    EXEEXT=""
-	    TEA_PLATFORM="unix"
+	    # Maybe we are cross-compiling....
+	    case ${host_alias} in
+		*mingw32*)
+		EXEEXT=".exe"
+		TEA_PLATFORM="windows"
+		;;
+	    *)
+		EXEEXT=""
+		TEA_PLATFORM="unix"
+		;;
+	    esac
 	    ;;
     esac
 
@@ -2766,6 +2788,8 @@ TEA version not specified.])
 	exec_prefix_default=yes
 	exec_prefix=$prefix
     fi
+
+    AC_MSG_NOTICE([configuring ${PACKAGE_NAME} ${PACKAGE_VERSION}])
 
     AC_SUBST(EXEEXT)
     AC_SUBST(CYGPATH)
@@ -3081,8 +3105,6 @@ AC_DEFUN([TEA_SETUP_COMPILER_CC], [
     AC_PROG_CC
     AC_PROG_CPP
 
-    AC_PROG_INSTALL
-
     #--------------------------------------------------------------------
     # Checks to see if the make program sets the $MAKE variable.
     #--------------------------------------------------------------------
@@ -3093,7 +3115,7 @@ AC_DEFUN([TEA_SETUP_COMPILER_CC], [
     # Find ranlib
     #--------------------------------------------------------------------
 
-    AC_PROG_RANLIB
+    AC_CHECK_TOOL(RANLIB, ranlib)
 
     #--------------------------------------------------------------------
     # Determines the correct binary file extension (.o, .obj, .exe etc.)
@@ -3186,8 +3208,8 @@ print("manifest needed")
 #endif
 	], [
 	# Could do a CHECK_PROG for mt, but should always be with MSVC8+
-	VC_MANIFEST_EMBED_DLL="mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;2"
-	VC_MANIFEST_EMBED_EXE="mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;1"
+	VC_MANIFEST_EMBED_DLL="if test -f \[$]@.manifest ; then mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;2 ; fi"
+	VC_MANIFEST_EMBED_EXE="if test -f \[$]@.manifest ; then mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;1 ; fi"
 	MAKE_SHARED_LIB="${MAKE_SHARED_LIB} ; ${VC_MANIFEST_EMBED_DLL}"
 	TEA_ADD_CLEANFILES([*.manifest])
 	])
@@ -3854,6 +3876,8 @@ AC_DEFUN([TEA_LOAD_CONFIG], [
         $1_LIB_SPEC=${$1_BUILD_LIB_SPEC}
         $1_STUB_LIB_SPEC=${$1_BUILD_STUB_LIB_SPEC}
         $1_STUB_LIB_PATH=${$1_BUILD_STUB_LIB_PATH}
+        $1_INCLUDE_SPEC=${$1_BUILD_INCLUDE_SPEC}
+        $1_LIBRARY_PATH=${$1_LIBRARY_PATH}
     fi
 
     AC_SUBST($1_VERSION)

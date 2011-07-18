@@ -83,10 +83,13 @@ pkgincludedir	= $(includedir)/$(PKG_DIR)
 
 top_builddir	= .
 
-INSTALL		= @INSTALL@
-INSTALL_PROGRAM	= @INSTALL_PROGRAM@
-INSTALL_DATA	= @INSTALL_DATA@
-INSTALL_SCRIPT	= @INSTALL_SCRIPT@
+INSTALL_OPTIONS =
+INSTALL         = $(SHELL) $(srcdir)/tclconfig/install-sh -c ${INSTALL_OPTIONS}
+INSTALL_DATA_DIR = ${INSTALL} -d -m 755
+INSTALL_PROGRAM = ${INSTALL} -m 755
+INSTALL_DATA    = ${INSTALL} -m 444
+INSTALL_SCRIPT  = ${INSTALL_PROGRAM}
+INSTALL_LIBRARY = ${INSTALL_DATA}
 
 PACKAGE_NAME	= @PACKAGE_NAME@
 PACKAGE_VERSION	= @PACKAGE_VERSION@
@@ -207,7 +210,7 @@ install-binaries: binaries install-lib-binaries install-bin-binaries
 #========================================================================
 
 install-libraries: libraries
-	@mkdir -p $(DESTDIR)$(includedir)
+	@$(INSTALL_DATA_DIR) $(DESTDIR)$(includedir)
 	@echo "Installing header files in $(DESTDIR)$(includedir)"
 	@list='$(PKG_HEADERS)'; for i in $$list; do \
 	    echo "Installing $(srcdir)/$$i" ; \
@@ -220,7 +223,7 @@ install-libraries: libraries
 #========================================================================
 
 install-doc: doc
-	@mkdir -p $(DESTDIR)$(mandir)/mann
+	@$(INSTALL_DATA_DIR) $(DESTDIR)$(mandir)/mann
 	@echo "Installing documentation in $(DESTDIR)$(mandir)"
 	@list='$(srcdir)/doc/*.n'; for i in $$list; do \
 	    echo "Installing $$i"; \
@@ -371,7 +374,7 @@ distclean: clean
 #========================================================================
 
 install-lib-binaries: binaries
-	@mkdir -p $(DESTDIR)$(pkglibdir)
+	@$(INSTALL_DATA_DIR) $(DESTDIR)$(pkglibdir)
 	@list='$(lib_BINARIES)'; for p in $$list; do \
 	  if test -f $$p; then \
 	    echo " $(INSTALL_PROGRAM) $$p $(DESTDIR)$(pkglibdir)/$$p"; \
@@ -416,7 +419,7 @@ install-lib-binaries: binaries
 #========================================================================
 
 install-bin-binaries: binaries
-	@mkdir -p $(DESTDIR)$(bindir)
+	@$(INSTALL_DATA_DIR) $(DESTDIR)$(bindir)
 	@list='$(bin_BINARIES)'; for p in $$list; do \
 	  if test -f $$p; then \
 	    echo " $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/$$p"; \

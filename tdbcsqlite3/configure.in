@@ -86,7 +86,6 @@ AC_SUBST(CLEANFILES)
 #--------------------------------------------------------------------
 
 TEA_PROG_TCLSH
-AC_PROG_INSTALL
 
 #--------------------------------------------------------------------
 # Finally, substitute all of the various values into the Makefile.

@@ -1,3 +1,11 @@
+2011-07-18  Don Porter  <dgp@users.sourceforge.net>
+
+	* configure.in: Update to latest TEA 3.9 revisions.
+	* Makefile.in:
+	* tclconfig/*:
+
+	* configure:    autoconf-2.59
+
 2011-02-20  Kevin B. Kenny  <kennykb@acm.org>
 
 	* tests/tdbcmysql.test:
