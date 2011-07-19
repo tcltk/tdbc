@@ -46,7 +46,7 @@ To advance the version number:
     Kaboodle:
     TDBCMYSQL_DB=test
     TDBCPOSTGRES_DB=tdbc_test
-    TDBCPOSTGRES_HOST=127.0.0,1
+    TDBCPOSTGRES_HOST=127.0.0.1
     TDBCPOSTGRES_PORT=5433
     TDBCPOSTGRES_USER=tdbc_test
     TDBCPOSTGRES_PASSWD=tdbc_test

@@ -1,3 +1,11 @@
+2011-07-19  Kevin B. Kenny  <kennykb@acm.org>
+
+	* configure.in:
+	* Makefile.in:
+	* README:	Advanced version number to 1.0b16.
+
+	* configure: 	autoconf 2.59
+
 2011-07-18  Don Porter  <dgp@users.sourceforge.net>
 
 	* configure.in: Update to latest TEA 3.9 revisions.
