@@ -3,7 +3,7 @@
 	* configure.in:
 	* README:
 	* library/tdbcsqlite3.tcl:
-			Advanced version number to 1.0b16.
+			Advanced version number to 1.0b17.
 	* configure:    autoconf-2.59
 
 2011-07-18  Don Porter  <dgp@users.sourceforge.net>
