@@ -24,7 +24,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "fakemysql.h"
+#ifdef USE_DBLIB_STUBS
+# include "fakemysql.h"
+# include "mysqlCompat.c"
+#else
+# include <mysql.h>
+# include "mysqlNative.c"
+#endif /* USE_DBLIB_STUBS */
 
 /* Static data contained in this file */
 
@@ -34,8 +40,6 @@ TCL_DECLARE_MUTEX(mysqlMutex);	/* Mutex protecting the global environment
 static int mysqlRefCount = 0;	/* Reference count on the global environment */
 Tcl_LoadHandle mysqlLoadHandle = NULL;
 				/* Handle to the MySQL library */
-unsigned long mysqlClientVersion;
-				/* Version number of MySQL */
 
 /*
  * Objects to create within the literal pool
@@ -388,18 +392,12 @@ enum IsolationLevel {
 /* Declarations of static functions appearing in this file */
 
 static MYSQL_BIND* MysqlBindAlloc(int nBindings);
-static MYSQL_BIND* MysqlBindIndex(MYSQL_BIND* b, int i);
-static void* MysqlBindAllocBuffer(MYSQL_BIND* b, int i, unsigned long len);
-static void MysqlBindFreeBuffer(MYSQL_BIND* b, int i);
 static void MysqlBindSetBufferType(MYSQL_BIND* b, int i,
 				   enum enum_field_types t);
-static void* MysqlBindGetBuffer(MYSQL_BIND* b, int i);
 static unsigned long MysqlBindGetBufferLength(MYSQL_BIND* b, int i);
 static void MysqlBindSetLength(MYSQL_BIND* b, int i, unsigned long* p);
 static void MysqlBindSetIsNull(MYSQL_BIND* b, int i, my_bool* p);
 static void MysqlBindSetError(MYSQL_BIND* b, int i, my_bool* p);
-
-static MYSQL_FIELD* MysqlFieldIndex(MYSQL_FIELD* fields, int i);
 
 static void TransferMysqlError(Tcl_Interp* interp, MYSQL* mysqlPtr);
 static void TransferMysqlStmtError(Tcl_Interp* interp, MYSQL_STMT* mysqlPtr);
@@ -718,240 +716,13 @@ const static Tcl_MethodType* ResultSetMethods[] = {
 static MYSQL_BIND*
 MysqlBindAlloc(int nBindings)
 {
-    int size;
     void* retval = NULL;
-    if (mysqlClientVersion >= 50100) {
-	size = sizeof(struct st_mysql_bind_51);
-    } else {
-	size = sizeof(struct st_mysql_bind_50);
-    }
-    size *= nBindings;
+    int size = nBindings * MysqlGetBindSize();
     if (size != 0) {
 	retval = ckalloc(size);
 	memset(retval, 0, size);
     }
     return (MYSQL_BIND*) retval;
-}
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MysqlBindIndex --
- *
- *	Returns a pointer to one of an array of MYSQL_BIND objects
- *
- *-----------------------------------------------------------------------------
- */
-
-static MYSQL_BIND*
-MysqlBindIndex(
-    MYSQL_BIND* b, 		/* Binding array to alter */
-    int i			/* Index in the binding array */
-) {
-    if (mysqlClientVersion >= 50100) {
-	return (MYSQL_BIND*)(((struct st_mysql_bind_51*) b) + i);
-    } else {
-	return (MYSQL_BIND*)(((struct st_mysql_bind_50*) b) + i);
-    }
-}
-
-/* 
- *-----------------------------------------------------------------------------
- *
- * MysqlBindAllocBuffer --
- *
- *	Allocates the buffer in a MYSQL_BIND object
- *
- * Results:
- *	Returns a pointer to the allocated buffer
- *
- *-----------------------------------------------------------------------------
- */
-
-static void*
-MysqlBindAllocBuffer(
-    MYSQL_BIND* b,		/* Pointer to a binding array */
-    int i,			/* Index into the array */
-    unsigned long len		/* Length of the buffer to allocate or 0 */
-) {
-    void* block = NULL;
-    if (len != 0) {
-	block = ckalloc(len);
-    }
-    if (mysqlClientVersion >= 50100) {
-	((struct st_mysql_bind_51*) b)[i].buffer = block;
-	((struct st_mysql_bind_51*) b)[i].buffer_length = len;
-    } else {
-	((struct st_mysql_bind_50*) b)[i].buffer = block;
-	((struct st_mysql_bind_50*) b)[i].buffer_length = len;
-    }
-    return block;
-}
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MysqlBindFreeBuffer --
- *
- *	Frees trhe buffer in a MYSQL_BIND object
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Buffer is returned to the system.
- *
- *-----------------------------------------------------------------------------
- */
-static void
-MysqlBindFreeBuffer(
-    MYSQL_BIND* b,		/* Pointer to a binding array */
-    int i			/* Index into the array */
-) {
-    if (mysqlClientVersion >= 50100) {
-	struct st_mysql_bind_51* bindings = (struct st_mysql_bind_51*) b;
-	if (bindings[i].buffer) {
-	    ckfree(bindings[i].buffer);
-	    bindings[i].buffer = NULL;
-	}
-	bindings[i].buffer_length = 0;
-    } else {
-	struct st_mysql_bind_50* bindings = (struct st_mysql_bind_50*) b;
-	if (bindings[i].buffer) {
-	    ckfree(bindings[i].buffer);
-	    bindings[i].buffer = NULL;
-	}
-	bindings[i].buffer_length = 0;
-    }
-}
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MysqlBindGetBufferLength, MysqlBindSetBufferType, MysqlBindGetBufferType,
- * MysqlBindSetLength, MysqlBindSetIsNull,
- * MysqlBindSetError --
- *
- *	Access the fields of a MYSQL_BIND object
- *
- *-----------------------------------------------------------------------------
- */
-
-static void*
-MysqlBindGetBuffer(
-    MYSQL_BIND* b, 		/* Binding array to alter */
-    int i			/* Index in the binding array */
-) {
-    if (mysqlClientVersion >= 50100) {
-	return ((struct st_mysql_bind_51*) b)[i].buffer;
-    } else {
-	return ((struct st_mysql_bind_50*) b)[i].buffer;
-    }
-}
-
-static unsigned long
-MysqlBindGetBufferLength(
-    MYSQL_BIND* b, 		/* Binding array to alter */
-    int i			/* Index in the binding array */
-) {
-    if (mysqlClientVersion >= 50100) {
-	return ((struct st_mysql_bind_51*) b)[i].buffer_length;
-    } else {
-	return ((struct st_mysql_bind_50*) b)[i].buffer_length;
-    }
-
-}
-
-static enum enum_field_types
-MysqlBindGetBufferType(
-    MYSQL_BIND* b, 		/* Binding array to alter */
-    int i			/* Index in the binding array */
-) {
-    if (mysqlClientVersion >= 50100) {
-	return ((struct st_mysql_bind_51*) b)[i].buffer_type;
-    } else {
-	return ((struct st_mysql_bind_50*) b)[i].buffer_type;
-    }
-}
-
-static void 
-MysqlBindSetBufferType(
-    MYSQL_BIND* b, 		/* Binding array to alter */
-    int i,			/* Index in the binding array */
-    enum enum_field_types t	/* Buffer type to assign */
-) {
-    if (mysqlClientVersion >= 50100) {
-	((struct st_mysql_bind_51*) b)[i].buffer_type = t;
-    } else {
-	((struct st_mysql_bind_50*) b)[i].buffer_type = t;
-    }
-}
-
-static void 
-MysqlBindSetLength(
-    MYSQL_BIND* b, 		/* Binding array to alter */
-    int i,			/* Index in the binding array */
-    unsigned long* p		/* Length pointer to assign */
-) {
-    if (mysqlClientVersion >= 50100) {
-	((struct st_mysql_bind_51*) b)[i].length = p;
-    } else {
-	((struct st_mysql_bind_50*) b)[i].length = p;
-    }
-}
-
-static void 
-MysqlBindSetIsNull(
-    MYSQL_BIND* b, 		/* Binding array to alter */
-    int i,			/* Index in the binding array */
-    my_bool* p			/* "Is null" indicator pointer to assign */
-) {
-    if (mysqlClientVersion >= 50100) {
-	((struct st_mysql_bind_51*) b)[i].is_null = p;
-    } else {
-	((struct st_mysql_bind_50*) b)[i].is_null = p;
-    }
-}
-
-static void 
-MysqlBindSetError(
-    MYSQL_BIND* b, 		/* Binding array to alter */
-    int i,			/* Index in the binding array */
-    my_bool* p			/* Error indicator pointer to assign */
-) {
-    if (mysqlClientVersion >= 50100) {
-	((struct st_mysql_bind_51*) b)[i].error = p;
-    } else {
-	((struct st_mysql_bind_50*) b)[i].error = p;
-    }
-}
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MysqlFieldIndex --
- *
- *	Return a pointer to a given MYSQL_FIELD structure in an array
- *
- * The MYSQL_FIELD structure grows by one pointer between 5.0 and 5.1.
- * Our code never creates a MYSQL_FIELD, nor does it try to access that
- * pointer, so we handle things simply by casting the types.
- *
- *-----------------------------------------------------------------------------
- */
-
-static MYSQL_FIELD*
-MysqlFieldIndex(MYSQL_FIELD* fields,
-				/*  Pointer to the array*/
-		int i)		/* Index in the array */
-{
-    MYSQL_FIELD* retval;
-    if (mysqlClientVersion >= 50100) {
-	retval = (MYSQL_FIELD*)(((struct st_mysql_field_51*) fields)+i);
-    } else {
-	retval = (MYSQL_FIELD*)(((struct st_mysql_field_50*) fields)+i);
-    }
-    return retval;
 }
 
 /*
@@ -3695,12 +3466,14 @@ Tdbcmysql_Init(
 
     Tcl_MutexLock(&mysqlMutex);
     if (mysqlRefCount == 0) {
+#ifdef USE_DBLIB_STUBS
 	if ((mysqlLoadHandle = MysqlInitStubs(interp)) == NULL) {
 	    Tcl_MutexUnlock(&mysqlMutex);
 	    return TCL_ERROR;
 	}
+#endif /* USE_DBLIB_STUBS */
 	mysql_library_init(0, NULL, NULL);
-	mysqlClientVersion = mysql_get_client_version();
+	MysqlSaveClientVersion(mysql_get_client_version());
     }
     ++mysqlRefCount;
     Tcl_MutexUnlock(&mysqlMutex);
@@ -3758,3 +3531,6 @@ DeletePerInterpData(
     }
     Tcl_MutexUnlock(&mysqlMutex);
 }
+
+/* vim: set ts=8 sw=4 sts=4 noet: */
+
