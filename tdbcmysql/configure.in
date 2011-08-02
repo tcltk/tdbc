@@ -136,6 +136,27 @@ AC_ARG_WITH([mysql-libs],
 	[TEA_ADD_LIBS(-L$withval)])
 
 #-----------------------------------------------------------------------
+# Check for inlining
+#-----------------------------------------------------------------------
+
+AC_DEFUN(TDBC_C_INLINE, [
+AC_C_INLINE
+case $ac_cv_c_inline in
+	inline|yes)
+		# Do nothing, the compiler supports the "inline" keyword
+	;;
+	no)
+		TEA_ADD_CFLAGS([-Dinline=])
+	;;
+	*)
+		TEA_ADD_CFLAGS([-Dinline=$ac_cv_c_inline])
+	;;
+esac
+])
+
+TDBC_C_INLINE
+
+#-----------------------------------------------------------------------
 # Specify the C source files to compile in TEA_ADD_SOURCES,
 # public headers that need to be installed in TEA_ADD_HEADERS,
 # stub library C source files to compile in TEA_ADD_STUB_SOURCES,
