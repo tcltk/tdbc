@@ -96,6 +96,46 @@ AC_CHECK_SIZEOF([long])
 AC_DEFINE([DONT_TD_VOID],[1])
 
 #-----------------------------------------------------------------------
+# Check if we need to enable early binding to the MySQL client
+# library in the driver.
+#-----------------------------------------------------------------------
+
+AC_DEFUN(TDBC_CHECK_EARLY_BINDING, [
+AC_MSG_CHECKING([whether to enable early binding to the client library])
+AC_ARG_ENABLE([early-binding],
+	AC_HELP_STRING([--enable-early-binding],
+		[Link database access library to the driver (deault: no).
+		 By default, the driver attempts to load the
+         database access library at runtime using a set of well-known
+         filenames. If this option is set to "yes", the database access
+         library will instead be linked to the driver in a usual way.]),
+	[TDBC_EARLY_BINDING=$enableval],
+	[TDBC_EARLY_BINDING=no])
+echo "${TDBC_EARLY_BINDING}"
+AC_SUBST(TDBC_EARLY_BINDING)
+])
+
+TDBC_CHECK_EARLY_BINDING
+
+#-----------------------------------------------------------------------
+# Allow the user to specify where the MySQL include files
+# and libraries are located.  This is not used when building
+# normally, using database library stubs.
+#-----------------------------------------------------------------------
+
+AC_ARG_WITH([mysql-includes],
+	AC_HELP_STRING([--with-mysql-includes],
+		[location of MySQL include files. Only used when configuring
+		 with the "--enable-early-binding" option.]),
+	[TEA_ADD_INCLUDES(-I$withval)])
+
+AC_ARG_WITH([mysql-libs],
+	AC_HELP_STRING([--with-mysql-libs],
+		[location of MySQL client libraries. Only used when configuring
+		 with the "--enable-early-binding" option.]),
+	[TEA_ADD_LIBS(-L$withval)])
+
+#-----------------------------------------------------------------------
 # Specify the C source files to compile in TEA_ADD_SOURCES,
 # public headers that need to be installed in TEA_ADD_HEADERS,
 # stub library C source files to compile in TEA_ADD_STUB_SOURCES,
@@ -104,8 +144,18 @@ AC_DEFINE([DONT_TD_VOID],[1])
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES(generic/tdbcmysql.c generic/mysqlStubInit.c)
-TEA_ADD_HEADERS(generic/fakemysql.h generic/mysqlStubs.h)
+TEA_ADD_SOURCES(generic/tdbcmysql.c)
+TEA_ADD_HEADERS(generic/mysqlStubs.h)
+if test "x$TDBC_EARLY_BINDING" == "xno" ; then
+	TEA_ADD_SOURCES(generic/mysqlStubInit.c)
+	TEA_ADD_HEADERS(generic/fakemysql.h)
+	TEA_ADD_CFLAGS([-DUSE_DBLIB_STUBS])
+else
+	AC_CHECK_LIB([mysqlclient], [mysql_server_init],
+		[TEA_ADD_LIBS([-lmysqlclient])],
+		[AC_MSG_ERROR("ouch!")])
+dnl	AC_CHECK_HEADER([mysql.h])
+fi
 if test "${TCL_MAJOR_VERSION}" -eq 8 ; then
   if test "${TCL_MINOR_VERSION}" -eq 5 ; then
     TEA_ADD_INCLUDES([${TCLOO_INCLUDE_SPEC}])
