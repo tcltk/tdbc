@@ -1,17 +1,17 @@
 
-static void
+static inline void
 MysqlSaveClientVersion(unsigned long ver)
 {
     /* Intentionally does nothing */
 }
 
-static size_t
+static inline size_t
 MysqlGetBindSize()
 {
     return sizeof(MYSQL_BIND);
 }
 
-static MYSQL_BIND*
+static inline MYSQL_BIND*
 MysqlBindIndex(
     MYSQL_BIND* b,
     int i
@@ -19,7 +19,7 @@ MysqlBindIndex(
     return b + i;
 }
 
-static MYSQL_FIELD*
+static inline MYSQL_FIELD*
 MysqlFieldIndex(
     MYSQL_FIELD* fields,
     int i)
@@ -27,7 +27,7 @@ MysqlFieldIndex(
     return fields + i;
 }
 
-static void*
+static inline void*
 MysqlBindAllocBuffer(
     MYSQL_BIND* b,		/* Pointer to a binding array */
     int i,			/* Index into the array */
@@ -42,7 +42,7 @@ MysqlBindAllocBuffer(
     return block;
 }
 
-static void
+static inline void
 MysqlBindFreeBuffer(
     MYSQL_BIND* b,		/* Pointer to a binding array */
     int i			/* Index into the array */
@@ -54,7 +54,7 @@ MysqlBindFreeBuffer(
     b[i].buffer_length = 0;
 }
 
-static void*
+static inline void*
 MysqlBindGetBuffer(
     MYSQL_BIND* b, 		/* Binding array to alter */
     int i			/* Index in the binding array */
@@ -62,7 +62,7 @@ MysqlBindGetBuffer(
     return b[i].buffer;
 }
 
-static unsigned long
+static inline unsigned long
 MysqlBindGetBufferLength(
     MYSQL_BIND* b, 		/* Binding array to alter */
     int i			/* Index in the binding array */
@@ -70,7 +70,7 @@ MysqlBindGetBufferLength(
     return b[i].buffer_length;
 }
 
-static enum enum_field_types
+static inline enum enum_field_types
 MysqlBindGetBufferType(
     MYSQL_BIND* b, 		/* Binding array to alter */
     int i			/* Index in the binding array */
@@ -78,7 +78,7 @@ MysqlBindGetBufferType(
     return b[i].buffer_type;
 }
 
-static void 
+static inline void 
 MysqlBindSetBufferType(
     MYSQL_BIND* b, 		/* Binding array to alter */
     int i,			/* Index in the binding array */
@@ -87,7 +87,7 @@ MysqlBindSetBufferType(
     b[i].buffer_type = t;
 }
 
-static void 
+static inline void 
 MysqlBindSetLength(
     MYSQL_BIND* b, 		/* Binding array to alter */
     int i,			/* Index in the binding array */
@@ -96,7 +96,7 @@ MysqlBindSetLength(
     b[i].length = p;
 }
 
-static void 
+static inline void 
 MysqlBindSetIsNull(
     MYSQL_BIND* b, 		/* Binding array to alter */
     int i,			/* Index in the binding array */
@@ -105,7 +105,7 @@ MysqlBindSetIsNull(
     b[i].is_null = p;
 }
 
-static void 
+static inline void 
 MysqlBindSetError(
     MYSQL_BIND* b, 		/* Binding array to alter */
     int i,			/* Index in the binding array */
