@@ -207,7 +207,6 @@ test tdbc::odbc-3.1 {execute a valid statement with no results} {*}{
     }
     -result {1 {} 0}
     -cleanup {
-	catch {
 	    rename $rs {}
 	    rename $stmt {}
 	    set stmt [::db prepare {
@@ -216,7 +215,6 @@ test tdbc::odbc-3.1 {execute a valid statement with no results} {*}{
 	    set rs [$stmt execute]
 	    rename $rs {}
 	    rename $stmt {}
-	}
     }
 }
 

@@ -191,6 +191,7 @@ OdbcInitStubs(Tcl_Interp* interp,
 	    } else {
 		Tcl_ResetResult(interp);
 	    }
+	    Tcl_DecrRefCount(path);
 	}
     }
 

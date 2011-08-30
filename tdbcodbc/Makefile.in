@@ -161,6 +161,9 @@ AR		= @AR@
 CFLAGS		= @CFLAGS@
 COMPILE		= $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 
+VALGRIND		= valgrind
+VALGRINDARGS		= --tool=memcheck --num-callers=16 --leak-resolution=high --leak-check=yes --show-reachable=yes -v
+
 #========================================================================
 # Start of user-definable TARGETS section
 #========================================================================
@@ -245,6 +248,15 @@ test-sqlite: binaries libraries
 	@echo testing tdbcodbc against SQLite
 	TDBCODBC_TYPE=sqlite \
 		$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
+		-load "package ifneeded tdbc::odbc ${PACKAGE_VERSION} \
+			[list source `@CYGPATH@ $(srcdir)/library/tdbcodbc.tcl`]\;[list load `@CYGPATH@ $(PKG_LIB_FILE)` $(PACKAGE_NAME)]"
+
+valgrind-sqlite: binaries libraries
+	TDBCODBC_TYPE=sqlite \
+	$(PKG_ENV) $(TCLSH_ENV) \
+	LD_PRELOAD=$(PKG_LIB_FILE) \
+	$(VALGRIND) $(VALGRINDARGS) \
+	$(TCLSH_PROG) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
 		-load "package ifneeded tdbc::odbc ${PACKAGE_VERSION} \
 			[list source `@CYGPATH@ $(srcdir)/library/tdbcodbc.tcl`]\;[list load `@CYGPATH@ $(PKG_LIB_FILE)` $(PACKAGE_NAME)]"
 

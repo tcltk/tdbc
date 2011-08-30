@@ -15,3 +15,4 @@ package require tcltest 2.2
     -testdir [file dirname [file normalize [info script]]] \
     {*}$argv
 ::tcltest::runAllTests
+rename exit {}

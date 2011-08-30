@@ -1,3 +1,21 @@
+2011-08-30  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefile.in:	Added a 'valgrind-sqlite' rule to allow for
+			leak testing on Unix.
+	* generic/odbcStubInit.c:
+	* generic/tdbcodbc.c:	A round of memory leak hunting.  In the test
+				suite, 6 'definitely lost' blocks remain,
+				all of which at this point appear to be
+				leaks in dependent libraries. Thanks to
+				Giorgios Petasis for reporting the presence
+				of the leaks and diagnosing two of them.
+	* library/tdbcodbc.tcl:	Corrected a typo in 'rename' statements that
+				caused handles to leak (and potentially caused
+				user commands to be deleted?)
+	* tests/all.tcl:	Added [rename exit {}] for leak checking.
+	* tests/tdbcodbc.test:	Removed a useless [catch] on a cleanup
+				operation.
+
 2011-07-19  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in:

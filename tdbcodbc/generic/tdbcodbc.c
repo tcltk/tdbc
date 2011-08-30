@@ -532,7 +532,7 @@ const static Tcl_MethodType ConnectionBeginTransactionMethodType = {
     "begintransaction",		/* name */
     ConnectionBeginTransactionMethod,
 				/* callProc */
-    DeleteCmd,			/* deleteProc */
+    NULL,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
 const static Tcl_MethodType ConnectionConfigureMethodType = {
@@ -540,7 +540,7 @@ const static Tcl_MethodType ConnectionConfigureMethodType = {
 				/* version */
     "configure",		/* name */
     ConnectionConfigureMethod,	/* callProc */
-    DeleteCmd,			/* deleteProc */
+    NULL,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
 const static Tcl_MethodType ConnectionEndXcnMethodType = {
@@ -548,7 +548,7 @@ const static Tcl_MethodType ConnectionEndXcnMethodType = {
 				/* version */
     "endtransaction",		/* name */
     ConnectionEndXcnMethod,	/* callProc */
-    DeleteCmd,			/* deleteProc */
+    NULL,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
 const static Tcl_MethodType ConnectionHasBigintMethodType = {
@@ -557,7 +557,7 @@ const static Tcl_MethodType ConnectionHasBigintMethodType = {
     "HasBigint",		/* name */
     ConnectionHasBigintMethod,
 				/* callProc */
-    DeleteCmd,			/* deleteProc */
+    NULL,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
 const static Tcl_MethodType ConnectionHasWvarcharMethodType = {
@@ -566,7 +566,7 @@ const static Tcl_MethodType ConnectionHasWvarcharMethodType = {
     "HasWvarchar",		/* name */
     ConnectionHasWvarcharMethod,
 				/* callProc */
-    DeleteCmd,			/* deleteProc */
+    NULL,			/* deleteProc */
     CloneCmd			/* cloneProc */
 };
 
@@ -1337,6 +1337,9 @@ GetResultSetDescription(
 
     /* Success: store the list of column names */
 
+    if (rdata->resultColNames != NULL) {
+	Tcl_DecrRefCount(rdata->resultColNames);
+    }
     rdata->resultColNames = colNames;
     status = TCL_OK;
 
@@ -1843,6 +1846,7 @@ ConnectionConstructor(
     cdata->refCount = 1;
     cdata->pidata = pidata;
     IncrPerInterpRefCount(pidata);
+    cdata->hDBC = hDBC;
     Tcl_DStringInit(&connectionStringDS);
     DStringAppendWChars(&connectionStringDS,
 			connectionString, connectionStringLen);
@@ -1851,7 +1855,6 @@ ConnectionConstructor(
 			 Tcl_DStringLength(&connectionStringDS));
     Tcl_IncrRefCount(cdata->connectionString);
     Tcl_DStringFree(&connectionStringDS);
-    cdata->hDBC = hDBC;
     cdata->flags = CONNECTION_FLAG_AUTOCOMMIT;
     Tcl_ObjectSetMetadata(thisObject, &connectionDataType, (ClientData) cdata);
     return TCL_OK;
@@ -2381,7 +2384,7 @@ StatementConstructor(
 				/* The database connection as a Tcl_Object */
     ConnectionData* cdata;	/* The connection object's data */
     StatementData* sdata;	/* The statement's object data */
-    Tcl_Obj* tokens;		/* The tokens of the statement to be prepared */
+    Tcl_Obj* tokens = NULL;	/* The tokens of the statement to be prepared */
     int tokenc;			/* Length of the 'tokens' list */
     Tcl_Obj** tokenv;		/* Exploded tokens from the list */
     Tcl_Obj* nativeSql;		/* SQL statement mapped to ODBC form */
@@ -2430,7 +2433,8 @@ StatementConstructor(
      */
 
     if (Tcl_ListObjGetElements(interp, tokens, &tokenc, &tokenv) != TCL_OK) {
-	goto freeTokens;
+	Tcl_DecrRefCount(tokens);
+	goto freeSData;
     }
     nativeSql = Tcl_NewObj();
     Tcl_IncrRefCount(nativeSql);
@@ -2451,13 +2455,15 @@ StatementConstructor(
 
 	}
     }
+    Tcl_DecrRefCount(tokens);
 
     /* Allocate an ODBC statement handle, and prepare the statement */
 
     sdata->nativeSqlW = GetWCharStringFromObj(nativeSql, &sdata->nativeSqlLen);
+    Tcl_DecrRefCount(nativeSql);
     sdata->hStmt = AllocAndPrepareStatement(interp, sdata);
     if (sdata->hStmt == SQL_NULL_HANDLE) {
-	goto freeNativeSql;
+	goto freeSData;
     }
 
     /* Determine the number of parameters that ODBC thinks are in the 
@@ -2492,7 +2498,7 @@ StatementConstructor(
 					      "in ':variableName' form.", -1));
 	    Tcl_SetErrorCode(interp, "TDBC", "DYNAMIC_SQL_ERROR", "07002",
 			     "ODBC", "-1", NULL);
-	    goto freeNativeSql;
+	    goto freeSData;
 	}
 
 	/* 
@@ -2545,10 +2551,6 @@ StatementConstructor(
 
     /* On error, unwind all the resource allocations */
 
- freeNativeSql:
-    Tcl_DecrRefCount(nativeSql);
- freeTokens:
-    Tcl_DecrRefCount(tokens);
  freeSData:
     DecrStatementRefCount(sdata);
     return TCL_ERROR;
@@ -3826,7 +3828,7 @@ ResultSetColumnsMethod(
 
     /* Extract the column information for the result set. */
 
-    if (rdata->results == NULL) {
+    if (rdata->resultColNames == NULL) {
 	if (GetResultSetDescription(interp, rdata) != TCL_OK) {
 	    return TCL_ERROR;
 	}
@@ -3991,7 +3993,7 @@ ResultSetNextrowMethod(
 
     /* Extract the column information for the result set. */
 
-    if (rdata->results == NULL) {
+    if (rdata->resultColNames == NULL) {
 	if (GetResultSetDescription(interp, rdata) != TCL_OK) {
 	    return TCL_ERROR;
 	}
@@ -4315,6 +4317,9 @@ GetCell(
 		Tcl_DStringFree(&colDS);
 	    }
 	}
+	if (colPtr != colBuf) {
+	    ckfree((char*) colPtr);
+	}	    
 	break;
 	
     } /* end of switch */
@@ -4395,6 +4400,7 @@ DeleteResultSet(
 	    sdata->flags &= ~STATEMENT_FLAG_HSTMT_BUSY;
 	}
     }
+    DeleteResultSetDescription(rdata);
     DecrStatementRefCount(rdata->sdata);
     ckfree((char*)rdata);
 }
@@ -4650,11 +4656,11 @@ DriversObjCmd(
     SQLSMALLINT direction;
     SQLRETURN rc;		/* SQL result code */
     SQLWCHAR *driver;		/* Driver name */
-    SQLSMALLINT driverLen;	/* Length of the driver name */
+    SQLSMALLINT driverLen = 0;	/* Length of the driver name */
     SQLSMALLINT driverAllocLen; /* Allocated size of the driver name */
     SQLSMALLINT driverLenNeeded; /* Required size of the driver name */
     SQLWCHAR *attributes;	/* Driver attributes */
-    SQLSMALLINT attrLen;	/* Length of the driver attributes */
+    SQLSMALLINT attrLen = 0;	/* Length of the driver attributes */
     SQLSMALLINT attrAllocLen;	/* Allocated size of the driver attributes */
     SQLSMALLINT attrLenNeeded;	/* Length needed for the driver attributes */
     Tcl_Obj* retval;		/* Return value */
@@ -4687,9 +4693,11 @@ DriversObjCmd(
 	driverAllocLen = driverLenNeeded;
 	driver = (SQLWCHAR*)
 	    ckalloc(sizeof(SQLWCHAR) * (driverAllocLen + 1));
+	*driver = 0;
 	attrAllocLen = attrLenNeeded;
 	attributes = (SQLWCHAR*)
 	    ckalloc(sizeof(SQLWCHAR) * (attrAllocLen + 1));
+	*attributes = 0;
 	Tcl_SetListObj(retval, 0, NULL);
 	direction = SQL_FETCH_FIRST;
 
@@ -4955,7 +4963,7 @@ DatasourceObjCmdW(
  * Datasource_ObjCmdA --
  *
  *	Command that does configuration of ODBC data sources when the
- *	native ODBCCP32 libraru does not support Unicode
+ *	native ODBCCP32 library does not support Unicode
  *
  * Usage:
  *	::tdbc::odbc::datasource subcommand driver ?keyword=value?...
@@ -5193,7 +5201,7 @@ Tdbcodbc_Init(
      */
 
     pidata = (PerInterpData*) ckalloc(sizeof(PerInterpData));
-    pidata->refCount = 1;
+    pidata->refCount = 0;
     pidata->hEnv = GetHEnv(NULL);
     for (i = 0; i < LIT__END; ++i) {
 	pidata->literals[i] = Tcl_NewStringObj(LiteralValues[i], -1);
@@ -5213,6 +5221,7 @@ Tdbcodbc_Init(
     }
     Tcl_DecrRefCount(nameObj);
     curClass = Tcl_GetObjectAsClass(curClassObject);
+    IncrPerInterpRefCount(pidata);
     Tcl_ClassSetConstructor(interp, curClass,
 			    Tcl_NewMethod(interp, curClass, NULL, 0,
 					  &ConnectionConstructorType,

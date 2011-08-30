@@ -88,7 +88,7 @@ package require tdbc
 	    }
 	    set retval
 	} result options]
-	catch {rename stmt {}}
+	catch {rename $stmt {}}
 	return -level 0 -options $options $result
     }
 
@@ -140,7 +140,7 @@ package require tdbc
 	    }
 	    set retval
 	} result options]
-	catch {rename stmt {}}
+	catch {rename $stmt {}}
 	return -level 0 -options $options $result
     }
 
@@ -170,7 +170,7 @@ package require tdbc
 	    }
 	    set retval
 	} result options]
-	catch {rename stmt {}}
+	catch {rename $stmt {}}
 	return -level 0 -options $options $result
     }
 
@@ -217,7 +217,7 @@ package require tdbc
 	    }
 	    set retval
 	} result options]
-	catch {rename stmt {}}
+	catch {rename $stmt {}}
 	return -level 0 -options $options $result
     }
 
