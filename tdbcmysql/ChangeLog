@@ -1,3 +1,9 @@
+2011-09-19  Kevin B. Kenny  <kennykb@acm.org>
+
+	* Makefie.in: Added a 'valgrind' rule for memory leak checking.
+	* tests/all.tcl: Changed behaviour to 'fall off the end' to
+			 facilitate 'valgrind.
+
 2011-07-19  Kevin B. Kenny  <kennykb@acm.org>
 
 	* configure.in:

@@ -616,9 +616,11 @@ namespace eval tdbc::sqlite3 {
 	    }
 	    incr -Cursor 2
 	}
+	if {!$have} {
+	    set -END {}
+	}
 	if {${-Cursor} >= [llength ${-results}]} {
 	    set -columns {}
-	    set -END {}
 	} elseif {[lindex ${-results} ${-Cursor}] eq {columns}} {
 	    incr -Cursor
 	    set -columns [lindex ${-results} ${-Cursor}]

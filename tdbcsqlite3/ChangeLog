@@ -1,3 +1,12 @@
+2011-09-19  Kevin B. Kenny <kennykb@acm.org>
+
+	* library/tdbcsqlite3.tcl: Reworked handling of the end of results
+	to avoid a bug where an empty result set at the end of the results
+	would crash in 'allrows' or 'foreach'. Thanks to Colin McCormack
+	for reporting the bug and providing a test case.
+	* tests/tdbcsqlite.tcl: Added a test case for the above bug,
+	observed to fail without the above change and pass with it.
+
 2011-07-19  Kevin B. Kenny <kennykb@acm.org>
 
 	* configure.in:
