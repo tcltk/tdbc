@@ -17,6 +17,8 @@
 
 MODULE_SCOPE const TdbcStubs tdbcStubs;
 
+#define Tdbc_Init_ Tdbc_Init
+
 /* !BEGIN!: Do not edit below this line. */
 
 const TdbcStubs tdbcStubs = {
@@ -24,7 +26,7 @@ const TdbcStubs tdbcStubs = {
     TDBC_STUBS_EPOCH,
     TDBC_STUBS_REVISION,
     0,
-    Tdbc_Init, /* 0 */
+    Tdbc_Init_, /* 0 */
     Tdbc_TokenizeSql, /* 1 */
     Tdbc_MapSqlState, /* 2 */
 };

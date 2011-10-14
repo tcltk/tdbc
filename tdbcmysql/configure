@@ -1760,7 +1760,7 @@ echo "$as_me: error: ${PACKAGE_NAME} ${PACKAGE_VERSION} requires Tcl 8.6 or newe
 Found configuration for Tcl ${TCL_VERSION}." >&2;}
    { (exit 1); exit 1; }; }
    fi
-   TCLOO_CFLAGS='-DUSE_TCLOO_STUBS'
+   TCLOO_CFLAGS=''
 fi
 TCL_VERSION_REQ=8.6;
 

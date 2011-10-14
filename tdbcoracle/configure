@@ -2007,7 +2007,7 @@ fi
 
 
   else
-    TCLOO_CFLAGS='-DUSE_TCLOO_STUBS'
+    TCLOO_CFLAGS=''
   fi
 fi
 
