@@ -324,7 +324,7 @@ dist: dist-clean
 	cp -p $(srcdir)/library/tdbcpostgres.tcl $(DIST_DIR)/library/
 
 	mkdir $(DIST_DIR)/tests
-	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/postgres.test \
+	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/tdbcpostgres.test \
 		$(DIST_DIR)/tests/
 
 	(cd $(DIST_ROOT); $(COMPRESS);)
