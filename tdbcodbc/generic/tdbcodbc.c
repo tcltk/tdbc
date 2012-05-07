@@ -3438,7 +3438,6 @@ ResultSetConstructor(
 				/* Number of skipped args in the
 				 * method invocation */
     Tcl_Object statementObject;	/* The current statement object */
-    PerInterpData* pidata;	/* The per-interpreter data for this package */
     ConnectionData* cdata;	/* The ODBC connection object's data */
     StatementData* sdata;	/* The statement object's data */
     ResultSetData* rdata;	/* THe result set object's data */
@@ -3499,7 +3498,6 @@ ResultSetConstructor(
 	    return TCL_ERROR;
 	}
     }
-    pidata = cdata->pidata;
 
     /* Allocate an object to hold data about this result set */
 
@@ -4834,7 +4832,7 @@ DatasourceObjCmdW(
 
     WCHAR* driverName;		/* Name of the ODBC driver */
     WCHAR* attributes;		/* NULL-delimited attribute values */
-    WCHAR errorMessage[SQL_MAX_MESSAGE_LENGTH];
+    char errorMessage[SQL_MAX_MESSAGE_LENGTH+1];
 				/* Error message from ODBC operations */
     int driverNameLen;		/* Length of the driver name */
     Tcl_Obj* attrObj;		/* NULL-delimited attribute values */
@@ -4844,6 +4842,8 @@ DatasourceObjCmdW(
     WORD errorMessageLen;	/* Length of the returned error message */
     RETCODE errorMessageStatus;	/* Status of the error message formatting */
     Tcl_DString retvalDS;	/* Return value */
+    Tcl_DString errorMessageDS;	/* DString to convert error message
+				 * from system encoding */
     Tcl_Obj* errorCodeObj;	/* Tcl error code */
     int i, j;
     BOOL ok;
@@ -4903,13 +4903,20 @@ DatasourceObjCmdW(
 	Tcl_IncrRefCount(errorCodeObj);
 	finished = 0;
 	while (!finished) {
+	    errorMessageLen = SQL_MAX_MESSAGE_LENGTH;
 	    errorMessageStatus =
-		SQLInstallerErrorW(i, &errorCode, errorMessage, 
+		SQLInstallerError(i, &errorCode, errorMessage, 
 				   SQL_MAX_MESSAGE_LENGTH-1, &errorMessageLen);
 	    switch(errorMessageStatus) {
 	    case SQL_SUCCESS:
 		Tcl_DStringAppend(&retvalDS, sep, -1);
-		DStringAppendWChars(&retvalDS, errorMessage, errorMessageLen);
+		Tcl_DStringInit(&errorMessageDS);
+		Tcl_ExternalToUtfDString(NULL, errorMessage, errorMessageLen,
+					 &errorMessageDS);
+		Tcl_DStringAppend(&retvalDS,
+				  Tcl_DStringValue(&errorMessageDS),
+				  Tcl_DStringLength(&errorMessageDS));
+		Tcl_DStringFree(&errorMessageDS);
 		break;
 	    case SQL_NO_DATA:
 		break;
@@ -5007,7 +5014,7 @@ DatasourceObjCmdA(
 				 * encoding */
     char* attributes;		/* Attributes of the data source in
 				 * system encoding */
-    char errorMessage[SQL_MAX_MESSAGE_LENGTH];
+    char errorMessage[SQL_MAX_MESSAGE_LENGTH+1];
 				/* Error message from ODBC operations */
     Tcl_DString errorMessageDS;	/* Error message in UTF-8 */
     char* p;
@@ -5086,6 +5093,7 @@ DatasourceObjCmdA(
 	Tcl_IncrRefCount(errorCodeObj);
 	finished = 0;
 	while (!finished) {
+	    errorMessageLen = SQL_MAX_MESSAGE_LENGTH;
 	    errorMessageStatus =
 		SQLInstallerError(i, &errorCode, errorMessage,
 				  SQL_MAX_MESSAGE_LENGTH-1, &errorMessageLen);
@@ -5421,7 +5429,7 @@ Tdbcodbc_Init(
     Tcl_CreateObjCommand(interp, "tdbc::odbc::drivers",
 			 DriversObjCmd, (ClientData) pidata, DeleteCmd);
 
-    if (SQLConfigDataSourceW != NULL && SQLInstallerErrorW != NULL) {
+    if (SQLConfigDataSourceW != NULL && SQLInstallerError != NULL) {
 	Tcl_CreateObjCommand(interp, "tdbc::odbc::datasource",
 			     DatasourceObjCmdW, NULL, NULL);
     } else if (SQLConfigDataSource != NULL && SQLInstallerError != NULL) {
