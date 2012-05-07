@@ -1,3 +1,9 @@
+2012-05-07  Kevin B. Kenny  <kennyb@acm.org>
+
+	* library/tdbcsqlite.tcl: Revised the syntax of the 'variable'
+	                          command to avoid tripping over the
+	                          Tcl core changes made for TIP 380.
+
 2011-09-19  Kevin B. Kenny <kennykb@acm.org>
 
 	* library/tdbcsqlite3.tcl: Reworked handling of the end of results

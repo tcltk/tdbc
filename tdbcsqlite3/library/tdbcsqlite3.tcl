@@ -513,7 +513,10 @@ namespace eval tdbc::sqlite3 {
     # in the SQL query. We start the variable names with hyphens because
     # they can't be bind variables.
 
-    variable -columns -db -needcolumns -resultArray -results -sql -Cursor -RowCount -END
+    variable -set {*}{
+	-columns -db -needcolumns -resultArray
+	-results -sql -Cursor -RowCount -END
+    }
 
     constructor {statement args} {
 	next
