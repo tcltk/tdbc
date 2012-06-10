@@ -18,12 +18,27 @@
 
 #include <tcl.h>
 
-#if defined(BUILD_tdbc)
-#    define	TDBCAPI 	DLLEXPORT
-#    undef	USE_TDBC_STUBS
-#else
-#    define	TDBCAPI		DLLIMPORT
+#ifndef TDBCAPI
+#   if defined(BUILD_tdbc)
+#	define TDBCAPI MODULE_SCOPE
+#   else
+#	define TDBCAPI extern
+#	undef USE_TDBC_STUBS
+#	define USE_TDBC_STUBS 1
+#   endif
 #endif
+
+#undef TCL_STORAGE_CLASS
+#ifdef BUILD_tdbc
+#   define TCL_STORAGE_CLASS DLLEXPORT
+#else
+#   define TCL_STORAGE_CLASS
+#endif
+
+EXTERN int		Tdbc_Init(Tcl_Interp *interp);
+
+#undef TCL_STORAGE_CLASS
+#define TCL_STORAGE_CLASS DLLIMPORT
 
 /*
  * TDBC_VERSION and TDBC_PATCHLEVEL here must match the ones that

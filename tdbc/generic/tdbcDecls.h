@@ -15,7 +15,7 @@
  */
 
 #if defined(USE_TDBC_STUBS)
-    extern const char* TdbcInitializeStubs(
+    TDBCAPI const char* TdbcInitializeStubs(
         Tcl_Interp* interp, const char* version, int epoch, int revision);
 #    define Tdbc_InitStubs(interp) \
         (TdbcInitializeStubs(interp, TDBC_VERSION, TDBC_STUBS_EPOCH,	\
@@ -37,7 +37,7 @@
  */
 
 /* 0 */
-TDBCAPI int		Tdbc_Init (Tcl_Interp* interp);
+TDBCAPI int		Tdbc_Init_ (Tcl_Interp* interp);
 /* 1 */
 TDBCAPI Tcl_Obj*	Tdbc_TokenizeSql (Tcl_Interp* interp, 
 				const char* statement);
@@ -52,7 +52,7 @@ typedef struct TdbcStubs {
     int revision;
     const struct TdbcStubHooks *hooks;
 
-    int (*tdbc_Init) (Tcl_Interp* interp); /* 0 */
+    int (*tdbc_Init_) (Tcl_Interp* interp); /* 0 */
     Tcl_Obj* (*tdbc_TokenizeSql) (Tcl_Interp* interp, const char* statement); /* 1 */
     const char* (*tdbc_MapSqlState) (const char* sqlstate); /* 2 */
 } TdbcStubs;
@@ -60,7 +60,7 @@ typedef struct TdbcStubs {
 #ifdef __cplusplus
 extern "C" {
 #endif
-extern const TdbcStubs *tdbcStubsPtr;
+TDBCAPI const TdbcStubs *tdbcStubsPtr;
 #ifdef __cplusplus
 }
 #endif
@@ -71,9 +71,9 @@ extern const TdbcStubs *tdbcStubsPtr;
  * Inline function declarations:
  */
 
-#ifndef Tdbc_Init
-#define Tdbc_Init \
-	(tdbcStubsPtr->tdbc_Init) /* 0 */
+#ifndef Tdbc_Init_
+#define Tdbc_Init_ \
+	(tdbcStubsPtr->tdbc_Init_) /* 0 */
 #endif
 #ifndef Tdbc_TokenizeSql
 #define Tdbc_TokenizeSql \
