@@ -2341,7 +2341,7 @@ StatementParamtypeMethod(
     StatementData* sdata	/* The current statement */
 	= (StatementData*) Tcl_ObjectGetMetadata(thisObject,
 						 &statementDataType);
-    struct {
+    static const struct {
 	const char* name;
 	int flags;
     } directions[] = {

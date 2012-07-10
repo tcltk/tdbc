@@ -973,6 +973,9 @@ SQLStateIs(
  * Side effects:
  *	If successful, stores the enumerated value in '*valuePtr'
  *
+ * Notes:
+ *	The 'table' argument must be constant and statically allocated.
+ *
  *-----------------------------------------------------------------------------
  */
 
@@ -3124,7 +3127,7 @@ ForeignkeysStatementConstructor(
     StatementData* sdata;	/* The statement's object data */
     RETCODE rc;			/* Return code from ODBC */
 
-    const char* options[] = {	/* Option table */
+    const static char* options[] = {	/* Option table */
 	"-foreign",
 	"-primary",
 	NULL
