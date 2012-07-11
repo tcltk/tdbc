@@ -318,7 +318,9 @@ dist: dist-clean
 #	cp -p $(srcdir)/doc/tdbc_postgres.n $(DIST_DIR)/doc/
 
 	mkdir $(DIST_DIR)/generic
-	cp -p $(srcdir)/generic/tdbcpostgres.c $(DIST_DIR)/generic/
+	cp -p $(srcdir)/generic/fakepq.h $(srcdir)/generic/pqStubDefs.txt \
+		$(srcdir)/generic/pqStubInit.c $(srcdir)/generic/pqStubs.h \
+		$(srcdir)/generic/tdbcpostgres.c $(DIST_DIR)/generic/
 
 	mkdir $(DIST_DIR)/library
 	cp -p $(srcdir)/library/tdbcpostgres.tcl $(DIST_DIR)/library/
