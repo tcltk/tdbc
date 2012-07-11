@@ -94,8 +94,6 @@ BOOL (INSTAPI* SQLConfigDataSourceW)(HWND, WORD, LPCWSTR, LPCWSTR)
 = NULL;
 BOOL (INSTAPI* SQLConfigDataSource)(HWND, WORD, LPCSTR, LPCSTR)
 = NULL;
-BOOL (INSTAPI* SQLInstallerErrorW)(WORD, DWORD*, LPWSTR, WORD, WORD*)
-= NULL;
 BOOL (INSTAPI* SQLInstallerError)(WORD, DWORD*, LPSTR, WORD, WORD*)
 = NULL;
 
@@ -130,7 +128,6 @@ OdbcInitStubs(Tcl_Interp* interp,
 
     SQLConfigDataSourceW = NULL;
     SQLConfigDataSource = NULL;
-    SQLInstallerErrorW = NULL;
     SQLInstallerError = NULL;
 
     /*
@@ -180,14 +177,9 @@ OdbcInitStubs(Tcl_Interp* interp,
 			Tcl_FindSymbol(NULL, *handle2Ptr,
 				       "SQLConfigDataSource");
 		}
-		SQLInstallerErrorW =
-		    (BOOL (INSTAPI*)(WORD, DWORD*, LPWSTR, WORD, WORD*))
-		    Tcl_FindSymbol(NULL, *handle2Ptr, "SQLInstallerErrorW");
-		if (SQLInstallerErrorW == NULL) {
-		    SQLInstallerError =
-			(BOOL (INSTAPI*)(WORD, DWORD*, LPSTR, WORD, WORD*))
-			Tcl_FindSymbol(NULL, *handle2Ptr, "SQLInstallerError");
-		}
+		SQLInstallerError =
+		    (BOOL (INSTAPI*)(WORD, DWORD*, LPSTR, WORD, WORD*))
+		    Tcl_FindSymbol(NULL, *handle2Ptr, "SQLInstallerError");
 	    } else {
 		Tcl_ResetResult(interp);
 	    }

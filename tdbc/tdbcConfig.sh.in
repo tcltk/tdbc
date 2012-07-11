@@ -76,6 +76,6 @@ tdbc_BUILD_LIBRARY_PATH="@tdbc_SRC_DIR@/library"
 TDBC_BUILD_LIBRARY_PATH="@tdbc_SRC_DIR@/library"
 
 # Additional flags that must be passed to the C compiler to use tdbc
-tdbc_CFLAGS=-DUSE_TDBC_STUBS
-TDBC_CFLAGS=-DUSE_TDBC_STUBS
+tdbc_CFLAGS=
+TDBC_CFLAGS=
 

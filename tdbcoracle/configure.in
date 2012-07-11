@@ -27,7 +27,7 @@ AC_INIT([tdbcoracle], [1.0b12])
 #--------------------------------------------------------------------
 
 AC_CONFIG_AUX_DIR(tclconfig)
-TEA_INIT([3.6])
+TEA_INIT([3.9])
 
 #--------------------------------------------------------------------
 # Load the tclConfig.sh file
@@ -54,7 +54,7 @@ Found configuration for Tcl ${TCL_VERSION}.])
     TEA_PATH_CONFIG(tcloo)
     TEA_LOAD_CONFIG(tcloo)
   else
-    TCLOO_CFLAGS='-DUSE_TCLOO_STUBS'
+    TCLOO_CFLAGS=''
   fi
 fi
 

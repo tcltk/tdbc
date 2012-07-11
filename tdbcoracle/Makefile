@@ -148,7 +148,7 @@ SHARED_BUILD	= 1
 INCLUDES	=  -I/usr/local/include -I/usr/lib/oracle/xe/app/oracle/product/10.2.0/server/rdbms/public -I"/usr/local/include" 
 # INCLUDES	=  -I/usr/local/include -I/usr/lib/oracle/xe/app/oracle/product/10.2.0/server/rdbms/public -I"/usr/local/include" @TK_INCLUDES@ @TK_XINCLUDES@
 
-PKG_CFLAGS	=  -DUSE_TCLOO_STUBS -DUSE_TDBC_STUBS
+PKG_CFLAGS	=  
 
 # TCL_DEFS is not strictly need here, but if you remove it, then you
 # must make sure that configure.in checks for the necessary components

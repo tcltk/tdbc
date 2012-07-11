@@ -1,3 +1,10 @@
+2012-05-07  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcodbc.c: Fixed a crash when reporting SQLInstallError
+	                      messages. pcbErrorMsg, documented to be
+			      an output parameter, needs to be preinitialized
+			      with the string length.
+
 2011-08-30  Kevin B. Kenny  <kennykb@acm.org>
 
 	* Makefile.in:	Added a 'valgrind-sqlite' rule to allow for

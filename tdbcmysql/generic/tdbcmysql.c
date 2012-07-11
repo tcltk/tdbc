@@ -2638,7 +2638,7 @@ StatementParamtypeMethod(
     StatementData* sdata	/* The current statement */
 	= (StatementData*) Tcl_ObjectGetMetadata(thisObject,
 						 &statementDataType);
-    struct {
+    static const struct {
 	const char* name;
 	int flags;
     } directions[] = {
@@ -2853,7 +2853,6 @@ ResultSetConstructor(
     int skip = Tcl_ObjectContextSkippedArgs(context);
 				/* Number of args to skip */
     Tcl_Object statementObject;	/* The current statement object */
-    PerInterpData* pidata;	/* The per-interpreter data for this package */
     ConnectionData* cdata;	/* The MySQL connection object's data */
     StatementData* sdata;	/* The statement object's data */
     ResultSetData* rdata;	/* THe result set object's data */
@@ -2911,7 +2910,6 @@ ResultSetConstructor(
 	}
 	cdata->flags |= CONN_FLAG_AUTOCOMMIT;
     }
-    pidata = cdata->pidata;
 
     /* Allocate an object to hold data about this result set */
 

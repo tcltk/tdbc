@@ -679,6 +679,7 @@ proc genStubs::emitHeader {name} {
     variable hooks
     variable epoch
     variable revision
+    variable scspec
 
     set capName [string toupper [string index $name 0]]
     append capName [string range $name 1 end]
@@ -710,7 +711,7 @@ proc genStubs::emitHeader {name} {
     append text "} ${capName}Stubs;\n"
 
     append text "\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n"
-    append text "extern const ${capName}Stubs *${name}StubsPtr;\n"
+    append text "${scspec} const ${capName}Stubs *${name}StubsPtr;\n"
     append text "#ifdef __cplusplus\n}\n#endif\n"
 
     emitMacros $name text
@@ -732,10 +733,10 @@ proc genStubs::emitHeader {name} {
 
 proc genStubs::emitInit {name textVar} {
     variable hooks
+    variable interfaces
     variable epoch
-    variable revision
-
     upvar $textVar text
+    set root 1
 
     set capName [string toupper [string index $name 0]]
     append capName [string range $name 1 end]
@@ -750,7 +751,20 @@ proc genStubs::emitInit {name textVar} {
 	}
 	append text "\n\};\n"
     }
-    append text "\nconst ${capName}Stubs ${name}Stubs = \{\n"
+    foreach intf [array names interfaces] {
+	if {[info exists hooks($intf)]} {
+	    if {[lsearch -exact $hooks($intf) $name] >= 0} {
+		set root 0
+		break
+	    }
+	}
+    }
+
+    append text "\n"
+    if {!$root} {
+	append text "static "
+    }
+    append text "const ${capName}Stubs ${name}Stubs = \{\n"
     append text "    TCL_STUB_MAGIC,\n"
     append text "    ${CAPName}_STUBS_EPOCH,\n"
     append text "    ${CAPName}_STUBS_REVISION,\n"
