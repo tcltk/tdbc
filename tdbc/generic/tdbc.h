@@ -28,17 +28,13 @@
 #   endif
 #endif
 
-#undef TCL_STORAGE_CLASS
-#ifdef BUILD_tdbc
-#   define TCL_STORAGE_CLASS DLLEXPORT
+#if defined(BUILD_tdbc)
+DLLEXPORT int		Tdbc_Init(Tcl_Interp *interp);
+#elif defined(STATIC_BUILD)
+extern    int		Tdbc_Init(Tcl_Interp* interp);
 #else
-#   define TCL_STORAGE_CLASS
+DLLIMPORT int		Tdbc_Init(Tcl_Interp* interp);
 #endif
-
-EXTERN int		Tdbc_Init(Tcl_Interp *interp);
-
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLIMPORT
 
 /*
  * TDBC_VERSION and TDBC_PATCHLEVEL here must match the ones that

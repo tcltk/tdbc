@@ -2556,10 +2556,10 @@ test tdbc::postgres-17.3 {database columns - no match pattern} {*}{
 		       [dict get $attrs scale] : {NULL}}] \
 		[dict get $attrs nullable]
 	}
-	set result
+	lsort -stride 5 $result
     }
     -match glob
-    -result {idnum integer * 0 0 name varchar 40 * info integer * 0 1}
+    -result {idnum integer * 0 0 info integer * 0 1 name varchar 40 *}
 }
 
 # TODO: precision not a number of bytes?!
@@ -2578,7 +2578,7 @@ test tdbc::postgres-17.4 {database columns - match pattern} {*}{
 		       [dict get $attrs scale] : {NULL}}] \
 		[dict get $attrs nullable]
 	}
-	set result
+	lsort -stride 5 $result
     }
     -result {idnum integer 32 0 0 info integer 32 0 1}
 }

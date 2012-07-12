@@ -1,3 +1,22 @@
+2012-07-10  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcodbc.c: Fixed a non-static table argument to
+			      Tcl_GetIndexFromObjStruct.
+
+2012-06-10  Jan Nijtmans  <jan.nijtmans@gmail.com>
+
+	* configure.in:	Commit log claims this entry is to make TDBC
+			API functions MODULE_SCOPE: actual effect appears
+			intentionally to disable buildability against Tcl 8.5
+			and the TclOO extension.
+	* configure:	autoconf-2.59
+
+2012-06-08  Jan Nijtmans  <jan.nijtmans@gmail.com>
+
+	* tclconfig/ChangeLog:
+	* tclconfig/tcl.m4:	Update to latest TEA
+	* configure:		autoconf-2.59
+
 2012-05-07  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcodbc.c: Fixed a crash when reporting SQLInstallError

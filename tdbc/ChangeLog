@@ -1,3 +1,31 @@
+2012-07-12  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbc.h:
+	* generic/tdbc.c:  Restored Unix buildability for 'tdbc', and
+			   removed code that swizzles TCL_STORAGE_CLASS
+		           in favour of avoiding Tcl's EXTERN macro.
+
+2012-06-10  Jan Nijtmans  <jan.nijtmans@gmail.com>
+
+	* configure.in:0
+	* generic/tdbc.decls:
+	* generic/tdbc.h:
+	* tdbcConfig.sh.in:
+	* tools/genStubs.tcl: FRQ-b4029dc351: make all TDBC API functions
+	                      MODULE_SCOPE
+
+	* generic/tdbcDecls.h:
+	* generic/tdbcStubInit.c:
+	* generic/tdbcStubLib.c:  Regen
+
+	* configure:	autoconf-2.59
+
+2012-06-08  Jan Nijtmans  <jan.nijtmans@gmail.com>
+
+	* tclconfig/ChangeLog:
+	* tclconfig/tcl.m4: Update to latest TEA
+	* configure: 	autoconf-2.59
+
 2011-08-01  Don Porter  <dgp@users.sourceforge.net>
 
 	* win/rules.vc: Extend support to MSVC10.  Thanks to Twylite.

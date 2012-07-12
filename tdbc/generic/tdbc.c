@@ -191,7 +191,7 @@ TdbcMapSqlStateObjCmd(
  *-----------------------------------------------------------------------------
  */
 
-DLLEXPORT int
+int
 Tdbc_Init(
     Tcl_Interp* interp		/* Tcl interpreter */
 ) {
