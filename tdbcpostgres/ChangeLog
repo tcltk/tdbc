@@ -1,3 +1,11 @@
+2012-07-13   Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcpostgres.c: Corrected a problem where PostgreSQL 9.0
+	                          and beyond return byte arrays in an
+				  incompatible format, yielding silent
+				  data corruption in SELECT operations.
+	                          (Bug [4357c31d89])
+
 2012-07-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcpostgres.c: Fixed a non-static table argument to

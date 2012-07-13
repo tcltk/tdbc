@@ -393,6 +393,9 @@ enum IsolationLevel {
 
 /* Static functions defined within this file */
 
+static int DeterminePostgresMajorVersion(Tcl_Interp* interp,
+					 ConnectionData* cdata,
+					 int* versionPtr);
 static void DummyNoticeProcessor(void*, const PGresult*);
 static int ExecSimpleQuery(Tcl_Interp* interp, PGconn * pgPtr,
 			   const char * query, PGresult** resOut);
@@ -849,6 +852,53 @@ static int TransferResultError(
 /*
  *-----------------------------------------------------------------------------
  *
+ * DeterminePostgresMajorVersion --
+ *
+ *	Determine the major version of the PostgreSQL server at the
+ *	other end of a connection.
+ *
+ * Results:
+ *	Returns a standard Tcl error code.
+ *
+ * Side effects:
+ *	Stores the version number in '*versionPtr' if successful.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+DeterminePostgresMajorVersion(Tcl_Interp* interp,
+				/* Tcl interpreter */
+			      ConnectionData* cdata,
+				/* Connection data */
+			      int* versionPtr)
+				/* OUTPUT: PostgreSQL server version */
+{
+    PGresult* res;		/* Result of a Postgres query */
+    int status = TCL_ERROR;	/* Status return */
+    char* versionStr;		/* Version information from server */
+
+    if (ExecSimpleQuery(interp, cdata->pgPtr,
+			"SELECT version()", &res) == TCL_OK) {
+	versionStr = PQgetvalue(res, 0, 0);
+	if (sscanf(versionStr, " PostgreSQL %d", versionPtr) == 1) {
+	    status = TCL_OK;
+	} else {
+	    Tcl_Obj* result = Tcl_NewStringObj("unable to parse PostgreSQL "
+					       "version: \"", -1);
+	    Tcl_AppendToObj(result, versionStr, -1);
+	    Tcl_AppendToObj(result, "\"", -1);
+	    Tcl_SetErrorCode(interp, "TDBC", "GENERAL_ERROR", "HY000",
+			     "POSTGRES", "-1", NULL);
+	}
+	PQclear(res);
+    }
+    return status;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * QueryConnectionOption --
  *
  *	Determine the current value of a connection option.
@@ -991,6 +1041,7 @@ ConfigureConnection(
 
     Tcl_Obj* retval;
     Tcl_Obj* optval;
+    int vers;			/* PostgreSQL major version */
 
     if (cdata->pgPtr != NULL) {
 
@@ -1175,6 +1226,25 @@ ConfigureConnection(
 
 	}
 	cdata->readOnly = readOnly; 
+    }
+
+    /* Determine the PostgreSQL version in use */
+
+    if (DeterminePostgresMajorVersion(interp, cdata, &vers) != TCL_OK) {
+	return TCL_ERROR;
+    }
+
+    /* 
+     * On PostgreSQL 9.0 and later, change 'bytea_output' to the
+     * backward-compatible 'escape' setting, so that the code in
+     * ResultSetNextrowMethod will retrieve byte array values correctly
+     * on either 8.x or 9.x servers.
+     */
+    if (vers >= 9) {
+	if (ExecSimpleQuery(interp, cdata->pgPtr,
+			    "SET bytea_output = 'escape'", NULL) != TCL_OK) {
+	    return TCL_ERROR;
+	}
     }
     return TCL_OK;
 }
