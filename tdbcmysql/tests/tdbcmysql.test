@@ -19,25 +19,25 @@ package require tdbc::mysql
 # We need to know the parameters of the MySQL database for testing.
 
 set connFlags {}
-if {[info exists env(TDBCMYSQL_HOST)]} {
-    lappend connFlags -host $env(TDBCMYSQL_HOST)
+if {[info exists env(TDBCMYSQL_TEST_HOST)]} {
+    lappend connFlags -host $env(TDBCMYSQL_TEST_HOST)
 }
-if {[info exists env(TDBCMYSQL_USER)]} {
-    lappend connFlags -user $env(TDBCMYSQL_USER)
+if {[info exists env(TDBCMYSQL_TEST_USER)]} {
+    lappend connFlags -user $env(TDBCMYSQL_TEST_USER)
 }
-if {[info exists env(TDBCMYSQL_PASSWD)]} {
-    lappend connFlags -passwd $env(TDBCMYSQL_PASSWD)
+if {[info exists env(TDBCMYSQL_TEST_PASSWD)]} {
+    lappend connFlags -passwd $env(TDBCMYSQL_TEST_PASSWD)
 }
-if {[info exists env(TDBCMYSQL_DB)]} {
-    lappend connFlags -db $env(TDBCMYSQL_DB)
+if {[info exists env(TDBCMYSQL_TEST_DB)]} {
+    lappend connFlags -db $env(TDBCMYSQL_TEST_DB)
 } else {
     lappend connFlags -db tdbc_test
 }
-if {[info exists env(TDBCMYSQL_SOCKET)]} {
-    lappend connFlags -socket $env(TDBCMYSQL_SOCKET)
+if {[info exists env(TDBCMYSQL_TEST_SOCKET)]} {
+    lappend connFlags -socket $env(TDBCMYSQL_TEST_SOCKET)
 }
-if {[info exists env(TDBCMYSQL_PORT)]} {
-    lappend connFlags -port $env(TDBCMYSQL_PORT)
+if {[info exists env(TDBCMYSQL_TEST_PORT)]} {
+    lappend connFlags -port $env(TDBCMYSQL_TEST PORT)
 }
 
 #------------------------------------------------------------------------------
@@ -119,6 +119,17 @@ test tdbc::mysql-1.9 {create a connection, failure} {*}{
     }
     -match glob
     -result {1 {Unknown MySQL server host*} {TDBC GENERAL_ERROR HY000 MYSQL *}}
+}
+
+#------------------------------------------------------------------------------
+#
+# Bail out if the user hasn't set TDBCMYSQL_TEST_DB 
+
+if {![info exists env(TDBCMYSQL_TEST_DB)]} {
+    puts "Not performing functional testing of tdbc::mysql because\
+          env(TDBCMYSQL_TEST_DB) is not set."
+    cleanupTests
+    return
 }
 
 test tdbc::mysql-1.10 {create a connection, successful} {*}{

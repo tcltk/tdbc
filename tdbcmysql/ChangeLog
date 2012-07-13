@@ -1,3 +1,9 @@
+2012-07-13  Kevin B. Kenny  <kennykb@acm.org>
+
+	* test/tdbcmysql.test: Make functional tests refuse to run unless
+			       the environment variable TDBCMYSQL_TEST_DB
+			       explicitly designates a database.
+
 2012-07-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcmysql.c: Fixed a non-static table argument to
