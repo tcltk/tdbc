@@ -1,3 +1,11 @@
+2012-07-13  Kevin B. Kenny  <kennykb@acm.org>
+
+	* generic/tdbcodbc.c: A user asserts that certain 'output' parameters
+	                      to SQLGetData must be initialized. While I have
+	                      never seen the failure he reports, initializing
+			      them appears to be Mostly Harmless, so do so.
+			      (Bug [0dda7dbb73]).
+
 2012-07-10  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcodbc.c: Fixed a non-static table argument to

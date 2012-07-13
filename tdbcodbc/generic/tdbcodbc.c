@@ -4143,6 +4143,7 @@ GetCell(
     case SQL_BIGINT:
     convertWide:
 	/* A wide integer */
+	colLen = sizeof(colWide); colWide = 0;
 	rc = SQLGetData(rdata->hStmt, i+1, SQL_C_SBIGINT,
 			(SQLPOINTER) &colWide, sizeof(colWide), &colLen);
 	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
@@ -4162,6 +4163,7 @@ GetCell(
     case SQL_TINYINT:
     convertLong:
 	/* An integer no larger than 'long' */
+	colLen = sizeof(colLong); colLong = 0;
 	rc = SQLGetData(rdata->hStmt, i+1, SQL_C_SLONG,
 			(SQLPOINTER) &colLong, sizeof(colLong), &colLen);
 	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO) {
@@ -4194,6 +4196,7 @@ GetCell(
 	 * A single- or double-precision floating point number.
 	 * Reals are widened to doubles.
 	 */
+	colLen = sizeof(colDouble); colDouble = 0.0;
 	rc = SQLGetData(rdata->hStmt, i+1, SQL_C_DOUBLE,
 			(SQLPOINTER) &colDouble, sizeof(colDouble),
 			&colLen);
