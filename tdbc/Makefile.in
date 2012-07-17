@@ -193,6 +193,7 @@ all: binaries libraries doc
 #========================================================================
 
 binaries: $(BINARIES)
+	cp -p $(srcdir)/library/tdbc.tcl $(top_builddir)
 
 libraries:
 
@@ -386,6 +387,7 @@ clean:
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+	-rm -f tdbc.tcl
 
 distclean: clean
 	-rm -f *.tab.c

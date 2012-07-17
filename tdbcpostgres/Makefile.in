@@ -225,11 +225,12 @@ install-libraries: libraries
 install-doc: doc
 	@$(INSTALL_DATA_DIR) $(DESTDIR)$(mandir)/mann
 	@echo "Installing documentation in $(DESTDIR)$(mandir)"
-	@list='$(srcdir)/doc/*.n'; for i in $$list; do \
-	    echo "Installing $$i"; \
-	    rm -f $(DESTDIR)$(mandir)/mann/`basename $$i`; \
-	    $(INSTALL_DATA) $$i $(DESTDIR)$(mandir)/mann ; \
-	done
+#   Not written yet!
+#	@list='$(srcdir)/doc/*.n'; for i in $$list; do \
+#	    echo "Installing $$i"; \
+#	    rm -f $(DESTDIR)$(mandir)/mann/`basename $$i`; \
+#	    $(INSTALL_DATA) $$i $(DESTDIR)$(mandir)/mann ; \
+#	done
 
 test: binaries libraries
 	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
@@ -318,13 +319,15 @@ dist: dist-clean
 #	cp -p $(srcdir)/doc/tdbc_postgres.n $(DIST_DIR)/doc/
 
 	mkdir $(DIST_DIR)/generic
-	cp -p $(srcdir)/generic/tdbcpostgres.c $(DIST_DIR)/generic/
+	cp -p $(srcdir)/generic/fakepq.h $(srcdir)/generic/pqStubDefs.txt \
+		$(srcdir)/generic/pqStubInit.c $(srcdir)/generic/pqStubs.h \
+		$(srcdir)/generic/tdbcpostgres.c $(DIST_DIR)/generic/
 
 	mkdir $(DIST_DIR)/library
 	cp -p $(srcdir)/library/tdbcpostgres.tcl $(DIST_DIR)/library/
 
 	mkdir $(DIST_DIR)/tests
-	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/postgres.test \
+	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/tdbcpostgres.test \
 		$(DIST_DIR)/tests/
 
 	(cd $(DIST_ROOT); $(COMPRESS);)
