@@ -274,13 +274,13 @@ static const struct {
 
 /* Tables of isolation levels: Tcl, SQL, and MySQL 'tx_isolation' */
 
-static const char* TclIsolationLevels[] = {
+static const char *const TclIsolationLevels[] = {
     "readcommitted",
     "serializable",
     NULL
 };
 
-static const char* SqlIsolationLevels[] = {
+static const char *const SqlIsolationLevels[] = {
     "SET TRANSACTION ISOLATION LEVEL READ COMMITTED",
     "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
     NULL

@@ -62,7 +62,7 @@ static Tcl_LoadHandle pgLoadHandle = NULL;
 
 /* Pool of literal values used to avoid excess Tcl_NewStringObj calls */
 
-const char* LiteralValues[] = {
+static const char *const LiteralValues[] = {
     "",
     "0",
     "1",
@@ -160,7 +160,7 @@ enum OptStringIndex {
 
 /* Names of string options for Postgres PGconnectdb() */
 
-const char *  optStringNames[] = {
+static const char *const optStringNames[] = {
     "host", "hostaddr", "port", "dbname", "user",
     "password", "options", "tty", "service", "connect_timeout", 
     "sslmode", "requiressl", "krbsrvname"
@@ -367,7 +367,7 @@ typedef struct ResultSetData {
 
 /* Tables of isolation levels: Tcl, SQL and Postgres C API */
 
-static const char* TclIsolationLevels[] = {
+static const char *const TclIsolationLevels[] = {
     "readuncommitted",
     "readcommitted",
     "repeatableread",
@@ -375,7 +375,7 @@ static const char* TclIsolationLevels[] = {
     NULL
 };
 
-static const char* SqlIsolationLevels[] = {
+static const char *const SqlIsolationLevels[] = {
     "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED",
     "SET TRANSACTION ISOLATION LEVEL READ COMMITTED",
     "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",

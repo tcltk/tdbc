@@ -29,7 +29,7 @@
  * ABI version numbers of the PostgreSQL API that we can cope with.
  */
 
-static const char* pqSuffixes[] = {
+static const char *const pqSuffixes[] = {
     "", ".5", NULL
 };
 
@@ -37,7 +37,7 @@ static const char* pqSuffixes[] = {
  * Names of the libraries that might contain the PostgreSQL API
  */
 
-static const char* pqStubLibNames[] = {
+static const char *const pqStubLibNames[] = {
     /* @LIBNAMES@: DO NOT EDIT THESE NAMES */
     "libpq", NULL
     /* @END@ */
@@ -47,7 +47,7 @@ static const char* pqStubLibNames[] = {
  * Names of the functions that we need from PostgreSQL
  */
 
-static const char* pqSymbolNames[] = {
+static const char *const pqSymbolNames[] = {
     /* @SYMNAMES@: DO NOT EDIT THESE NAMES */
     "pg_encoding_to_char",
     "PQclear",

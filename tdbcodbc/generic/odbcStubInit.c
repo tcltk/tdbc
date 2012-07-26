@@ -29,12 +29,12 @@
  * Names of the libraries that might contain the ODBC API
  */
 
-static const char* odbcStubLibNames[] = {
+static const char *const odbcStubLibNames[] = {
     /* @LIBNAMES@: DO NOT EDIT THESE NAMES */
     "odbc32", "odbc", "libodbc32", "libodbc", NULL
     /* @END@ */
 };
-static const char* odbcOptLibNames[] = {
+static const char *const odbcOptLibNames[] = {
     "odbccp", "odbccp32", "odbcinst", 
     "libodbccp", "libodbccp32", "libodbcinst", NULL
 };
@@ -43,7 +43,7 @@ static const char* odbcOptLibNames[] = {
  * Names of the functions that we need from ODBC
  */
 
-static const char* odbcSymbolNames[] = {
+static const char *const odbcSymbolNames[] = {
     /* @SYMNAMES@: DO NOT EDIT THESE NAMES */
     "SQLAllocHandle",
     "SQLBindParameter",

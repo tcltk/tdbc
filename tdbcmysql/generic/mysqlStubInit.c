@@ -29,7 +29,7 @@
  * Names of the libraries that might contain the MySQL API
  */
 
-static const char* mysqlStubLibNames[] = {
+static const char *const mysqlStubLibNames[] = {
     /* @LIBNAMES@: DO NOT EDIT THESE NAMES */
     "libmysqlclient_r", "libmysqlclient", "libmysql", NULL
     /* @END@ */
@@ -37,13 +37,13 @@ static const char* mysqlStubLibNames[] = {
 
 /* ABI Version numbers of the MySQL API that we can cope with */
 
-static const char* mysqlSuffixes[] = {
-    "", ".16", ".15", NULL
+static const char *const mysqlSuffixes[] = {
+    "", ".18", ".17", ".16", ".15", NULL
 };
 
 /* Names of the functions that we need from MySQL */
 
-static const char* mysqlSymbolNames[] = {
+static const char *const mysqlSymbolNames[] = {
     /* @SYMNAMES@: DO NOT EDIT THESE NAMES */
     "mysql_server_init",
     "mysql_server_end",
