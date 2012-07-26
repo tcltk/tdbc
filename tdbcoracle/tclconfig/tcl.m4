@@ -342,11 +342,10 @@ AC_DEFUN([TEA_PATH_TKCONFIG], [
 #
 # Results:
 #
-#	Subst the following vars:
+#	Substitutes the following vars:
 #		TCL_BIN_DIR
 #		TCL_SRC_DIR
 #		TCL_LIB_FILE
-#
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_LOAD_TCLCONFIG], [
@@ -558,11 +557,11 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
 #	only for running extension test cases. It should never be
 #	or generation of files (like pkgIndex.tcl) at build time.
 #
-# Arguments
+# Arguments:
 #	none
 #
-# Results
-#	Subst's the following values:
+# Results:
+#	Substitutes the following vars:
 #		TCLSH_PROG
 #------------------------------------------------------------------------
 
@@ -608,11 +607,11 @@ AC_DEFUN([TEA_PROG_TCLSH], [
 #	only for running extension test cases. It should never be
 #	or generation of files (like pkgIndex.tcl) at build time.
 #
-# Arguments
+# Arguments:
 #	none
 #
-# Results
-#	Subst's the following values:
+# Results:
+#	Substitutes the following vars:
 #		WISH_PROG
 #------------------------------------------------------------------------
 
@@ -723,7 +722,6 @@ AC_DEFUN([TEA_ENABLE_SHARED], [
 #		TCL_THREADS
 #		_REENTRANT
 #		_THREAD_SAFE
-#
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_ENABLE_THREADS], [
@@ -852,7 +850,6 @@ AC_DEFUN([TEA_ENABLE_THREADS], [
 #				Sets to $(LDFLAGS_OPTIMIZE) if false
 #		DBGX		Formerly used as debug library extension;
 #				always blank now.
-#
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_ENABLE_SYMBOLS], [
@@ -912,7 +909,6 @@ AC_DEFUN([TEA_ENABLE_SYMBOLS], [
 #
 #	Defines the following vars:
 #		HAVE_LANGINFO	Triggers use of nl_langinfo if defined.
-#
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_ENABLE_LANGINFO], [
@@ -953,7 +949,6 @@ AC_DEFUN([TEA_ENABLE_LANGINFO], [
 #	Defines the following var:
 #
 #	system -	System/platform/version identification code.
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_CONFIG_SYSTEM], [
@@ -1036,7 +1031,6 @@ AC_DEFUN([TEA_CONFIG_SYSTEM], [
 #	CFLAGS_OPTIMIZE -
 #			Flags used when running the compiler in optimize mode
 #	CFLAGS -	Additional CFLAGS added as necessary (usually 64-bit)
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_CONFIG_CFLAGS], [
@@ -1305,7 +1299,6 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 			ac_cv_cross=yes,
 			ac_cv_cross=no)
 		      )
-		
 		      if test "$ac_cv_cross" = "yes"; then
 			case "$do64bit" in
 			    amd64|x64|yes)
@@ -1744,7 +1737,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    AS_IF([test $tcl_cv_ld_single_module = yes], [
 		SHLIB_LD="${SHLIB_LD} -Wl,-single_module"
 	    ])
-	    # TEA specific: link shlib with current and compatiblity version flags
+	    # TEA specific: link shlib with current and compatibility version flags
 	    vers=`echo ${PACKAGE_VERSION} | sed -e 's/^\([[0-9]]\{1,5\}\)\(\(\.[[0-9]]\{1,3\}\)\{0,2\}\).*$/\1\2/p' -e d`
 	    SHLIB_LD="${SHLIB_LD} -current_version ${vers:-0} -compatibility_version ${vers:-0}"
 	    SHLIB_SUFFIX=".dylib"
@@ -2020,12 +2013,13 @@ dnl # preprocessing tests use only CPPFLAGS.
     ])
 
     AS_IF([test "$SHARED_LIB_SUFFIX" = ""], [
-	# TEA specific: use PACKAGE_VERSION instead of VERSION
-	SHARED_LIB_SUFFIX='${PACKAGE_VERSION}${SHLIB_SUFFIX}'])
+    # TEA specific: use PACKAGE_VERSION instead of VERSION
+    SHARED_LIB_SUFFIX='${PACKAGE_VERSION}${SHLIB_SUFFIX}'])
     AS_IF([test "$UNSHARED_LIB_SUFFIX" = ""], [
-	# TEA specific: use PACKAGE_VERSION instead of VERSION
-	UNSHARED_LIB_SUFFIX='${PACKAGE_VERSION}.a'])
+    # TEA specific: use PACKAGE_VERSION instead of VERSION
+    UNSHARED_LIB_SUFFIX='${PACKAGE_VERSION}.a'])
 
+    if test "${GCC}" = "yes" ; then
 	AC_CACHE_CHECK(for SEH support in compiler,
 	    tcl_cv_seh,
 	AC_TRY_RUN([
@@ -2118,6 +2112,7 @@ dnl # preprocessing tests use only CPPFLAGS.
 	    AC_DEFINE(HAVE_CAST_TO_UNION, 1,
 		    [Defined when compiler supports casting to union type.])
 	fi
+    fi
 
     AC_SUBST(CFLAGS_DEBUG)
     AC_SUBST(CFLAGS_OPTIMIZE)
@@ -2156,7 +2151,6 @@ dnl # preprocessing tests use only CPPFLAGS.
 #		USE_TERMIOS
 #		USE_TERMIO
 #		USE_SGTTY
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_SERIAL_PORT], [
@@ -2368,7 +2362,6 @@ closedir(d);
 #		XINCLUDES
 #		XLIBSW
 #		PKG_LIBS (appends to)
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_PATH_X], [
@@ -2464,7 +2457,6 @@ AC_DEFUN([TEA_PATH_UNIX_X], [
 #		HAVE_SYS_FILIO_H
 #		USE_FIONBIO
 #		O_NONBLOCK
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_BLOCKING_STYLE], [
@@ -2499,7 +2491,6 @@ AC_DEFUN([TEA_BLOCKING_STYLE], [
 #		HAVE_TM_GMTOFF
 #		HAVE_TM_TZADJ
 #		HAVE_TIMEZONE_VAR
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_TIME_HANDLER], [
@@ -2568,7 +2559,6 @@ AC_DEFUN([TEA_TIME_HANDLER], [
 #
 #	Might defines some of the following vars:
 #		strtod (=fixstrtod)
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_BUGGY_STRTOD], [
@@ -2619,7 +2609,7 @@ AC_DEFUN([TEA_BUGGY_STRTOD], [
 #
 # Results:
 #
-#	Subst's the following var:
+#	Substitutes the following vars:
 #		TCL_LIBS
 #		MATH_LIBS
 #
@@ -2628,7 +2618,6 @@ AC_DEFUN([TEA_BUGGY_STRTOD], [
 #
 #	Might define the following vars:
 #		HAVE_NET_ERRNO_H
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_TCL_LINK_LIBS], [
@@ -2706,7 +2695,6 @@ AC_DEFUN([TEA_TCL_LINK_LIBS], [
 #		_ISOC99_SOURCE
 #		_LARGEFILE64_SOURCE
 #		_LARGEFILE_SOURCE64
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_TCL_EARLY_FLAG],[
@@ -2754,7 +2742,6 @@ AC_DEFUN([TEA_TCL_EARLY_FLAGS],[
 #		HAVE_STRUCT_DIRENT64
 #		HAVE_STRUCT_STAT64
 #		HAVE_TYPE_OFF64_T
-#
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
@@ -3488,7 +3475,7 @@ AC_DEFUN([TEA_LIB_SPEC], [
 #
 # Results:
 #
-#	Substs the following vars:
+#	Substitutes the following vars:
 #		TCL_TOP_DIR_NATIVE
 #		TCL_INCLUDES
 #------------------------------------------------------------------------
@@ -3566,7 +3553,7 @@ AC_DEFUN([TEA_PRIVATE_TCL_HEADERS], [
 #	Adds a --with-tclinclude switch to configure.
 #	Result is cached.
 #
-#	Substs the following vars:
+#	Substitutes the following vars:
 #		TCL_INCLUDES
 #------------------------------------------------------------------------
 
@@ -3656,7 +3643,7 @@ AC_DEFUN([TEA_PUBLIC_TCL_HEADERS], [
 #
 # Results:
 #
-#	Substs the following vars:
+#	Substitutes the following vars:
 #		TK_INCLUDES
 #------------------------------------------------------------------------
 
@@ -3745,7 +3732,7 @@ AC_DEFUN([TEA_PRIVATE_TK_HEADERS], [
 #	Adds a --with-tkinclude switch to configure.
 #	Result is cached.
 #
-#	Substs the following vars:
+#	Substitutes the following vars:
 #		TK_INCLUDES
 #------------------------------------------------------------------------
 
@@ -3963,11 +3950,10 @@ AC_DEFUN([TEA_PATH_CONFIG], [
 #
 # Results:
 #
-#	Subst the following vars:
+#	Substitutes the following vars:
 #		$1_SRC_DIR
 #		$1_LIB_FILE
 #		$1_LIB_SPEC
-#
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_LOAD_CONFIG], [
@@ -4028,7 +4014,6 @@ AC_DEFUN([TEA_LOAD_CONFIG], [
 #
 # Results:
 #	Adds to LIBS the appropriate extension library
-#
 #------------------------------------------------------------------------
 AC_DEFUN([TEA_LOAD_CONFIG_LIB], [
     AC_MSG_CHECKING([For $1 library for LIBS])
@@ -4060,8 +4045,7 @@ AC_DEFUN([TEA_LOAD_CONFIG_LIB], [
 #		$1
 #
 # Results:
-#	Subst the following vars:
-#
+#	Substitutes the following vars:
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_EXPORT_CONFIG], [

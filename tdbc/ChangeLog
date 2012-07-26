@@ -1,3 +1,9 @@
+2012-07-26  Jan Nijtmans  <jan.nijtmans@gmail.com>
+
+	* tclconfig/install-sh:  Update to latest TEA
+	* tclconfig/tcl.m4:	
+	* configure:		autoconf-2.59
+
 2012-07-17  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* win/makefile.vc: [Bug 3544932]: Visual studio compiler check fails

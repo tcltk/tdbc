@@ -1,3 +1,10 @@
+2012-07-26  Jan Nijtmans  <jan.nijtmans@gmail.com>
+
+	* generic/odbcStubInit.s: Make some tables "const"
+	* tclconfig/install-sh:   Update to latest TEA
+	* tclconfig/tcl.m4:	
+	* configure:		      autoconf-2.59
+
 2012-07-13  Kevin B. Kenny  <kennykb@acm.org>
 
 	* generic/tdbcodbc.c: A user asserts that certain 'output' parameters
@@ -13,10 +20,7 @@
 
 2012-06-10  Jan Nijtmans  <jan.nijtmans@gmail.com>
 
-	* configure.in:	Commit log claims this entry is to make TDBC
-			API functions MODULE_SCOPE: actual effect appears
-			intentionally to disable buildability against Tcl 8.5
-			and the TclOO extension.
+	* configure.in:	make TDBC API functions MODULE_SCOPE
 	* configure:	autoconf-2.59
 
 2012-06-08  Jan Nijtmans  <jan.nijtmans@gmail.com>
