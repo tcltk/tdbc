@@ -161,7 +161,7 @@ Please `cd` to its location first.
 #
 #-------------------------------------------------------------------------
 
-PROJECT = tdbc
+PROJECT = tdbcsqlite
 
 # Uncomment the following line if this is a Tk extension.
 #PROJECT_REQUIRES_TK=1
@@ -171,21 +171,11 @@ DOTVERSION      = 1.0
 VERSION         = $(DOTVERSION:.=)
 STUBPREFIX      = $(PROJECT)stub
 
-DLLOBJS = \
-	$(TMP_DIR)\tdbc.obj \
-	$(TMP_DIR)\tdbcStubInit.obj \
-	$(TMP_DIR)\tdbcTokenize.obj \
-!if !$(STATIC_BUILD)
-	$(TMP_DIR)\tdbc.res
-!endif
+DLLOBJS =
 
-PRJSTUBOBJS = \
-	$(TMP_DIR)\tdbcStubLib.obj
+PRJSTUBOBJS =
 
-PRJHEADERS = \
-	$(GENERICDIR)\tdbc.h \
-	$(GENERICDIR)\tdbcDecls.h \
-	$(GENERICDIR)\tdbcInt.h
+PRJHEADERS =
 
 #-------------------------------------------------------------------------
 # Target names and paths ( shouldn't need changing )
@@ -208,6 +198,7 @@ BIN_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
 DOC_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
 SCRIPT_INSTALL_DIR	= $(PRJ_INSTALL_DIR)
 INCLUDE_INSTALL_DIR	= $(_TCLDIR)\include
+tmdir		= $(_INSTALLDIR)\tcl$(TCL_MAJOR_VERSION)\$(TCL_MAJOR_VERSION).$(TCL_MINOR_VERSION)
 
 ### The following paths CANNOT have spaces in them.
 GENERICDIR	= $(ROOT)\generic
@@ -336,13 +327,9 @@ TESTFLAGS = $(TESTFLAGS) -file $(TESTPAT)
 #---------------------------------------------------------------------
 
 all:	    setup $(PROJECT)
-$(PROJECT): setup pkgIndex $(PRJLIB)
-install:    install-binaries install-libraries install-docs
-pkgIndex:   setup $(OUT_DIR)\pkgIndex.tcl
-
-!if !$(STATIC_BUILD)
-$(PROJECT):  $(PRJSTUBLIB)
-!endif
+$(PROJECT): setup
+install:    install-binaries install-docs
+install-binaries: install-lib-binaries
 
 test: setup $(PROJECT)
         @set TCL_LIBRARY=$(TCL_LIBRARY:\=/)
@@ -370,22 +357,6 @@ setup:
 	@if not exist $(OUT_DIR)\nul mkdir $(OUT_DIR)
 	@if not exist $(TMP_DIR)\nul mkdir $(TMP_DIR)
 
-# See <tcl>/win/coffbase.txt for extension base addresses.
-$(PRJLIB): $(DLLOBJS)
-!if $(STATIC_BUILD)
-	$(lib32) -nologo -out:$@ @<<
-$**
-<<
-!else
-	$(link32) $(dlllflags) -base:@$(COFFBASE),tdbc -out:$@ $(baselibs) @<<
-$**
-<<
-	$(_VC_MANIFEST_EMBED_DLL)
-	-@del $*.exp
-!endif
-
-$(PRJSTUBLIB): $(PRJSTUBOBJS)
-	$(lib32) -nologo -out:$@ $(PRJSTUBOBJS)
 
 #---------------------------------------------------------------------
 # Implicit rules
@@ -425,36 +396,6 @@ $<
 .SUFFIXES:
 .SUFFIXES:.c .rc
 
-#-------------------------------------------------------------------------
-# Explicit dependency rules
-#
-#-------------------------------------------------------------------------
-#$(OUT_DIR)\pkgIndex.tcl: $(ROOT)\pkgIndex.tcl.in
-#	nmakehlp -s << $** > $@
-#@PACKAGE_VERSION@    $(DOTVERSION)
-#@PACKAGE_NAME@       $(PROJECT)
-#@PKG_LIB_FILE@       $(PRJLIBNAME)
-#<<
-
-$(OUT_DIR)\pkgIndex.tcl:
-	type << > $@
-if {[catch {package require Tcl 8.5}]} return
-package ifneeded $(PROJECT) $(DOTVERSION) \
- [list load [file join $$dir $(PRJLIBNAME)] $(PROJECT)]
-<<
-
-$(OUT_DIR)\tdbcConfig.sh: $(ROOT)\tdbcConfig.sh.in
-	nmakehlp -s << $** > $@
-@TDBC_LIB_SPEC@              $(PRJLIBNAME)
-@TDBC_STUB_LIB_SPEC@         $(PRJLIBNAME)
-@TDBC_INCLUDE_SPEC@          -I$(LIB_INSTALL_DIR)
-@TDBC_PRIVATE_INCLUDE_SPEC@  -I$(LIB_INSTALL_DIR)
-@PACKAGE_VERSION@            $(DOTVERSION)
-<<
-
-$(TMP_DIR)\tdbcStubLib.obj : $(GENERICDIR)\tdbcStubLib.c
-        $(cc32) $(STUB_CFLAGS) $(TCL_INCLUDES) -Zl -DSTATIC_BUILD -Fo$@ $?
-
 #---------------------------------------------------------------------
 # Installation. (EDIT)
 #
@@ -463,16 +404,10 @@ $(TMP_DIR)\tdbcStubLib.obj : $(GENERICDIR)\tdbcStubLib.c
 #
 #---------------------------------------------------------------------
 
-install-binaries:
-	@echo Installing binaries to '$(SCRIPT_INSTALL_DIR)'
-	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
-	@$(CPY) $(PRJLIB) "$(SCRIPT_INSTALL_DIR)" >NUL
-
-install-libraries: $(OUT_DIR)\pkgIndex.tcl
-	@echo Installing libraries to '$(SCRIPT_INSTALL_DIR)'
-	@if exist $(LIBDIR) $(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
-	@echo Installing package index in '$(SCRIPT_INSTALL_DIR)'
-	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
+install-lib-binaries:
+	@echo Installing 'tdbcsqlite3.tcl' file to '$(tmdir)\tdbc\sqlite3-$(DOTVERSION).tm'
+	@if not exist "$(tmdir)\tdbc" mkdir "$(tmdir)\tdbc"
+	@if exist $(LIBDIR) $(COPY) $(LIBDIR)\tdbcsqlite3.tcl "$(tmdir)\tdbc\sqlite3-$(DOTVERSION).tm"
 
 install-docs:
 	@echo Installing documentation files to '$(DOC_INSTALL_DIR)'
