@@ -244,6 +244,10 @@ dist: dist-clean
 	cp -p $(srcdir)/tests/all.tcl $(srcdir)/tests/tdbcsqlite3.test \
 		$(DIST_DIR)/tests/
 
+	mkdir $(DIST_DIR)/win
+	cp -p $(srcdir)/win/makefile.vc $(srcdir)/win/nmakehelp.c \
+		$(srcdir)/win/rules.vc $(DIST_DIR)/win/
+
 	(cd $(DIST_ROOT); $(COMPRESS);)
 
 #========================================================================
