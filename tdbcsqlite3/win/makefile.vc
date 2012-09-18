@@ -167,7 +167,7 @@ PROJECT = tdbcsqlite
 #PROJECT_REQUIRES_TK=1
 !include "rules.vc"
 
-DOTVERSION      = 1.0
+DOTVERSION      = 1.0b17
 VERSION         = $(DOTVERSION:.=)
 STUBPREFIX      = $(PROJECT)stub
 
