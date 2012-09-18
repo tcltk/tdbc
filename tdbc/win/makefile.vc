@@ -166,8 +166,28 @@ PROJECT = tdbc
 # Uncomment the following line if this is a Tk extension.
 #PROJECT_REQUIRES_TK=1
 !include "rules.vc"
+# nmakehelp -V <file> <tag> will search the file for tag, skips until a
+#	number and returns all character until a character not in [0-9.ab]
+#	is read.
 
-DOTVERSION      = 1.0
+!if [echo REM = This file is generated from Makefile.vc > versions.vc]
+!endif
+# get project version from row AC_INIT([tdbc], [1.0b17])
+!if [echo DOTVERSION = \>> versions.vc] \
+   && [nmakehlp -V ..\configure.in AC_INIT >> versions.vc]
+!endif
+!if [echo TCL_VERSION_REQ = \>> versions.vc] \
+   && [nmakehlp -V ..\configure.in TCL_VERSION_REQ >> versions.vc]
+!endif
+!if [echo TCL_VERSION_DESIRED = \>> versions.vc] \
+   && [nmakehlp -V ..\configure.in TCL_VERSION_DESIRED >> versions.vc]
+!endif
+!if [echo TCLOO_VERSION_REQ = \>> versions.vc] \
+   && [nmakehlp -V ..\configure.in TCLOO_VERSION_REQ >> versions.vc]
+!endif
+
+!include "versions.vc"
+
 VERSION         = $(DOTVERSION:.=)
 STUBPREFIX      = $(PROJECT)stub
 
@@ -429,14 +449,22 @@ $<
 # Explicit dependency rules
 #
 #-------------------------------------------------------------------------
-#$(OUT_DIR)\pkgIndex.tcl: $(ROOT)\pkgIndex.tcl.in
-#	nmakehlp -s << $** > $@
-#@PACKAGE_VERSION@    $(DOTVERSION)
-#@PACKAGE_NAME@       $(PROJECT)
-#@PKG_LIB_FILE@       $(PRJLIBNAME)
-#<<
+.PHONY: $(OUT_DIR)\pkgIndex.tcl
 
-$(OUT_DIR)\pkgIndex.tcl:
+$(OUT_DIR)\pkgIndex.tcl: $(ROOT)\pkgIndex.tcl.in
+	@nmakehlp -s << $** > $@
+@PACKAGE_NAME@        $(PROJECT)
+@PACKAGE_VERSION@     $(DOTVERSION)
+@TCL_VERSION_REQ@     $(TCL_VERSION_REQ)
+@TCL_VERSION_DESIRED@ $(TCL_VERSION_DESIRED)
+@TCLOO_VERSION_REQ@   $(TCLOO_VERSION_REQ)
+@PKG_LIB_FILE@        $(PRJLIBNAME)
+@TCL_VERSION@         $(TCL_DOTVERSION)
+<<
+
+$(OUT_DIR)\pkgIndex.tcl: $(ROOT)\pkgIndex.tcl.in
+	@nmakehlp -s << $** > $@
+
 	type << > $@
 if {[catch {package require Tcl 8.5}]} return
 package ifneeded $(PROJECT) $(DOTVERSION) \
