@@ -167,7 +167,18 @@ PROJECT = tdbcsqlite
 #PROJECT_REQUIRES_TK=1
 !include "rules.vc"
 
-DOTVERSION      = 1.0b17
+# nmakehelp -V <file> <tag> will search the file for tag, skips until a
+#	number and returns all character until a character not in [0-9.ab]
+#	is read.
+
+!if [echo REM = This file is generated from Makefile.vc > versions.vc]
+!endif
+# get project version from row "AC_INIT([tdbcsqlite3], [1.0b17])"
+!if [echo DOTVERSION = \>> versions.vc] \
+   && [nmakehlp -V ..\configure.in tdbcsqlite3 >> versions.vc]
+!endif
+!include "versions.vc"
+
 VERSION         = $(DOTVERSION:.=)
 STUBPREFIX      = $(PROJECT)stub
 
