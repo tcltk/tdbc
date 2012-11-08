@@ -41,8 +41,8 @@ DLLIMPORT int		Tdbc_Init(Tcl_Interp* interp);
  * appear near the top of configure.in.
  */
 
-#define	TDBC_VERSION	"1.0b17"
-#define TDBC_PATCHLEVEL "1.0b17"
+#define	TDBC_VERSION	"1.0.0"
+#define TDBC_PATCHLEVEL "1.0.0"
 
 /*
  * Include the Stubs declarations for the public API, generated from

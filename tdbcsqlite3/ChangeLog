@@ -1,3 +1,11 @@
+2012-11-08  Don Porter  <dgp@users.sourceforge.net>
+
+	* configure.in:
+	* README:
+	* library/tdbcsqlite3.tcl:
+			Advanced version number to 1.0.0.
+	* configure:    autoconf-2.59
+
 2012-09-24  Harald Oehlmann  <oehhar@users.sf.net>
 
 	* tdbcsqlite3/win/makefile.vc: Get DOTVERSION from file configure.in.

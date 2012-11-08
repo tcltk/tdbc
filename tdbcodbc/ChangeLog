@@ -1,3 +1,9 @@
+2012-11-08  Don Porter  <dgp@users.sourceforge.net>
+
+	* configure.in:
+	* README:	Advanced version number to 1.0.0.
+	* configure: 	autoconf 2.59
+
 2012-07-26  Jan Nijtmans  <jan.nijtmans@gmail.com>
 
 	* generic/odbcStubInit.s: Make some tables "const"

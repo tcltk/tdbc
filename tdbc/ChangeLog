@@ -1,3 +1,10 @@
+2012-11-08  Don Porter  <dgp@users.sourceforge.net>
+
+	* generic/tdbc.h: Advance version number to 1.0.0
+	* configure.in:
+	* README:
+	* configure:	autoconf-2.59
+
 2012-08-17  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* win/nmakehlp.c: Add "-V<num>" option, in order to be able

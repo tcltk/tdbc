@@ -1,6 +1,6 @@
 README: tdbcmysql
 
-    This is the 1.0b17 source distribution of the driver for Tcl
+    This is the 1.0.0 source distribution of the driver for Tcl
     Database Connectivity (TDBC) to access MySQL databases.. TDBC and
     its drivers are available from a Fossil version control repository
     at http://tdbc.tcl.tk/
