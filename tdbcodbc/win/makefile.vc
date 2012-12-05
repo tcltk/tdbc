@@ -177,6 +177,9 @@ PROJECT = tdbcodbc
 !if [echo DOTVERSION = \>> versions.vc] \
    && [nmakehlp -V ..\configure.in AC_INIT >> versions.vc]
 !endif
+!if [echo TCL_VERSION_REQ = \>> versions.vc] \
+   && [nmakehlp -V ..\configure.in TCL_VERSION_REQ >> versions.vc]
+!endif
 !include "versions.vc"
 
 VERSION         = $(DOTVERSION:.=)
@@ -216,7 +219,6 @@ BIN_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
 DOC_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
 SCRIPT_INSTALL_DIR	= $(PRJ_INSTALL_DIR)
 INCLUDE_INSTALL_DIR	= $(_TCLDIR)\include
-tmdir		= $(_INSTALLDIR)\tcl$(TCL_MAJOR_VERSION)\$(TCL_MAJOR_VERSION).$(TCL_MINOR_VERSION)
 
 ### The following paths CANNOT have spaces in them.
 GENERICDIR	= $(ROOT)\generic
@@ -225,6 +227,25 @@ LIBDIR          = $(ROOT)\library
 DOCDIR		= $(ROOT)\doc
 TOOLSDIR	= $(ROOT)\tools
 COMPATDIR	= $(ROOT)\compat
+
+### tdbc
+TDBC_DOTVERSION		= $(DOTVERSION)
+TDBC_VERSION		= $(TDBC_DOTVERSION:.=)
+# tdbc source folder is "../tdbc" in source distribution and
+# "../tdbc1.0.0" in tcl8.6.0 bundeled distribution
+TDBC_DIR		= $(ROOT)\..\tdbc
+!if !exist($(TDBC_DIR))
+TDBC_DIR		= $(ROOT)\..\tdbc$(TDBC_DOTVERSION)
+!endif
+TDBC_GENERIC_DIR	= $(TDBC_DIR)\generic
+### tdbc stub lib
+TDBCSTUBLIBNAME		= tdbcstub$(TDBC_VERSION).lib
+TDBCSTUBLIB 		= "$(_TCLDIR)\lib\$(TDBCSTUBLIBNAME)"
+!if !exist($(TDBCSTUBLIB))
+TDBCSTUBLIB 		= $(TDBC_DIR)\win\$(BUILDDIRTOP)\$(TDBCSTUBLIBNAME)
+!endif
+TDBC_LIB_FILE		= tdbc$(TDBC_VERSION).dll
+TDBC_BIN_DIR = $(TDBC_DIR)/win/$(BUILDDIRTOP)
 
 #---------------------------------------------------------------------
 # Compile flags
@@ -271,7 +292,7 @@ cflags = $(cflags) -DUSE_TK_STUBS
 !endif
 !endif
 
-INCLUDES	= $(TCL_INCLUDES) -I"$(WINDIR)" -I"$(GENERICDIR)" -I"$(TDBCDIR)\generic"
+INCLUDES	= $(TCL_INCLUDES) -I"$(WINDIR)" -I"$(GENERICDIR)" -I"$(TDBC_GENERIC_DIR)"
 BASE_CFLAGS	= $(cflags) $(cdebug) $(crt) $(INCLUDES)
 CON_CFLAGS	= $(cflags) $(cdebug) $(crt) -DCONSOLE
 TCL_CFLAGS	= -DPACKAGE_NAME="\"$(PROJECT)\"" \
@@ -318,11 +339,6 @@ lflags	= $(lflags) -ws:aggressive
 dlllflags = $(lflags) -dll
 conlflags = $(lflags) -subsystem:console
 guilflags = $(lflags) -subsystem:windows
-
-TDBCSTUBLIB = "$(_TCLDIR)\lib\tdbcstub$(VERSION).lib"
-!if !exist($(TDBCSTUBLIB))
-TDBCSTUBLIB = "$(TDBCDIR)\win\$(BUILDDIRTOP)\tdbcstub$(VERSION).lib"
-!endif
 !if !$(STATIC_BUILD)
 baselibs  = $(TCLSTUBLIB) $(TDBCSTUBLIB)
 !if defined(TKSTUBLIB)
@@ -359,17 +375,69 @@ pkgIndex:   setup $(OUT_DIR)\pkgIndex.tcl
 $(PROJECT):  $(PRJSTUBLIB)
 !endif
 
+test: test-jet test-sqlserver test-sqlite
+
 test: setup $(PROJECT)
+
+test-jet: setup $(PROJECT)
+	@echo testing tdbcodbc against Jet
+	@set TDBCODBC_TYPE=jet
+# the following is identical for all 3 tests
         @set TCL_LIBRARY=$(TCL_LIBRARY:\=/)
         @set TCLLIBPATH=$(OUT_DIR_PATH:\=/)
 	@set TDBC_LIBRARY=$(LIBDIR:\=/)
 	@$(CPY) $(LIBDIR)\*.tcl $(OUT_DIR)
 !if $(TCLINSTALL)
         @set PATH=$(_TCLDIR)\bin;$(PATH)
+	$(DEBUGGER) $(TCLSH) "$(ROOT:\=/)/tests/all.tcl" $(TESTFLAGS)
 !else
         @set PATH=$(_TCLDIR)\win\$(BUILDDIRTOP);$(PATH)
+	$(DEBUGGER) $(TCLSH) "$(ROOT:\=/)/tests/all.tcl" $(TESTFLAGS) \
+		-load "package ifneeded tdbc::odbc $(DOTVERSION) \
+			{source {$(LIBDIR:\=/)/tdbcodbc.tcl};load {$(PRJLIB:\=/)} $(PROJECT)};\
+		package ifneeded tdbc $(TDBC_DOTVERSION) \
+			{source {$(TDBC_BIN_DIR:\=/)/tdbc.tcl};load {$(TDBC_BIN_DIR:\=/)/$(TDBC_LIB_FILE)} tdbc}"
 !endif
-	$(DEBUGGER) $(TCLSH) "$(ROOT)/tests/all.tcl" $(TESTFLAGS)
+
+test-sqlserver: setup $(PROJECT)
+	@echo testing tdbcodbc against SQL Server
+	@set TDBCODBC_TYPE=sqlserver
+# the following is identical for all 3 tests
+        @set TCL_LIBRARY=$(TCL_LIBRARY:\=/)
+        @set TCLLIBPATH=$(OUT_DIR_PATH:\=/)
+	@set TDBC_LIBRARY=$(LIBDIR:\=/)
+	@$(CPY) $(LIBDIR)\*.tcl $(OUT_DIR)
+!if $(TCLINSTALL)
+        @set PATH=$(_TCLDIR)\bin;$(PATH)
+	$(DEBUGGER) $(TCLSH) "$(ROOT:\=/)/tests/all.tcl" $(TESTFLAGS)
+!else
+        @set PATH=$(_TCLDIR)\win\$(BUILDDIRTOP);$(PATH)
+	$(DEBUGGER) $(TCLSH) "$(ROOT:\=/)/tests/all.tcl" $(TESTFLAGS) \
+		-load "package ifneeded tdbc::odbc $(DOTVERSION) \
+			{source {$(LIBDIR:\=/)/tdbcodbc.tcl};load {$(PRJLIB:\=/)} $(PROJECT)};\
+		package ifneeded tdbc $(TDBC_DOTVERSION) \
+			{source {$(TDBC_BIN_DIR:\=/)/tdbc.tcl};load {$(TDBC_BIN_DIR:\=/)/$(TDBC_LIB_FILE)} tdbc}"
+!endif
+
+test-sqlite: setup $(PROJECT)
+	@echo testing tdbcodbc against SQLite
+	@set TDBCODBC_TYPE=sqlite
+# the following is identical for all 3 tests
+        @set TCL_LIBRARY=$(TCL_LIBRARY:\=/)
+        @set TCLLIBPATH=$(OUT_DIR_PATH:\=/)
+	@set TDBC_LIBRARY=$(LIBDIR:\=/)
+	@$(CPY) $(LIBDIR)\*.tcl $(OUT_DIR)
+!if $(TCLINSTALL)
+        @set PATH=$(_TCLDIR)\bin;$(PATH)
+	$(DEBUGGER) $(TCLSH) "$(ROOT:\=/)/tests/all.tcl" $(TESTFLAGS)
+!else
+        @set PATH=$(_TCLDIR)\win\$(BUILDDIRTOP);$(PATH)
+	$(DEBUGGER) $(TCLSH) "$(ROOT:\=/)/tests/all.tcl" $(TESTFLAGS) \
+		-load "package ifneeded tdbc::odbc $(DOTVERSION) \
+			{source {$(LIBDIR:\=/)/tdbcodbc.tcl};load {$(PRJLIB:\=/)} $(PROJECT)};\
+		package ifneeded tdbc $(TDBC_DOTVERSION) \
+			{source {$(TDBC_BIN_DIR:\=/)/tdbc.tcl};load {$(TDBC_BIN_DIR:\=/)/$(TDBC_LIB_FILE)} tdbc}"
+!endif
 
 shell: setup $(PROJECT)
         @set TCL_LIBRARY=$(TCL_LIBRARY:\=/)

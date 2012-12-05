@@ -1,3 +1,7 @@
+2012-12-05  Harald Oehlmann  <oehhar@users.sf.net>
+
+	* win/Makefile.vc: Compiles when bundled and standalone, test fixed.
+
 2012-07-26  Jan Nijtmans  <jan.nijtmans@gmail.com>
 
 	* generic/odbcStubInit.s: Make some tables "const"
