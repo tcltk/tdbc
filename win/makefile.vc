@@ -222,12 +222,13 @@ PRJSTUBLIBNAME	= $(STUBPREFIX)$(VERSION).lib
 PRJSTUBLIB	= $(OUT_DIR)\$(PRJSTUBLIBNAME)
 
 ### Make sure we use backslash only.
+# This is normally the lib folder of a tcl installation
 PRJ_INSTALL_DIR         = $(_INSTALLDIR)\$(PROJECT)$(DOTVERSION)
 LIB_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
 BIN_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
 DOC_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
 SCRIPT_INSTALL_DIR	= $(PRJ_INSTALL_DIR)
-INCLUDE_INSTALL_DIR	= $(_TCLDIR)\include
+INCLUDE_INSTALL_DIR	= $(_INSTALLDIR)\..\include
 
 ### The following paths CANNOT have spaces in them.
 GENERICDIR	= $(ROOT)\generic
@@ -462,22 +463,22 @@ $(OUT_DIR)\pkgIndex.tcl: $(ROOT)\pkgIndex.tcl.in
 @TCL_VERSION@         $(TCL_DOTVERSION)
 <<
 
-$(OUT_DIR)\pkgIndex.tcl: $(ROOT)\pkgIndex.tcl.in
-	@nmakehlp -s << $** > $@
-
-	type << > $@
-if {[catch {package require Tcl 8.5}]} return
-package ifneeded $(PROJECT) $(DOTVERSION) \
- [list load [file join $$dir $(PRJLIBNAME)] $(PROJECT)]
-<<
+.PHONY: $(OUT_DIR)\tdbcConfig.sh
 
 $(OUT_DIR)\tdbcConfig.sh: $(ROOT)\tdbcConfig.sh.in
 	nmakehlp -s << $** > $@
-@TDBC_LIB_SPEC@              $(PRJLIBNAME)
-@TDBC_STUB_LIB_SPEC@         $(PRJLIBNAME)
-@TDBC_INCLUDE_SPEC@          -I$(LIB_INSTALL_DIR)
-@TDBC_PRIVATE_INCLUDE_SPEC@  -I$(LIB_INSTALL_DIR)
 @PACKAGE_VERSION@            $(DOTVERSION)
+@PKG_LIB_FILE@               $(PRJLIBNAME)
+@tdbc_LIB_SPEC@              $(LIB_INSTALL_DIR)\$(PRJLIBNAME)
+@PKG_STUB_LIB_FILE@          $(PRJSTUBLIBNAME)
+@tdbc_BUILD_STUB_LIB_SPEC@   $(PRJSTUBLIB)
+@tdbc_STUB_LIB_SPEC@         $(LIB_INSTALL_DIR)\$(PRJSTUBLIBNAME)
+@tdbc_BUILD_STUB_LIB_PATH@   $(PRJSTUBLIB)
+@tdbc_STUB_LIB_PATH@         $(LIB_INSTALL_DIR)\$(PRJSTUBLIBNAME)
+@tdbc_SRC_DIR@               $(ROOT)
+@tdbc_INCLUDE_SPEC@          -I$(INCLUDE_INSTALL_DIR)
+@tdbc_BUILD_INCLUDE_SPEC@    -I$(GENERICDIR)
+@tdbc_LIB_DIR@               $(LIB_INSTALL_DIR)
 <<
 
 $(TMP_DIR)\tdbcStubLib.obj : $(GENERICDIR)\tdbcStubLib.c
@@ -491,16 +492,21 @@ $(TMP_DIR)\tdbcStubLib.obj : $(GENERICDIR)\tdbcStubLib.c
 #
 #---------------------------------------------------------------------
 
-install-binaries:
+install-binaries: $(OUT_DIR)\tdbcConfig.sh
 	@echo Installing binaries to '$(SCRIPT_INSTALL_DIR)'
 	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
 	@$(CPY) $(PRJLIB) "$(SCRIPT_INSTALL_DIR)" >NUL
+	@$(CPY) $(PRJSTUBLIB) "$(LIB_INSTALL_DIR)" >NUL
+	@$(CPY) $(OUT_DIR)\tdbcConfig.sh "$(LIB_INSTALL_DIR)"
 
 install-libraries: $(OUT_DIR)\pkgIndex.tcl
 	@echo Installing libraries to '$(SCRIPT_INSTALL_DIR)'
 	@if exist $(LIBDIR) $(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
 	@echo Installing package index in '$(SCRIPT_INSTALL_DIR)'
 	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
+	@echo Installing header files in '$(INCLUDE_INSTALL_DIR)'
+	@$(CPY) "$(GENERICDIR)\tdbc.h"      "$(INCLUDE_INSTALL_DIR)\"
+	@$(CPY) "$(GENERICDIR)\tdbcDecls.h" "$(INCLUDE_INSTALL_DIR)\"
 
 install-docs:
 	@echo Installing documentation files to '$(DOC_INSTALL_DIR)'

@@ -1,3 +1,7 @@
+2012-12-05  Harald Oehlmann  <oehhar@users.sf.net>
+
+	* win/Makefile.vc: Install headers, stub file and fixed tdbcConfig.sh.
+
 2012-11-08  Don Porter  <dgp@users.sourceforge.net>
 
 	* generic/tdbc.h: Advance version number to 1.0.0
