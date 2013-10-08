@@ -100,7 +100,7 @@ the build instructions.
 #		nodep	 = Turns off compatability macros to ensure Tk isn't
 #			    being built with deprecated functions.
 #
-#	MACHINE=(ALPHA|AMD64|IA64|IX86)
+#	MACHINE=(ARM|AMD64|IA64|X86)
 #		Set the machine type used for the compiler, linker, and
 #		resource compiler.  This hook is needed to tell the tools
 #		when alternate platforms are requested.  IX86 is the default
@@ -256,9 +256,16 @@ cdebug	= -Zi -Od $(DEBUGFLAGS)
 cdebug	= -Zi -WX $(DEBUGFLAGS)
 !endif
 
+### Common compiler options that are architecture specific
+!if "$(MACHINE)" == "ARM"
+carch = -D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE
+!else
+carch =
+!endif
+
 ### Declarations common to all compiler options
 cwarn = $(WARNINGS) -D _CRT_SECURE_NO_DEPRECATE -D _CRT_NONSTDC_NO_DEPRECATE
-cflags = -nologo -c $(COMPILERFLAGS) $(cwarn) -Fp$(TMP_DIR)^\
+cflags = -nologo -c $(COMPILERFLAGS) $(carch) $(cwarn) -Fp$(TMP_DIR)^\
 
 !if $(MSVCRT)
 !if $(DEBUG) && !$(UNCHECKED)
@@ -274,13 +281,9 @@ crt = -MT
 !endif
 !endif
 
-cflags = $(cflags) -DMODULE_SCOPE=extern
-
-!if !$(STATIC_BUILD)
-cflags = $(cflags) -DUSE_TCL_STUBS
+cflags = $(cflags) -DMODULE_SCOPE=extern -DUSE_TCL_STUBS
 !if defined(TKSTUBLIB)
 cflags = $(cflags) -DUSE_TK_STUBS
-!endif
 !endif
 
 INCLUDES	= $(TCL_INCLUDES) -I"$(WINDIR)" -I"$(GENERICDIR)"
@@ -366,26 +369,26 @@ $(PROJECT):  $(PRJSTUBLIB)
 !endif
 
 test: setup $(PROJECT)
-        @set TCL_LIBRARY=$(TCL_LIBRARY:\=/)
-        @set TCLLIBPATH=$(OUT_DIR_PATH:\=/)
+	@set TCL_LIBRARY=$(TCL_LIBRARY:\=/)
+	@set TCLLIBPATH=$(OUT_DIR_PATH:\=/)
 	@set TDBC_LIBRARY=$(LIBDIR:\=/)
 	@$(CPY) $(LIBDIR)\*.tcl $(OUT_DIR)
 !if $(TCLINSTALL)
-        @set PATH=$(_TCLDIR)\bin;$(PATH)
+	@set PATH=$(_TCLDIR)\bin;$(PATH)
 !else
-        @set PATH=$(_TCLDIR)\win\$(BUILDDIRTOP);$(PATH)
+	@set PATH=$(_TCLDIR)\win\$(BUILDDIRTOP);$(PATH)
 !endif
 	$(DEBUGGER) $(TCLSH) "$(ROOT)/tests/all.tcl" $(TESTFLAGS)
 
 shell: setup $(PROJECT)
-        @set TCL_LIBRARY=$(TCL_LIBRARY:\=/)
+	@set TCL_LIBRARY=$(TCL_LIBRARY:\=/)
 	@set TDBC_LIBRARY=$(LIBDIR:\=/)
 !if $(TCLINSTALL)
-        @set PATH=$(_TCLDIR)\bin;$(PATH)
+	@set PATH=$(_TCLDIR)\bin;$(PATH)
 !else
-        @set PATH=$(_TCLDIR)\win\$(BUILDDIRTOP);$(PATH)
+	@set PATH=$(_TCLDIR)\win\$(BUILDDIRTOP);$(PATH)
 !endif
-        $(DEBUGGER) $(TCLSH) $(SCRIPT)
+	$(DEBUGGER) $(TCLSH) $(SCRIPT)
 
 setup:
 	@if not exist $(OUT_DIR)\nul mkdir $(OUT_DIR)
