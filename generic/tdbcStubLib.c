@@ -19,6 +19,8 @@
 #define USE_TDBC_STUBS 1
 #include "tdbc.h"
 
+MODULE_SCOPE const TdbcStubs *tdbcStubsPtr;
+
 const TdbcStubs *tdbcStubsPtr = NULL;
 
 /*

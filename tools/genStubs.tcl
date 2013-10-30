@@ -299,6 +299,7 @@ proc genStubs::addPlatformGuard {plat text} {
 
 proc genStubs::emitSlots {name textVar} {
     upvar $textVar text
+
     forAllStubs $name makeSlot noGuard text {"    void (*reserved$i)(void);\n"}
     return
 }
@@ -398,7 +399,6 @@ proc genStubs::parseArg {arg} {
 
 proc genStubs::makeDecl {name decl index} {
     variable scspec
-
     lassign $decl rtype fname args
 
     append text "/* $index */\n"
@@ -430,7 +430,7 @@ proc genStubs::makeDecl {name decl index} {
 			[lindex $arg 2]
 		if {[string length $line] + [string length $next] \
 			+ $pad > 76} {
-		    append text $line \n
+		    append text [string trimright $line] \n
 		    set line "\t\t\t\t"
 		    set pad 28
 		}
@@ -464,7 +464,7 @@ proc genStubs::makeMacro {name decl index} {
     set lfname [string tolower [string index $fname 0]]
     append lfname [string range $fname 1 end]
 
-    set text "#ifndef $fname\n#define $fname"
+    set text "#define $fname"
     set arg1 [lindex $args 0]
     set argList ""
     switch -exact $arg1 {
@@ -483,7 +483,7 @@ proc genStubs::makeMacro {name decl index} {
 	}
     }
     append text " \\\n\t(${name}StubsPtr->$lfname)"
-    append text " /* $index */\n#endif\n"
+    append text " /* $index */\n"
     return $text
 }
 
@@ -527,7 +527,7 @@ proc genStubs::makeSlot {name decl index} {
 	    append text ")"
 	}
     }
-    
+
     append text "; /* $index */\n"
     return $text
 }
@@ -626,15 +626,10 @@ proc genStubs::ifdeffed {macro text} {
 #	None.
 
 proc genStubs::emitDeclarations {name textVar} {
-    variable libraryName
     upvar $textVar text
 
-    set upName [string toupper $libraryName]
-    append text "\n#if !defined(USE_${upName}_STUBS)\n"
     append text "\n/*\n * Exported function declarations:\n */\n\n"
     forAllStubs $name makeDecl noGuard text
-    append text "\n#endif /* !defined(USE_${upName}_STUBS) */\n"
-
     return
 }
 
@@ -656,7 +651,7 @@ proc genStubs::emitMacros {name textVar} {
     set upName [string toupper $libraryName]
     append text "\n#if defined(USE_${upName}_STUBS)\n"
     append text "\n/*\n * Inline function declarations:\n */\n\n"
-    
+
     forAllStubs $name makeMacro addGuard text
 
     append text "\n#endif /* defined(USE_${upName}_STUBS) */\n"
@@ -679,7 +674,6 @@ proc genStubs::emitHeader {name} {
     variable hooks
     variable epoch
     variable revision
-    variable scspec
 
     set capName [string toupper [string index $name 0]]
     append capName [string range $name 1 end]
@@ -689,10 +683,12 @@ proc genStubs::emitHeader {name} {
     append text "#define ${CAPName}_STUBS_EPOCH $epoch\n"
     append text "#define ${CAPName}_STUBS_REVISION $revision\n"
 
+    append text "\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n"
+
     emitDeclarations $name text
 
     if {[info exists hooks($name)]} {
-	append text "\ntypedef struct ${capName}StubHooks {\n"
+	append text "\ntypedef struct {\n"
 	foreach hook $hooks($name) {
 	    set capHook [string toupper [string index $hook 0]]
 	    append capHook [string range $hook 1 end]
@@ -704,14 +700,17 @@ proc genStubs::emitHeader {name} {
     append text "    int magic;\n"
     append text "    int epoch;\n"
     append text "    int revision;\n"
-    append text "    const struct ${capName}StubHooks *hooks;\n\n"
+    if {[info exists hooks($name)]} {
+	append text "    const ${capName}StubHooks *hooks;\n\n"
+    } else {
+	append text "    void *hooks;\n\n"
+    }
 
     emitSlots $name text
 
-    append text "} ${capName}Stubs;\n"
+    append text "} ${capName}Stubs;\n\n"
 
-    append text "\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n"
-    append text "${scspec} const ${capName}Stubs *${name}StubsPtr;\n"
+    append text "extern const ${capName}Stubs *${name}StubsPtr;\n\n"
     append text "#ifdef __cplusplus\n}\n#endif\n"
 
     emitMacros $name text
@@ -743,7 +742,7 @@ proc genStubs::emitInit {name textVar} {
     set CAPName [string toupper $name]
 
     if {[info exists hooks($name)]} {
- 	append text "\nstatic const ${capName}StubHooks ${name}StubHooks = \{\n"
+	append text "\nstatic const ${capName}StubHooks ${name}StubHooks = \{\n"
 	set sep "    "
 	foreach sub $hooks($name) {
 	    append text $sep "&${sub}Stubs"
@@ -773,7 +772,7 @@ proc genStubs::emitInit {name textVar} {
     } else {
 	append text "    0,\n"
     }
-    
+
     forAllStubs $name makeInit noGuard text {"    0, /* $i */\n"}
 
     append text "\};\n"
