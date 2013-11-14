@@ -28,12 +28,30 @@
 #   endif
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(BUILD_tdbc)
 DLLEXPORT int		Tdbc_Init(Tcl_Interp *interp);
 #elif defined(STATIC_BUILD)
 extern    int		Tdbc_Init(Tcl_Interp* interp);
 #else
 DLLIMPORT int		Tdbc_Init(Tcl_Interp* interp);
+#endif
+
+#define Tdbc_InitStubs(interp) TdbcInitializeStubs(interp, \
+        TDBC_VERSION, TDBC_STUBS_EPOCH,	TDBC_STUBS_REVISION)
+#if defined(USE_TDBC_STUBS)
+    TDBCAPI const char* TdbcInitializeStubs(
+        Tcl_Interp* interp, const char* version, int epoch, int revision);
+#else
+#    define TdbcInitializeStubs(interp, version, epoch, revision) \
+        (Tcl_PkgRequire(interp, "tdbc", version))
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 /*
