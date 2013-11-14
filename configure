@@ -2990,9 +2990,9 @@ fi
   fi
 fi
 # Announce what versions of Tcl (and TclOO) are needed
-TCL_VERSION_REQ=8.5;
-TCL_VERSION_DESIRED=8.6;
-TCLOO_VERSION_REQ=0.6;
+TCL_VERSION_REQ=9.0a0;
+TCL_VERSION_DESIRED=9.0a0;
+TCLOO_VERSION_REQ=1.0;
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.

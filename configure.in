@@ -60,9 +60,9 @@ Found configuration for Tcl ${TCL_VERSION}.])
   fi
 fi
 # Announce what versions of Tcl (and TclOO) are needed
-TCL_VERSION_REQ=8.5; AC_SUBST(TCL_VERSION_REQ)
-TCL_VERSION_DESIRED=8.6; AC_SUBST(TCL_VERSION_DESIRED)
-TCLOO_VERSION_REQ=0.6; AC_SUBST(TCLOO_VERSION_REQ)
+TCL_VERSION_REQ=9.0a0; AC_SUBST(TCL_VERSION_REQ)
+TCL_VERSION_DESIRED=9.0a0; AC_SUBST(TCL_VERSION_DESIRED)
+TCLOO_VERSION_REQ=1.0; AC_SUBST(TCLOO_VERSION_REQ)
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.

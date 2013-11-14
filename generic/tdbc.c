@@ -198,7 +198,7 @@ Tdbc_Init(
 
     int i;
 
-    /* Require Tcl and Tcl_OO */
+    /* Require Tcl */
 
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
 	return TCL_ERROR;
