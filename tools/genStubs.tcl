@@ -268,10 +268,10 @@ proc genStubs::rewriteFile {file text} {
 proc genStubs::addPlatformGuard {plat text} {
     switch $plat {
 	win {
-	    return "#ifdef __WIN32__\n${text}#endif /* __WIN32__ */\n"
+	    return "#ifdef _WIN32\n${text}#endif /* _WIN32 */\n"
 	}
 	unix {
-	    return "#if !defined(__WIN32__) /* UNIX */\n${text}#endif /* UNIX */\n"
+	    return "#if !defined(_WIN32) /* UNIX */\n${text}#endif /* UNIX */\n"
 	}		    
 	macosx {
 	    return "#ifdef MAC_OSX_TCL\n${text}#endif /* MAC_OSX_TCL */\n"
@@ -280,7 +280,7 @@ proc genStubs::addPlatformGuard {plat text} {
 	    return "#ifdef MAC_OSX_TK\n${text}#endif /* MAC_OSX_TK */\n"
 	}
 	x11 {
-	    return "#if !(defined(__WIN32__) || defined(MAC_OSX_TK)) /* X11 */\n${text}#endif /* X11 */\n"
+	    return "#if !(defined(_WIN32) || defined(MAC_OSX_TK)) /* X11 */\n${text}#endif /* X11 */\n"
 	}
     }
     return "$text"
