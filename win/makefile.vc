@@ -431,7 +431,7 @@ $<
 <<
 
 {$(WINDIR)}.rc{$(TMP_DIR)}.res:
-	$(rc32) -fo $@ -r -i "$(GENERICDIR)" -D__WIN32__ \
+	$(rc32) -fo $@ -r -i "$(GENERICDIR)" -D_WIN32 -D__WIN32__ \
 		-DCOMMAVERSION=$(DOTVERSION:.=,),0 \
 		-DDOTVERSION=\"$(DOTVERSION)\" \
 		-DVERSION=\"$(VERSION)$(SUFX)\" \
